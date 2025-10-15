@@ -1,0 +1,9 @@
+fastmcp
+agent
+pygments>=2.19.2
+fastapi
+uvicorn
+sse-starlette
+
+[:sys_platform != "darwin"]
+vllm
