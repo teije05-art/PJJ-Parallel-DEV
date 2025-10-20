@@ -2,6 +2,7 @@ import os
 import sys
 import socket
 import asyncio
+from datetime import datetime
 from typing import Optional
 
 from fastmcp import FastMCP, Context
@@ -22,22 +23,23 @@ except Exception:
     from settings import MEMORY_AGENT_NAME
     MLX_4BIT_MEMORY_AGENT_NAME = "mem-agent-mlx@4bit"
 
-# Import orchestrator for planning tools
+# Import enhanced orchestrator for planning tools
 try:
-    from orchestrator.orchestrator import LearningOrchestrator
+    from orchestrator.enhanced_orchestrator import EnhancedLearningOrchestrator
     ORCHESTRATOR_AVAILABLE = True
 except ImportError:
     ORCHESTRATOR_AVAILABLE = False
-    print("Warning: Orchestrator not available. Planning tools will be disabled.", file=sys.stderr)
+    print("Warning: Enhanced Orchestrator not available. Planning tools will be disabled.", file=sys.stderr)
 
 # Initialize FastMCP (the installed version doesn't accept a timeout kwarg)
 mcp = FastMCP("memory-agent-server")
 
-# Global state for orchestrator (persists between tool calls)
+# Global state for enhanced orchestrator (persists between tool calls)
 _orchestrator_state = {
     "orchestrator": None,
     "current_plan": None,
     "current_validation": None,
+    "current_agent_results": None,  # Store results from 4 specialized agents
     "current_iteration": 0,
     "autonomous_mode": False,
     "autonomous_target": 0,
@@ -254,14 +256,14 @@ async def use_memory_agent(question: str, ctx: Context) -> str:
 # ============================================================================
 
 def _ensure_orchestrator():
-    """Initialize orchestrator if not already done"""
+    """Initialize enhanced orchestrator if not already done"""
     if not ORCHESTRATOR_AVAILABLE:
         return None
     
     if _orchestrator_state["orchestrator"] is None:
         memory_path = _read_memory_path()
         # Use lenient validation for autonomous mode by default
-        _orchestrator_state["orchestrator"] = LearningOrchestrator(
+        _orchestrator_state["orchestrator"] = EnhancedLearningOrchestrator(
             memory_path=memory_path,
             max_iterations=15,
             strict_validation=False  # Lenient validation for autonomous mode
@@ -306,51 +308,72 @@ async def start_planning_iteration(goal: str, ctx: Context) -> str:
         if not orchestrator:
             return "❌ Orchestrator not available. Make sure orchestrator module is installed."
         
-        await ctx.report_progress(progress=1, total=5)
+        await ctx.report_progress(progress=1, total=6)
         
-        # Step 1: Retrieve context
-        context = orchestrator._retrieve_context()
-        await ctx.report_progress(progress=2, total=5)
+        # Step 1: Retrieve enhanced context
+        context = orchestrator._retrieve_enhanced_context()
+        await ctx.report_progress(progress=2, total=6)
         
-        # Step 2: Generate plan with CoT
-        plan = orchestrator._generate_plan_with_cot(goal, context)
-        await ctx.report_progress(progress=3, total=5)
+        # Step 2: Coordinate agentic workflow (4 specialized agents)
+        agent_results = orchestrator.agent_coordinator.coordinate_agentic_workflow(goal, context)
+        await ctx.report_progress(progress=3, total=6)
         
-        # Step 3: Validate
-        validation = orchestrator._validate_plan(plan)
-        await ctx.report_progress(progress=4, total=5)
-        
-        # Store in global state
-        _orchestrator_state["current_plan"] = plan
-        _orchestrator_state["current_validation"] = validation
+        # Store in global state (enhanced format)
+        _orchestrator_state["current_plan"] = agent_results['planner']
+        _orchestrator_state["current_validation"] = agent_results['verifier']
+        _orchestrator_state["current_agent_results"] = agent_results
         _orchestrator_state["current_iteration"] += 1
         
-        await ctx.report_progress(progress=5, total=5)
+        await ctx.report_progress(progress=4, total=6)
         
         # Format for presentation
         iteration = _orchestrator_state["current_iteration"]
         
-        # Ensure plan text is not empty
-        plan_text = plan.get('text', '')
-        if not plan_text or len(plan_text.strip()) == 0:
-            plan_text = "❌ ERROR: Plan generation failed - no plan text generated"
+        await ctx.report_progress(progress=5, total=6)
         
-        result = f"""🔄 ITERATION {iteration} - PLAN GENERATED
+        # Ensure agent results are available
+        planner_result = agent_results['planner']
+        verifier_result = agent_results['verifier']
+        executor_result = agent_results['executor']
+        generator_result = agent_results['generator']
+        
+        plan_text = planner_result.output if planner_result else ''
+        if not plan_text or len(plan_text.strip()) == 0:
+            plan_text = "❌ ERROR: Enhanced planning failed - no plan generated"
+        
+        result = f"""🔄 ENHANCED ITERATION {iteration} - AGENTIC WORKFLOW COMPLETED
 
-📋 PROPOSED PLAN:
+🎯 ENHANCED ORCHESTRATOR WITH 4 SPECIALIZED AGENTS
 {'-'*80}
-{plan_text}
+
+🧭 PLANNER AGENT RESULTS:
+{'✅ SUCCESS' if planner_result.success else '❌ FAILED'}
+{plan_text[:500]}{'...' if len(plan_text) > 500 else ''}
+
+✅ VERIFIER AGENT RESULTS:
+{'✅ SUCCESS' if verifier_result.success else '❌ FAILED'}
+{'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ INVALID'}
+{verifier_result.output[:300]}{'...' if len(verifier_result.output) > 300 else ''}
+
+🛠️ EXECUTOR AGENT RESULTS:
+{'✅ SUCCESS' if executor_result.success else '❌ FAILED'}
+{executor_result.metadata.get('deliverables_created', 0)} deliverables created
+{executor_result.output[:300]}{'...' if len(executor_result.output) > 300 else ''}
+
+✍️ GENERATOR AGENT RESULTS:
+{'✅ SUCCESS' if generator_result.success else '❌ FAILED'}
+{generator_result.metadata.get('deliverables_created', 0)} deliverables synthesized
+{generator_result.output[:300]}{'...' if len(generator_result.output) > 300 else ''}
+
+🎯 FLOW-GRPO TRAINING APPLIED:
+✅ Planner Agent training signal applied based on overall workflow success
+
 {'-'*80}
+Status: {'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ ISSUES DETECTED'}
 
-✅ VALIDATION RESULTS:
-{'-'*80}
-Status: {'✅ VALID' if validation['is_valid'] else '⚠️ ISSUES DETECTED'}
+Verification Details:
+{verifier_result.output[:400]}{'...' if len(verifier_result.output) > 400 else ''}
 
-Precondition Check:
-{validation['precondition_check']}
-
-Conflict Check:
-{validation['conflict_check']}
 {'-'*80}
 
 💡 NEXT STEPS:
@@ -359,8 +382,8 @@ To reject this plan, say: "Reject because [reason]" or use reject_current_plan(r
 To see learning progress, use view_learning_summary()
 
 📁 PLAN DETAILS:
-- Goal: {plan.get('goal', 'Unknown')}
-- Generated: {plan.get('timestamp', 'Unknown')}
+- Goal: {goal}
+- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 - Plan Length: {len(plan_text)} characters
 """
         return result
@@ -385,22 +408,24 @@ async def approve_current_plan(ctx: Context) -> str:
             return "❌ No plan to approve. Start a planning iteration first with start_planning_iteration(goal)."
         
         orchestrator = _ensure_orchestrator()
+        agent_results = _orchestrator_state.get("current_agent_results", {})
         plan = _orchestrator_state["current_plan"]
-        validation = _orchestrator_state["current_validation"]
         
         await ctx.report_progress(progress=1, total=3)
         
-        # Execute the plan
-        execution_result = orchestrator._execute_plan(plan)
+        # Execute the enhanced workflow
+        goal = plan.goal if hasattr(plan, 'goal') else 'Unknown goal'
+        execution_result = orchestrator._execute_enhanced_workflow(agent_results, goal)
         await ctx.report_progress(progress=2, total=3)
         
         # Write success to memory (LEARNING!)
-        orchestrator._write_success_to_memory(plan, validation, execution_result)
+        orchestrator._write_enhanced_success_to_memory(agent_results, execution_result)
         await ctx.report_progress(progress=3, total=3)
         
-        # Clear current plan
+        # Clear current plan and agent results
         _orchestrator_state["current_plan"] = None
         _orchestrator_state["current_validation"] = None
+        _orchestrator_state["current_agent_results"] = None
         
         # Get execution details
         execution_text = execution_result.get('execution_text', 'No execution details available')
@@ -454,15 +479,16 @@ async def reject_current_plan(reason: str, ctx: Context) -> str:
             return "❌ No plan to reject. Start a planning iteration first with start_planning_iteration(goal)."
         
         orchestrator = _ensure_orchestrator()
+        agent_results = _orchestrator_state.get("current_agent_results", {})
         plan = _orchestrator_state["current_plan"]
-        validation = _orchestrator_state["current_validation"]
         
-        # Write failure to memory (also learning!)
-        orchestrator._write_failure_to_memory(plan, validation, reason)
+        # Write rejection to memory (LEARNING!)
+        orchestrator._write_enhanced_rejection_to_memory(agent_results, reason)
         
-        # Clear current plan
+        # Clear current plan and agent results
         _orchestrator_state["current_plan"] = None
         _orchestrator_state["current_validation"] = None
+        _orchestrator_state["current_agent_results"] = None
         
         result = f"""
 ❌ PLAN REJECTED
@@ -532,13 +558,13 @@ async def view_learning_summary(ctx: Context) -> str:
             pattern_lines = [l for l in lines if l.startswith('### Pattern')][:5]
             patterns_preview = '\n'.join(pattern_lines)
         
-        total = _orchestrator_state["current_iteration"]
+        total = successes + failures
         success_rate = (successes / total * 100) if total > 0 else 0
         
         result = f"""
 📊 LEARNING SUMMARY
 
-Iterations Completed: {total}
+Total Iterations: {total}
 Successful Plans: {successes}
 Rejected Plans: {failures}
 Success Rate: {success_rate:.1f}%
@@ -636,14 +662,15 @@ Building up learned context progressively... 🧠
             iteration_num = _orchestrator_state["current_iteration"] + 1
             
             try:
-                # Step 1: Retrieve context (gets richer each iteration!)
-                context = orchestrator._retrieve_context()
+                # Step 1: Retrieve enhanced context (gets richer each iteration!)
+                context = orchestrator._retrieve_enhanced_context()
                 
-                # Step 2: Generate plan
-                plan = orchestrator._generate_plan_with_cot(goal, context)
+                # Step 2: Coordinate agentic workflow (4 specialized agents)
+                agent_results = orchestrator.agent_coordinator.coordinate_agentic_workflow(goal, context)
                 
-                # Step 3: Validate
-                validation = orchestrator._validate_plan(plan)
+                # Step 3: Extract plan and validation from agent results
+                plan = agent_results['planner']
+                validation = agent_results['verifier']
                 
                 # Store plan
                 _orchestrator_state["current_plan"] = plan
@@ -661,17 +688,17 @@ Building up learned context progressively... 🧠
                 
                 # Debug logging for autonomous mode
                 print(f"🔍 DEBUG: Iteration {iteration_num}")
-                print(f"   validation['is_valid']: {validation['is_valid']}")
+                print(f"   validation.metadata.get('is_valid'): {validation.metadata.get('is_valid')}")
                 print(f"   is_checkpoint: {is_checkpoint}")
                 print(f"   iterations_since_checkpoint: {iterations_since_checkpoint}")
                 print(f"   checkpoint_every: {checkpoint_every}")
                 
                 # Auto-approve if valid and not at checkpoint
-                if validation['is_valid'] and not is_checkpoint:
-                    print(f"✅ AUTO-APPROVING: validation['is_valid']={validation['is_valid']}, is_checkpoint={is_checkpoint}")
-                    # Execute automatically
-                    execution_result = orchestrator._execute_plan(plan)
-                    orchestrator._write_success_to_memory(plan, validation, execution_result)
+                if validation.metadata.get('is_valid', False) and not is_checkpoint:
+                    print(f"✅ AUTO-APPROVING: validation.metadata.get('is_valid')={validation.metadata.get('is_valid')}, is_checkpoint={is_checkpoint}")
+                    # Execute automatically using enhanced workflow
+                    execution_result = orchestrator._execute_enhanced_workflow(agent_results, goal)
+                    orchestrator._write_enhanced_success_to_memory(agent_results, execution_result)
                     
                     successful += 1
                     results.append(f"✅ Iteration {iteration_num}: Auto-approved (valid)")
@@ -681,7 +708,7 @@ Building up learned context progressively... 🧠
                     _orchestrator_state["current_validation"] = None
                     
                 elif is_checkpoint:
-                    print(f"🛑 CHECKPOINT: validation['is_valid']={validation['is_valid']}, is_checkpoint={is_checkpoint}")
+                    print(f"🛑 CHECKPOINT: validation.metadata.get('is_valid')={validation.metadata.get('is_valid')}, is_checkpoint={is_checkpoint}")
                     # Pause for human review
                     results.append(f"""
 🛑 CHECKPOINT at Iteration {iteration_num}/{num_iterations}
@@ -693,9 +720,9 @@ Progress so far:
 - Success rate: {(successful/(i+1)*100) if i > 0 else 0:.1f}%
 
 Current plan:
-{plan['text']}
+{plan.output}
 
-Validation: {'✅ VALID' if validation['is_valid'] else '⚠️ ISSUES'}
+Validation: {'✅ VALID' if validation.metadata.get('is_valid') else '⚠️ ISSUES'}
 
 OPTIONS:
 1. To continue autonomously: use continue_autonomous_planning()
@@ -712,11 +739,11 @@ Autonomous mode PAUSED at checkpoint.
                     
                 else:
                     # Invalid plan - pause for review
-                    print(f"❌ INVALID PLAN: validation['is_valid']={validation['is_valid']}, is_checkpoint={is_checkpoint}")
+                    print(f"❌ INVALID PLAN: validation.metadata.get('is_valid')={validation.metadata.get('is_valid')}, is_checkpoint={is_checkpoint}")
                     results.append(f"""
 ⚠️ PAUSING at Iteration {iteration_num} - Plan validation issues
 
-{validation['precondition_check']}
+{validation.output}
 
 The system detected issues and is pausing for your review.
 Use reject_current_plan(reason) to provide feedback, then continue.

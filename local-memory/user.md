@@ -1,4 +1,5 @@
 ## Projects
+- **emiel&treloar_project**: Autonomous planning AI system developed during KPMG internship. [[entities/emiel&treloar_project.md]]
 - **mem-agent-mcp**: Configuration and migration details for the mem-agent-mcp project. [[entities/mem_agent_mcp_setup.md]]
 ## User Information
 - **Name**: Not specified
@@ -8,6 +9,9 @@
 - **Name**: Not specified
 - **Age**: 20
 ## Entities
+- **Financial Industry Overview**: Comprehensive information about the financial and banking industry. [[entities/general_info_finance.md]]
+- **Manufacturing Industry Overview**: Comprehensive information about the manufacturing industry, including company types, operations, focus areas, and global trends. [[entities/general_info_manufacturing.md]]
+- **Planning System Bug Report**: Details of bugs found in the orchestrator planning system. [[entities/Planning_System_Bug_Report.md]]
 - **JP RFP Response Requirements**: Requirements for the Jardine Pacific Vietnam QSR market study project proposal. [[entities/JP_RFP_Response_Requirements.md]]
 - **MCP Server Rebuild Status**: VastAI Instance C.26411211 [[entities/finalsteps_mcp.md]]
 - **VastAI Transfer**: MCP/memagent setup and integration requirements. [[entities/vastAI_transfer.md]]
@@ -27,3 +31,5 @@
 
 ## Market Entry Strategy
 - KPMG Market Entry Strategy Blueprint: Approved comprehensive market entry strategy plan for Jardine Pacific Vietnam QSR/Casual Dining RFP. [[entities/KPMG_Market_Entry_Strategy_Blueprint.md]]
+## Strategic Plans
+- **Japanese Hospital Vietnam Entry**: Planning for market entry into Vietnam's healthcare market. [[entities/Japanese_Hospital_Vietnam_Entry_Strategic_Planning.md]]
