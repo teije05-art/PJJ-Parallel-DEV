@@ -26,7 +26,7 @@ except Exception:
 
 # Import orchestrator for planning tools
 try:
-    from orchestrator.orchestrator import EnhancedLearningOrchestrator
+    from orchestrator.simple_orchestrator import SimpleOrchestrator
     ORCHESTRATOR_AVAILABLE = True
 except ImportError:
     ORCHESTRATOR_AVAILABLE = False
@@ -264,7 +264,7 @@ def _ensure_orchestrator():
     if _orchestrator_state["orchestrator"] is None:
         memory_path = _read_memory_path()
         # Use lenient validation for autonomous mode by default
-        _orchestrator_state["orchestrator"] = EnhancedLearningOrchestrator(
+        _orchestrator_state["orchestrator"] = SimpleOrchestrator(
             memory_path=memory_path,
             max_iterations=15,
             strict_validation=False  # Lenient validation for autonomous mode

@@ -3,26 +3,30 @@ Enhanced Project Jupiter Learning Orchestrator
 
 PDDL-INSTRUCT-inspired system with AgentFlow integration.
 Uses 4 specialized agents with Flow-GRPO optimization for real learning.
+
+Now with modular architecture for easier maintenance and web search integration!
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # Import the orchestrator classes
-from .orchestrator import EnhancedLearningOrchestrator
+from .simple_orchestrator import SimpleOrchestrator  # NEW: Modular version
+from .orchestrator import EnhancedLearningOrchestrator  # OLD: Backward compatibility
 from .agentflow_agents import (
-    PlannerAgent, 
-    ExecutorAgent, 
-    VerifierAgent, 
-    GeneratorAgent, 
+    PlannerAgent,
+    ExecutorAgent,
+    VerifierAgent,
+    GeneratorAgent,
     AgentCoordinator
 )
 
 __all__ = [
-    "EnhancedLearningOrchestrator",
-    "PlannerAgent", 
-    "ExecutorAgent", 
-    "VerifierAgent", 
-    "GeneratorAgent", 
+    "SimpleOrchestrator",  # NEW: Use this one!
+    "EnhancedLearningOrchestrator",  # OLD: For backward compatibility
+    "PlannerAgent",
+    "ExecutorAgent",
+    "VerifierAgent",
+    "GeneratorAgent",
     "AgentCoordinator"
 ]
 
