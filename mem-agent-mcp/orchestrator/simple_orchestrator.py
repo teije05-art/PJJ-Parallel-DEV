@@ -77,6 +77,10 @@ class SimpleOrchestrator:
         self.memory_manager = MemoryManager(self.agent, self.memory_path)
         self.learning_manager = LearningManager(self.agent, self.memory_path)
 
+        # CRITICAL: Expose agent_coordinator for autonomous mode compatibility
+        # The MCP server's autonomous planning expects orchestrator.agent_coordinator
+        self.agent_coordinator = self.workflow_coordinator.agent_coordinator
+
         # Ensure memory entities exist
         self._initialize_memory_entities()
 
@@ -188,18 +192,70 @@ class SimpleOrchestrator:
 
     # Methods used by MCP server (for backward compatibility)
     def _retrieve_enhanced_context(self, goal: str = None):
-        """Backward compatibility wrapper for MCP server"""
+        """
+        Backward compatibility wrapper for MCP server
+
+        IMPORTANT: Autonomous mode calls this WITHOUT a goal parameter.
+        We still need to retrieve patterns and history for learning!
+        """
         if goal:
+            # Full context with goal analysis and web search
             return self.context_manager.retrieve_context(goal)
         else:
-            # Fallback for no goal
-            return {
-                "current_status": "No goal provided",
-                "successful_patterns": "",
-                "errors_to_avoid": "",
-                "execution_history": "",
-                "agent_performance": ""
-            }
+            # Generic context without goal-specific analysis
+            # Still retrieve patterns and history for autonomous learning!
+            print("\n📚 Retrieving generic context (autonomous mode)...")
+
+            try:
+                # Get patterns and history (critical for learning!)
+                successful_patterns = self.agent.chat("""
+                    OPERATION: RETRIEVE
+                    ENTITY: successful_patterns
+                    CONTEXT: Review successful planning approaches
+
+                    What planning patterns have worked well?
+                """).reply or "No successful patterns yet"
+
+                errors_to_avoid = self.agent.chat("""
+                    OPERATION: RETRIEVE
+                    ENTITY: planning_errors
+                    CONTEXT: Review planning mistakes
+
+                    What approaches should be avoided?
+                """).reply or "No errors yet"
+
+                execution_history = self.agent.chat("""
+                    OPERATION: RETRIEVE
+                    ENTITY: execution_log
+                    CONTEXT: Review past executions
+
+                    What has been executed?
+                """).reply or "No history yet"
+
+                agent_performance = self.agent.chat("""
+                    OPERATION: RETRIEVE
+                    ENTITY: agent_performance
+                    CONTEXT: Review performance
+
+                    How are agents performing?
+                """).reply or "No performance data yet"
+
+                return {
+                    "current_status": "Generic context (no goal-specific analysis)",
+                    "successful_patterns": successful_patterns,
+                    "errors_to_avoid": errors_to_avoid,
+                    "execution_history": execution_history,
+                    "agent_performance": agent_performance
+                }
+            except Exception as e:
+                print(f"   ⚠️ Error retrieving context: {e}")
+                return {
+                    "current_status": "Context retrieval failed",
+                    "successful_patterns": "",
+                    "errors_to_avoid": "",
+                    "execution_history": "",
+                    "agent_performance": ""
+                }
 
     def _get_human_approval(self, agent_results, goal):
         """Backward compatibility wrapper for MCP server"""
