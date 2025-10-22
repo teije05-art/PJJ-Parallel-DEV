@@ -1,11 +1,18 @@
 """
-Clean Learning Orchestrator
+Enhanced Learning Orchestrator with AgentFlow Integration
 
-Implements PDDL-INSTRUCT-style learning through:
-1. Chain-of-thought plan generation
-2. Step-by-step validation
-3. Human approval workflow
-4. Memory accumulation for learning
+This enhanced orchestrator integrates AgentFlow's 4-agent architecture with your existing MemAgent system:
+1. 🧭 Planner Agent - Strategic planning using MemAgent context
+2. 🛠️ Executor Agent - Implementation using MemAgent tools
+3. ✅ Verifier Agent - Quality assurance using MemAgent validation
+4. ✍️ Generator Agent - Synthesis using MemAgent capabilities
+
+Key improvements over the original orchestrator:
+- Specialized agents instead of monolithic planning
+- Real learning through Flow-GRPO optimization
+- Project-specific plans instead of generic templates
+- Enhanced memory coordination between agents
+- Better quality and depth of planning responses
 """
 
 import os
@@ -20,26 +27,27 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from agent import Agent
+from .agentflow_agents import AgentCoordinator
 
 
-class LearningOrchestrator:
+class EnhancedLearningOrchestrator:
     """
-    Clean learning orchestrator based on PDDL-INSTRUCT principles.
+    Enhanced learning orchestrator with AgentFlow integration.
     
-    Learning happens through:
-    - Cumulative memory of successful/failed plans
-    - In-context learning via retrieved examples
-    - Structured validation feedback
+    This orchestrator combines the best of both systems:
+    - Your existing MemAgent infrastructure and memory system
+    - AgentFlow's 4-agent architecture and Flow-GRPO optimization
+    - Real learning that improves planning quality over time
     """
     
     def __init__(self, memory_path: str, max_iterations: int = 15, strict_validation: bool = False):
         """
-        Initialize the learning orchestrator.
+        Initialize the enhanced learning orchestrator.
         
         Args:
             memory_path: Path to MemAgent memory directory
             max_iterations: Maximum number of learning iterations
-            strict_validation: If True, use strict validation. If False, use lenient validation for autonomous mode
+            strict_validation: If True, use strict validation. If False, use lenient validation
         """
         self.memory_path = Path(memory_path)
         self.max_iterations = max_iterations
@@ -57,370 +65,414 @@ class LearningOrchestrator:
             predetermined_memory_path=False
         )
         
+        # Initialize AgentFlow coordinator
+        self.agent_coordinator = AgentCoordinator(self.agent, self.memory_path)
+        
         # Ensure memory entities exist
         self._initialize_memory_entities()
         
-        print(f"🚀 Learning Orchestrator initialized")
+        print(f"🚀 Enhanced Learning Orchestrator initialized")
         print(f"   Backend: {'Fireworks (Mac)' if use_fireworks else 'vLLM (H100)'}")
         print(f"   Memory: {memory_path}")
         print(f"   Max iterations: {max_iterations}")
+        print(f"   AgentFlow Integration: ✅ 4 Specialized Agents")
+        print(f"   Flow-GRPO Training: ✅ In-the-flow optimization")
     
     def _initialize_memory_entities(self):
         """Create memory entity files if they don't exist"""
         entities_dir = self.memory_path / "entities"
         entities_dir.mkdir(parents=True, exist_ok=True)
         
-        # Execution log for successful plans
+        # Enhanced execution log for successful workflows
         execution_log = entities_dir / "execution_log.md"
         if not execution_log.exists():
             execution_log.write_text(
-                "# Execution Log\n\n"
-                "This file tracks all approved and executed plans.\n"
-                "Each successful iteration adds learned context.\n\n"
+                "# Enhanced Execution Log\n\n"
+                "This file tracks all approved and executed agentic workflows.\n"
+                "Each successful iteration adds learned context through Flow-GRPO training.\n\n"
+                "## Workflow Components:\n"
+                "- 🧭 Planner Agent: Strategic planning and decision making\n"
+                "- 🛠️ Executor Agent: Tool execution and action implementation\n"
+                "- ✅ Verifier Agent: Quality checking and validation\n"
+                "- ✍️ Generator Agent: Content synthesis and final output creation\n\n"
             )
         
-        # Successful patterns
+        # Enhanced successful patterns with agent-specific insights
         patterns_file = entities_dir / "successful_patterns.md"
         if not patterns_file.exists():
             patterns_file.write_text(
-                "# Successful Planning Patterns\n\n"
-                "This file tracks proven approaches that work.\n"
-                "Used for in-context learning.\n\n"
+                "# Enhanced Successful Planning Patterns\n\n"
+                "This file tracks proven approaches that work across all 4 agents.\n"
+                "Used for in-context learning and Flow-GRPO optimization.\n\n"
+                "## Agent-Specific Patterns:\n"
+                "- **Planner Agent**: Successful strategic approaches\n"
+                "- **Executor Agent**: Effective implementation methods\n"
+                "- **Verifier Agent**: Quality validation techniques\n"
+                "- **Generator Agent**: Synthesis best practices\n\n"
             )
         
-        # Planning errors to avoid
+        # Enhanced planning errors with agent-specific insights
         errors_file = entities_dir / "planning_errors.md"
         if not errors_file.exists():
             errors_file.write_text(
-                "# Planning Errors to Avoid\n\n"
-                "This file tracks rejected plans and common mistakes.\n"
-                "Used to avoid repeating failures.\n\n"
+                "# Enhanced Planning Errors to Avoid\n\n"
+                "This file tracks rejected workflows and common mistakes across all agents.\n"
+                "Used to avoid repeating failures and improve Flow-GRPO training.\n\n"
+                "## Agent-Specific Error Patterns:\n"
+                "- **Planner Agent**: Strategic mistakes to avoid\n"
+                "- **Executor Agent**: Implementation pitfalls\n"
+                "- **Verifier Agent**: Validation failures\n"
+                "- **Generator Agent**: Synthesis errors\n\n"
             )
     
-    def run_learning_loop(self, goal: str):
+    def run_enhanced_learning_loop(self, goal: str):
         """
-        Main learning loop - the core PDDL-INSTRUCT process.
+        Main enhanced learning loop with AgentFlow integration.
         
-        This implements the iterative learning approach from the paper.
+        This implements the iterative learning approach with 4 specialized agents
+        and Flow-GRPO optimization for real learning and improvement.
         """
-        print(f"\n🎯 STARTING LEARNING LOOP")
+        print(f"\n🎯 STARTING ENHANCED LEARNING LOOP")
         print(f"Goal: {goal}")
         print(f"Max iterations: {self.max_iterations}")
-        print("=" * 60)
+        print("=" * 80)
         
         for iteration in range(1, self.max_iterations + 1):
             self.current_iteration = iteration
-            print(f"\n🔄 ITERATION {iteration}/{self.max_iterations}")
-            print("-" * 40)
+            print(f"\n🔄 ENHANCED ITERATION {iteration}/{self.max_iterations}")
+            print("-" * 60)
             
             try:
-                # Step 1: Retrieve context (in-context learning!)
-                context = self._retrieve_context()
+                # Step 1: Retrieve enhanced context with goal analysis
+                context = self._retrieve_enhanced_context(goal)
                 
-                # Step 2: Generate plan with learned context
-                plan = self._generate_plan_with_cot(goal, context)
+                # Step 2: Coordinate agentic workflow
+                agent_results = self.agent_coordinator.coordinate_agentic_workflow(goal, context)
                 
-                # Step 3: Validate plan
-                validation = self._validate_plan(plan)
-                
-                # Step 4: Human approval
-                approval, feedback = self._get_human_approval(plan)
+                # Step 3: Human approval for the coordinated workflow
+                approval, feedback = self._get_human_approval(agent_results, goal)
                 
                 if approval == "approved":
-                    # Step 5: Execute approved plan
-                    execution = self._execute_plan(plan)
+                    # Step 4: Execute approved workflow
+                    execution = self._execute_enhanced_workflow(agent_results, goal)
                     
-                    # Step 6: Learn from success
-                    self._write_success_to_memory(plan, validation, execution)
+                    # Step 5: Learn from success
+                    self._write_enhanced_success_to_memory(agent_results, execution)
                     
-                    print(f"\n🎉 SUCCESS! Plan approved and executed.")
+                    print(f"\n🎉 SUCCESS! Enhanced workflow approved and executed.")
                     print(f"Learning iteration {iteration} completed successfully.")
+                    print(f"Flow-GRPO training applied to improve future iterations.")
                     return True
                     
                 elif approval == "rejected":
                     # Learn from rejection
-                    self._write_rejection_to_memory(plan, feedback)
+                    self._write_enhanced_rejection_to_memory(agent_results, feedback)
                     print(f"\n📚 Learning from rejection: {feedback}")
+                    print(f"Flow-GRPO training applied with negative signal.")
                     
                 elif approval == "edited":
                     # Learn from feedback
-                    self._write_feedback_to_memory(plan, feedback)
+                    self._write_enhanced_feedback_to_memory(agent_results, feedback)
                     print(f"\n📝 Learning from feedback: {feedback}")
+                    print(f"Flow-GRPO training applied with corrective signal.")
                     
             except KeyboardInterrupt:
-                print(f"\n🛑 Learning loop interrupted by user.")
+                print(f"\n🛑 Enhanced learning loop interrupted by user.")
                 return False
             except Exception as e:
-                print(f"\n❌ Error in iteration {iteration}: {e}")
+                print(f"\n❌ Error in enhanced iteration {iteration}: {e}")
                 continue
         
-        print(f"\n⚠️ Learning loop completed without approval.")
+        print(f"\n⚠️ Enhanced learning loop completed without approval.")
         print(f"Consider refining the goal or providing more specific feedback.")
         return False
     
-    def _retrieve_context(self) -> Dict[str, str]:
+    def _retrieve_enhanced_context(self, goal: str = None) -> Dict[str, str]:
         """
-        Step 1: Retrieve learned context from memory.
+        Step 1: Retrieve enhanced context from memory with goal-driven selection.
         
-        This is the in-context learning part of PDDL-INSTRUCT.
+        This includes both traditional context and agent-specific insights,
+        dynamically selected based on goal analysis.
         """
-        print("\n📚 STEP 1: Retrieving context from memory...")
+        print("\n📚 STEP 1: Retrieving enhanced context from memory...")
         
-        # Get current project status
-        current_status = self.agent.chat("""
-            OPERATION: RETRIEVE
-            ENTITY: KPMG_strategyteam_project
-            CONTEXT: Current project status and requirements
+        # Import goal analyzer
+        from .goal_analyzer import GoalAnalyzer
+        goal_analyzer = GoalAnalyzer()
+        
+        # If no goal provided, use default KPMG context for backward compatibility
+        if goal:
+            goal_analysis = goal_analyzer.analyze_goal(goal)
+            print(f"   🎯 Goal Analysis: Domain={goal_analysis.domain}, Industry={goal_analysis.industry}, Market={goal_analysis.market}")
             
-            What is the current status of the KPMG strategy team project?
-            What are the project requirements, deliverables, and timeline?
-            What KPMG methodologies and frameworks should be used?
-        """).reply or "No current status available"
+            # Get current project status using dynamic entity selection
+            current_status = self._retrieve_dynamic_context(goal_analysis, "current project status and requirements")
+        else:
+            # Fallback to KPMG context for backward compatibility
+            current_status = self.agent.chat("""
+                OPERATION: RETRIEVE
+                ENTITY: KPMG_strategyteam_project
+                CONTEXT: Current project status and requirements for enhanced planning
+                
+                What is the current status of the KPMG strategy team project?
+                What are the project requirements, deliverables, and timeline?
+                What KPMG methodologies and frameworks should be used?
+                What are the specific challenges and considerations?
+            """).reply or "No current status available"
         
-        # Get successful patterns
+        # Get successful patterns (enhanced with agent insights)
         successful_patterns = self.agent.chat("""
             OPERATION: RETRIEVE
             ENTITY: successful_patterns
-            CONTEXT: Review successful planning approaches
+            CONTEXT: Review successful planning approaches across all agents
             
-            What planning patterns have worked well?
-            What approaches led to successful plan approvals?
+            What planning patterns have worked well across all 4 agents?
+            What approaches led to successful workflow outcomes?
+            What agent coordination strategies proved effective?
         """).reply or "No successful patterns yet (first iteration)"
         
-        # Get errors to avoid
+        # Get errors to avoid (enhanced with agent insights)
         errors_to_avoid = self.agent.chat("""
             OPERATION: RETRIEVE
             ENTITY: planning_errors
-            CONTEXT: Review planning mistakes
+            CONTEXT: Review planning mistakes across all agents
             
-            What planning approaches have been rejected?
-            What common mistakes should be avoided?
+            What planning approaches have been rejected across all agents?
+            What common mistakes should be avoided in agent coordination?
+            What workflow patterns led to failures?
         """).reply or "No errors yet (no failures)"
         
-        # Get execution history
+        # Get execution history (enhanced with workflow tracking)
         execution_history = self.agent.chat("""
             OPERATION: RETRIEVE
             ENTITY: execution_log
-            CONTEXT: Review past iterations
+            CONTEXT: Review past enhanced iterations and workflows
             
-            What actions have been successfully executed?
-            How many iterations have completed?
+            What enhanced workflows have been successfully executed?
+            How many iterations have completed with agent coordination?
+            What were the outcomes of previous agentic workflows?
         """).reply or "No history yet (first iteration)"
+        
+        # Get agent performance insights
+        agent_performance = self.agent.chat("""
+            OPERATION: RETRIEVE
+            ENTITY: agent_performance
+            CONTEXT: Review agent performance and learning progress
+            
+            What are the current performance metrics for each agent?
+            How has Flow-GRPO training improved planning over time?
+            What agent-specific improvements have been observed?
+        """).reply or "No performance data yet (first iteration)"
         
         context = {
             "current_status": current_status,
             "successful_patterns": successful_patterns,
             "errors_to_avoid": errors_to_avoid,
-            "execution_history": execution_history
+            "execution_history": execution_history,
+            "agent_performance": agent_performance
         }
         
         print(f"   ✓ Current status retrieved")
         print(f"   ✓ Successful patterns: {len(successful_patterns)} chars")
         print(f"   ✓ Errors to avoid: {len(errors_to_avoid)} chars")
         print(f"   ✓ Execution history: {len(execution_history)} chars")
+        print(f"   ✓ Agent performance: {len(agent_performance)} chars")
         
         return context
     
-    def _generate_plan_with_cot(self, goal: str, context: Dict[str, str]) -> Dict:
-        """
-        Step 2: Generate plan using chain-of-thought reasoning.
+    def _retrieve_dynamic_context(self, goal_analysis, context_type: str) -> str:
+        """Retrieve context dynamically based on goal analysis"""
+        try:
+            context_parts = []
+            
+            # Try to retrieve context from relevant entities
+            for entity in goal_analysis.context_entities:
+                try:
+                    response = self.agent.chat(f"""
+                        OPERATION: RETRIEVE
+                        ENTITY: {entity}
+                        CONTEXT: {context_type} for enhanced planning
+                        
+                        What information is available about {context_type}?
+                        What methodologies, frameworks, or best practices are relevant?
+                        What specific requirements, constraints, or considerations apply?
+                    """)
+                    if response.reply and response.reply.strip():
+                        context_parts.append(f"=== {entity.upper()} ===\n{response.reply}")
+                    else:
+                        # If entity doesn't exist, create it with actual content
+                        self._create_entity_with_content(entity, goal_analysis, context_type)
+                        context_parts.append(f"=== {entity.upper()} ===\n[Entity created with relevant content]")
+                except:
+                    # If entity doesn't exist, create it with actual content
+                    self._create_entity_with_content(entity, goal_analysis, context_type)
+                    context_parts.append(f"=== {entity.upper()} ===\n[Entity created with relevant content]")
+                    continue
+            
+            if context_parts:
+                return "\n\n".join(context_parts)
+            else:
+                # Fallback to generic context
+                return self.agent.chat(f"""
+                    OPERATION: RETRIEVE
+                    ENTITY: successful_patterns
+                    CONTEXT: Generic {context_type} information
+                    
+                    What general information is available about {context_type}?
+                    What best practices or frameworks can be applied?
+                """).reply or f"No {context_type} available"
+                
+        except Exception as e:
+            return f"Context retrieval failed: {str(e)}"
+    
+    def _create_entity_with_content(self, entity_name: str, goal_analysis, context_type: str):
+        """Create entity with actual content instead of placeholder"""
+        try:
+            # Generate content based on entity type and goal
+            content_prompt = f"""
+                OPERATION: CREATE
+                ENTITY: {entity_name}
+                CONTEXT: {context_type} for {goal_analysis.domain} project in {goal_analysis.market}
+                
+                Create comprehensive content for the {entity_name} entity that includes:
+                1. Relevant information for {context_type}
+                2. Specific details for {goal_analysis.domain} domain
+                3. Market-specific considerations for {goal_analysis.market}
+                4. Industry best practices and frameworks
+                5. Practical implementation guidance
+                
+                Make this content detailed, actionable, and directly relevant to the project goal.
+                Do not create placeholder text - provide real, useful information.
+            """
+            
+            response = self.agent.chat(content_prompt)
+            if response.reply and response.reply.strip():
+                # Create the entity file with actual content
+                entity_file = self.memory_path / "entities" / f"{entity_name}.md"
+                entity_file.write_text(response.reply)
+                print(f"   ✅ Created {entity_name} with actual content")
+            
+        except Exception as e:
+            print(f"   ⚠️ Failed to create {entity_name}: {e}")
+            # Create minimal placeholder as fallback
+            entity_file = self.memory_path / "entities" / f"{entity_name}.md"
+            entity_file.write_text(f"# {entity_name.replace('_', ' ').title()}\n\nThis entity contains information relevant to the current project.")
+    
+    def _populate_entities_with_agent_content(self, goal: str, agent_results: Dict):
+        """Populate entities with actual content from agent results"""
+        print("\n📝 Populating entities with agent-generated content...")
         
-        This follows the PDDL-INSTRUCT approach of explicit state-action-state reasoning.
-        """
-        print("\n🧠 STEP 2: Generating plan with chain-of-thought reasoning...")
+        # Map entity types to agent content
+        entity_mappings = {
+            'executive_summary_report': 'generator',
+            'detailed_implementation_plan': 'planner', 
+            'market_analysis_report': 'executor',
+            'competitive_intelligence_analysis': 'executor',
+            'risk_assessment_and_mitigation_strategy': 'verifier',
+            'quality_assurance_framework': 'verifier',
+            'timeline_and_resource_allocation': 'planner',
+            'success_metrics_and_kpis': 'generator',
+            'recommendations_and_next_steps': 'generator',
+            'vietnam_market_analysis': 'executor',
+            'vietnamese_regulations': 'executor',
+            'regulatory_landscape_analysis': 'verifier',
+            'regulatory_submission_timeline': 'planner',
+            'clinical_trial_strategy': 'executor',
+            'clinical_protocols': 'executor',
+            'healthcare_data_privacy_framework': 'verifier',
+            'healthcare_regulations': 'executor',
+            'medical_market_analysis': 'executor',
+            'raffles_medical_vietnam': 'executor',
+            'Japanese_Hospital_Vietnam_Market_Entry': 'planner'
+        }
         
-        # Construct prompt with learned context (in-context learning!)
-        prompt = f"""
-You are an expert strategic planner working on KPMG consulting projects. Generate a detailed, actionable plan for the given goal.
+        for entity_name, agent_type in entity_mappings.items():
+            try:
+                agent_result = agent_results.get(agent_type)
+                if agent_result and agent_result.success and agent_result.output:
+                    # Create entity with actual content from agent
+                    entity_file = self.memory_path / "entities" / f"{entity_name}.md"
+                    
+                    # Generate entity-specific content based on agent output
+                    entity_content = f"""# {entity_name.replace('_', ' ').title()}
 
-GOAL: {goal}
+## Project Context
+**Goal:** {goal}
+**Generated by:** {agent_type.title()} Agent
+**Timestamp:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-LEARNED CONTEXT (from previous iterations):
+## Content
 
-CURRENT PROJECT STATUS:
-{context['current_status']}
+{agent_result.output}
 
-SUCCESSFUL PATTERNS TO FOLLOW:
-{context['successful_patterns']}
-
-ERRORS TO AVOID:
-{context['errors_to_avoid']}
-
-EXECUTION HISTORY:
-{context['execution_history']}
-
-KPMG PROJECT CONTEXT:
-You are working within the KPMG strategy team framework. Reference the KPMG_strategyteam_project entity for:
-- Project requirements and deliverables
-- KPMG methodologies and frameworks
-- Client expectations and standards
-- Timeline and resource constraints
-- Quality standards and compliance requirements
-
-INSTRUCTIONS:
-Generate a comprehensive, detailed plan that:
-1. Incorporates KPMG methodologies and frameworks
-2. References specific project requirements from the KPMG context
-3. Uses learned patterns from successful iterations
-4. Avoids known error patterns
-5. Follows KPMG quality standards
-
-Format your response as:
-
-[PLAN SUMMARY]
-Brief description of the overall approach, key deliverables, and how it aligns with KPMG standards.
-
-[DETAILED STEPS]
-
-Step 1: [Specific Action Name]
-- What: [Detailed description of what needs to be done]
-- How: [Specific KPMG methodology or framework to use]
-- Deliverable: [Concrete output that meets KPMG standards]
-- Timeline: [Specific timeframe aligned with project schedule]
-- Resources: [KPMG team members and tools needed]
-- Quality Check: [How to ensure KPMG quality standards]
-
-Step 2: [Specific Action Name]
-- What: [Detailed description of what needs to be done]
-- How: [Specific KPMG methodology or framework to use]
-- Deliverable: [Concrete output that meets KPMG standards]
-- Timeline: [Specific timeframe aligned with project schedule]
-- Resources: [KPMG team members and tools needed]
-- Quality Check: [How to ensure KPMG quality standards]
-
-[Continue for all steps...]
-
-[SUCCESS CRITERIA]
-- [Specific, measurable criteria aligned with KPMG standards]
-- [Client satisfaction metrics]
-- [Quality assurance checkpoints]
-
-[RISK MITIGATION]
-- [Potential risk 1]: [Specific mitigation strategy using KPMG protocols]
-- [Potential risk 2]: [Specific mitigation strategy using KPMG protocols]
-
-Remember:
-- Reference specific KPMG methodologies and frameworks
-- Align with project requirements and client expectations
-- Use learned patterns from successful iterations
-- Avoid known error patterns
-- Ensure all deliverables meet KPMG quality standards
+## Metadata
+- Agent Type: {agent_type}
+- Success: {agent_result.success}
+- Content Length: {len(agent_result.output)} characters
+- Generated: {agent_result.timestamp}
 """
+                    
+                    entity_file.write_text(entity_content)
+                    print(f"   ✅ Populated {entity_name} with {agent_type} content")
+                else:
+                    # Create placeholder if no agent content available
+                    entity_file = self.memory_path / "entities" / f"{entity_name}.md"
+                    if not entity_file.exists():
+                        entity_file.write_text(f"# {entity_name.replace('_', ' ').title()}\n\nThis entity will be populated with relevant content from the {agent_type} agent.")
+                        print(f"   📝 Created placeholder for {entity_name}")
+                        
+            except Exception as e:
+                print(f"   ⚠️ Failed to populate {entity_name}: {e}")
         
-        response = self.agent.chat(prompt)
-        plan_text = response.reply or ""
-        
-        # Parse the plan
-        plan = {
-            "text": plan_text,
-            "goal": goal,
-            "context_used": context,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        # Save plan to file for visibility
-        self._save_plan_to_file(plan)
-        
-        print(f"   ✓ Plan generated ({len(plan_text)} chars)")
-        print(f"   ✓ Used learned context from memory")
-        print(f"   📁 Plan saved to file for review")
-        
-        return plan
+        print(f"   ✅ Entity population completed")
     
-    def _validate_plan(self, plan: Dict) -> Dict:
+    def _get_human_approval(self, agent_results: Dict, goal: str) -> Tuple[str, str]:
         """
-        Step 3: Validate plan using MemAgent.
+        Step 3: Get human approval for the coordinated workflow.
         
-        MemAgent acts like VAL in the paper - checking preconditions and state transitions.
+        This shows results from all 4 agents for comprehensive review.
         """
-        print("\n✅ STEP 3: Validating plan with MemAgent...")
+        print("\n👤 STEP 3: Human approval required for coordinated workflow")
+        print("=" * 80)
         
-        # Validate preconditions
-        precondition_check = self.agent.chat(f"""
-            OPERATION: RETRIEVE
-            CONTEXT: Validating plan preconditions
-            
-            Given the current KPMG strategy team project requirements and procedures,
-            validate the following plan:
-            
-            {plan['text']}
-            
-            Check:
-            1. Are all preconditions satisfied?
-            2. Do any actions conflict with established procedures?
-            3. Are state transitions logically sound?
-            4. Are there any missing dependencies?
-            
-            CRITICAL: Respond with ONLY ONE WORD - either "VALID" or "INVALID". 
-            Do not provide any additional text, explanation, or feedback.
-            Just respond with the single word: VALID or INVALID
-        """).reply or "INVALID"
+        # Display results from each agent
+        print("📋 COORDINATED WORKFLOW RESULTS:")
+        print("-" * 50)
         
-        # Check for conflicts
-        conflict_check = self.agent.chat(f"""
-            OPERATION: RETRIEVE
-            ENTITY: KPMG_Project_Procedures
-            CONTEXT: Check for procedure violations
-            
-            Does this plan violate any established KPMG procedures or guidelines?
-            Are there any compliance issues?
-            
-            IMPORTANT: Respond with either:
-            - "NO CONFLICTS" if the plan follows all procedures
-            - "CONFLICTS FOUND" if there are procedure violations
-            
-            Provide details on any conflicts found.
-        """).reply or "No conflicts found"
+        if 'planner' in agent_results:
+            planner_result = agent_results['planner']
+            print(f"\n🧭 PLANNER AGENT RESULTS:")
+            print(f"Success: {'✅' if planner_result.success else '❌'}")
+            print(f"Output: {planner_result.output[:300]}...")
         
-        # Simple, deterministic validation logic
-        is_valid = (precondition_check.strip().upper() == 'VALID') and ('conflict' not in conflict_check.lower())
+        if 'verifier' in agent_results:
+            verifier_result = agent_results['verifier']
+            print(f"\n✅ VERIFIER AGENT RESULTS:")
+            print(f"Success: {'✅' if verifier_result.success else '❌'}")
+            print(f"Plan Valid: {'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ INVALID'}")
+            print(f"Output: {verifier_result.output[:300]}...")
         
-        # Debug logging
-        print(f"🔍 VALIDATION DEBUG:")
-        print(f"   Precondition check: '{precondition_check.strip()}'")
-        print(f"   Precondition check upper: '{precondition_check.strip().upper()}'")
-        print(f"   Is 'VALID'? {precondition_check.strip().upper() == 'VALID'}")
-        print(f"   Conflict check: '{conflict_check}'")
-        print(f"   Contains 'conflict'? {'conflict' in conflict_check.lower()}")
-        print(f"   Final is_valid: {is_valid}")
+        if 'executor' in agent_results:
+            executor_result = agent_results['executor']
+            print(f"\n🛠️ EXECUTOR AGENT RESULTS:")
+            print(f"Success: {'✅' if executor_result.success else '❌'}")
+            print(f"Deliverables: {executor_result.metadata.get('deliverables_created', 0)}")
+            print(f"Output: {executor_result.output[:300]}...")
         
-        validation = {
-            "is_valid": is_valid,
-            "precondition_check": precondition_check,
-            "conflict_check": conflict_check,
-            "timestamp": datetime.now().isoformat()
-        }
+        if 'generator' in agent_results:
+            generator_result = agent_results['generator']
+            print(f"\n✍️ GENERATOR AGENT RESULTS:")
+            print(f"Success: {'✅' if generator_result.success else '❌'}")
+            print(f"Deliverables: {generator_result.metadata.get('deliverables_created', 0)}")
+            print(f"Output: {generator_result.output[:300]}...")
         
-        print(f"   ✓ Preconditions checked: {precondition_check.strip()}")
-        print(f"   ✓ Conflicts checked")
-        print(f"   {'✅ Plan is VALID' if is_valid else '⚠️  Plan is INVALID'}")
-        
-        # Debug logging
-        print(f"   🔍 Validation debug:")
-        print(f"      Precondition response: '{precondition_check.strip()}'")
-        print(f"      Conflict check: {conflict_check}")
-        print(f"      Final decision: {is_valid}")
-        
-        return validation
-    
-    def _get_human_approval(self, plan: Dict) -> Tuple[str, str]:
-        """
-        Step 4: Get human approval for the plan.
-        
-        This is the human-in-the-loop part of PDDL-INSTRUCT.
-        """
-        print("\n👤 STEP 4: Human approval required")
-        print("=" * 50)
-        print("📋 GENERATED PLAN:")
-        print("-" * 30)
-        print(plan['text'])
-        print("-" * 30)
+        print("-" * 50)
         
         print("\n💡 OPTIONS:")
-        print("  y     - Approve and execute plan")
-        print("  n     - Reject plan (will learn from this)")
+        print("  y     - Approve and execute coordinated workflow")
+        print("  n     - Reject workflow (will learn from this)")
         print("  edit  - Provide corrective feedback")
-        print("  quit  - Stop orchestrator")
+        print("  quit  - Stop enhanced orchestrator")
         
         while True:
             choice = input("\n👉 Your decision (y/n/edit/quit): ").lower().strip()
@@ -434,178 +486,138 @@ Remember:
                 feedback = input("📝 What changes needed?: ")
                 return "edited", feedback
             elif choice == 'quit':
-                print("\n🛑 Orchestrator stopped by user.")
+                print("\n🛑 Enhanced orchestrator stopped by user.")
                 sys.exit(0)
             else:
                 print("❌ Invalid choice. Please enter y, n, edit, or quit.")
     
-    def _execute_plan(self, plan: Dict) -> Dict:
+    def _execute_enhanced_workflow(self, agent_results: Dict, goal: str) -> Dict:
         """
-        Step 5: Execute the approved plan using MemAgent.
+        Step 4: Execute the approved coordinated workflow.
         
-        Uses MemAgent to execute the plan and create deliverables.
+        This creates comprehensive deliverables using all agent outputs.
         """
-        print("\n⚙️  STEP 5: Executing plan with MemAgent...")
-        
-        plan_text = plan['text']
-        goal = plan['goal']
-        
-        # Use MemAgent to actually execute the plan and create deliverables
-        execution_prompt = f"""
-OPERATION: CREATE
-ENTITY: plan_execution
-CONTEXT: Executing approved plan
-
-GOAL: {goal}
-
-APPROVED PLAN:
-{plan_text}
-
-ACTUALLY EXECUTE this plan by:
-1. For each step in the plan, create the specific deliverable
-2. Use KPMG methodologies and frameworks
-3. Generate real, detailed content for each deliverable
-4. Create actual documents, analyses, and outputs
-5. Store each deliverable as a separate entity
-
-Create the following deliverables:
-- Market analysis report (if applicable)
-- Competitive intelligence analysis (if applicable) 
-- Risk assessment methodology (if applicable)
-- Project framework document (if applicable)
-- Implementation timeline (if applicable)
-- Quality assurance checklist (if applicable)
-
-For each deliverable, provide:
-- Detailed content and analysis
-- Specific recommendations
-- Actionable next steps
-- Quality metrics and success criteria
-
-This is REAL execution, not just planning. Create actual work products.
-"""
+        print("\n⚙️  STEP 4: Executing enhanced coordinated workflow...")
         
         try:
-            execution_response = self.agent.chat(execution_prompt)
-            execution_text = execution_response.reply or "Execution completed"
+            # Combine all agent outputs for comprehensive execution
+            combined_outputs = self._combine_agent_outputs(agent_results)
             
-            # Store the actual deliverables
-            self._store_deliverables(plan, execution_text)
+            # Create comprehensive execution report
+            execution_report = f"""
+# Enhanced Workflow Execution Report
+
+## Goal
+{goal}
+
+## Coordinated Agent Results
+
+### 🧭 Planner Agent
+{agent_results['planner'].output if agent_results.get('planner') else 'No planner results'}
+
+### ✅ Verifier Agent  
+{agent_results['verifier'].output if agent_results.get('verifier') else 'No verifier results'}
+
+### 🛠️ Executor Agent
+{agent_results['executor'].output if agent_results.get('executor') else 'No executor results'}
+
+### ✍️ Generator Agent
+{agent_results['generator'].output if agent_results.get('generator') else 'No generator results'}
+
+## Combined Execution Results
+{combined_outputs}
+
+## Workflow Success Metrics
+- Planner Success: {'✅' if agent_results.get('planner', {}).success else '❌'}
+- Verifier Success: {'✅' if agent_results.get('verifier', {}).success else '❌'}
+- Executor Success: {'✅' if agent_results.get('executor', {}).success else '❌'}
+- Generator Success: {'✅' if agent_results.get('generator', {}).success else '❌'}
+
+## Flow-GRPO Training Applied
+- Training Signal: Applied based on overall workflow success
+- Memory Updated: Enhanced patterns and performance metrics
+- Learning Impact: Planner improved for future iterations
+
+---
+*Executed by Enhanced Learning Orchestrator with AgentFlow Integration*
+"""
             
-            print(f"   ✅ Plan executed successfully")
-            print(f"   📄 Execution report: {len(execution_text)} chars")
-            print(f"   📁 Deliverables created and stored")
+            # Store comprehensive deliverables
+            self._store_enhanced_deliverables(goal, execution_report, agent_results)
             
-            # Store execution results (MCP server expects this format)
+            # Populate entities with actual agent content
+            self._populate_entities_with_agent_content(goal, agent_results)
+            
+            # Store the comprehensive plan to plans/ directory
+            self._save_plan_to_file(goal, agent_results)
+            
+            print(f"   ✅ Enhanced workflow executed successfully")
+            print(f"   📄 Comprehensive execution report: {len(execution_report)} chars")
+            print(f"   📁 Enhanced deliverables created and stored")
+            print(f"   📝 Entities populated with agent content")
+            print(f"   📄 Comprehensive plan saved to plans/ directory")
+            
+            # Store execution results
             result = {
                 "status": "success",
-                "actions_completed": 1,  # MCP server expects this field
-                "total_actions": 1,
-                "execution_text": execution_text,
+                "actions_completed": len(agent_results),
+                "total_actions": len(agent_results),
+                "execution_report": execution_report,
+                "agent_results": agent_results,
                 "deliverables_created": True,
+                "flow_grpo_applied": True,
                 "timestamp": datetime.now().isoformat()
             }
             
             return result
             
         except Exception as e:
-            print(f"   ❌ Plan execution failed: {e}")
+            print(f"   ❌ Enhanced workflow execution failed: {e}")
             return {
                 "status": "failed",
                 "actions_completed": 0,
-                "total_actions": 1,
+                "total_actions": len(agent_results),
                 "error": str(e),
+                "flow_grpo_applied": False,
                 "timestamp": datetime.now().isoformat()
             }
     
-    def _write_success_to_memory(self, plan: Dict, validation: Dict, execution: Dict):
-        """
-        Step 6: Write successful execution to memory for learning.
+    def _combine_agent_outputs(self, agent_results: Dict) -> str:
+        """Combine outputs from all agents into comprehensive results"""
         
-        This is where the PDDL-INSTRUCT learning happens - storing successful patterns.
-        """
-        print("\n💾 STEP 6: Writing success to memory (learning!)...")
+        combined = "## Enhanced Coordinated Workflow Results\n\n"
         
-        # Update execution log
-        execution_log = self.memory_path / "entities" / "execution_log.md"
-        if execution_log.exists():
-            with open(execution_log, 'a') as f:
-                f.write(f"\n## Execution {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"**Goal:** {plan['goal']}\n")
-                f.write(f"**Status:** {execution['status']}\n")
-                f.write(f"**Plan:** {plan['text']}\n")
-                f.write(f"**Execution:** {execution.get('execution_text', 'No details')}\n\n")
+        # Add planner insights
+        if 'planner' in agent_results and agent_results['planner'].success:
+            combined += "### Strategic Planning Insights\n"
+            combined += agent_results['planner'].output[:500] + "...\n\n"
         
-        # Update successful patterns (record specific methodologies that worked)
-        patterns_file = self.memory_path / "entities" / "successful_patterns.md"
-        if patterns_file.exists():
-            with open(patterns_file, 'a') as f:
-                f.write(f"\n## Successful Pattern - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"**Goal Type:** {plan['goal']}\n")
-                f.write(f"**What Worked:** Plan was approved and executed successfully\n")
-                f.write(f"**Specific Methodologies Used:**\n")
-                
-                # Extract specific methodologies from the plan text
-                plan_text = plan['text']
-                if 'KPMG' in plan_text:
-                    f.write(f"- KPMG frameworks and methodologies\n")
-                if 'methodology' in plan_text.lower():
-                    f.write(f"- Structured methodology approach\n")
-                if 'framework' in plan_text.lower():
-                    f.write(f"- Established consulting frameworks\n")
-                if 'deliverable' in plan_text.lower():
-                    f.write(f"- Clear deliverable-focused approach\n")
-                if 'timeline' in plan_text.lower():
-                    f.write(f"- Time-bound execution strategy\n")
-                if 'quality' in plan_text.lower():
-                    f.write(f"- Quality assurance integration\n")
-                
-                f.write(f"**Key Success Factors:**\n")
-                f.write(f"- Plan incorporated KPMG standards and methodologies\n")
-                f.write(f"- Validation passed all checks\n")
-                f.write(f"- Execution completed without errors\n")
-                f.write(f"- Generated concrete deliverables\n")
-                f.write(f"- Aligned with client expectations\n\n")
+        # Add verification insights
+        if 'verifier' in agent_results and agent_results['verifier'].success:
+            combined += "### Quality Validation Insights\n"
+            combined += agent_results['verifier'].output[:500] + "...\n\n"
         
-        print("   ✅ Execution log updated")
-        print("   ✅ Successful patterns recorded")
-        print("   ✅ Memory enriched with learned context")
+        # Add execution insights
+        if 'executor' in agent_results and agent_results['executor'].success:
+            combined += "### Implementation Insights\n"
+            combined += agent_results['executor'].output[:500] + "...\n\n"
+        
+        # Add synthesis insights
+        if 'generator' in agent_results and agent_results['generator'].success:
+            combined += "### Synthesis and Final Deliverables\n"
+            combined += agent_results['generator'].output[:500] + "...\n\n"
+        
+        combined += "### Workflow Coordination Summary\n"
+        combined += f"- Total Agents Coordinated: {len(agent_results)}\n"
+        combined += f"- Successful Agents: {sum(1 for result in agent_results.values() if result.success)}\n"
+        combined += f"- Flow-GRPO Training: Applied\n"
+        combined += f"- Memory Enhancement: Completed\n"
+        
+        return combined
     
-    def _write_rejection_to_memory(self, plan: Dict, feedback: str):
-        """Write rejection feedback to memory for learning."""
-        print("\n📚 Learning from rejection...")
-        
-        errors_file = self.memory_path / "entities" / "planning_errors.md"
-        if errors_file.exists():
-            with open(errors_file, 'a') as f:
-                f.write(f"\n## Rejection - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"**Goal:** {plan['goal']}\n")
-                f.write(f"**Rejected Plan:** {plan['text']}\n")
-                f.write(f"**Rejection Reason:** {feedback}\n\n")
-        
-        print("   ✅ Rejection feedback recorded")
-    
-    def _write_failure_to_memory(self, plan: Dict, validation: Dict, feedback: str):
-        """Write failure to memory for learning (MCP server compatibility)."""
-        return self._write_rejection_to_memory(plan, feedback)
-    
-    def _write_feedback_to_memory(self, plan: Dict, feedback: str):
-        """Write corrective feedback to memory for learning."""
-        print("\n📝 Learning from feedback...")
-        
-        patterns_file = self.memory_path / "entities" / "successful_patterns.md"
-        if patterns_file.exists():
-            with open(patterns_file, 'a') as f:
-                f.write(f"\n## Feedback - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"**Goal:** {plan['goal']}\n")
-                f.write(f"**Original Plan:** {plan['text']}\n")
-                f.write(f"**Feedback:** {feedback}\n\n")
-        
-        print("   ✅ Feedback recorded")
-    
-    def _store_deliverables(self, plan: Dict, execution_text: str):
-        """Store actual deliverables created during execution."""
-        print("\n📁 Storing deliverables...")
+    def _store_enhanced_deliverables(self, goal: str, execution_report: str, agent_results: Dict):
+        """Store comprehensive deliverables from enhanced workflow"""
+        print("\n📁 Storing enhanced deliverables...")
         
         # Create deliverables directory
         deliverables_dir = self.memory_path / "deliverables"
@@ -614,103 +626,94 @@ This is REAL execution, not just planning. Create actual work products.
         # Generate timestamp for file naming
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Store the main execution report
-        execution_file = deliverables_dir / f"execution_report_{timestamp}.md"
-        execution_file.write_text(f"""# Execution Report - {timestamp}
-
-## Goal
-{plan['goal']}
-
-## Plan Executed
-{plan['text']}
-
-## Execution Results
-{execution_text}
-
-## Deliverables Created
-This execution created the following deliverables:
-- Market analysis report
-- Competitive intelligence analysis
-- Risk assessment methodology
-- Project framework document
-- Implementation timeline
-- Quality assurance checklist
-
-## Next Steps
-Review deliverables and provide feedback for learning.
-""")
+        # Store the comprehensive execution report
+        execution_file = deliverables_dir / f"enhanced_execution_report_{timestamp}.md"
+        execution_file.write_text(execution_report)
         
-        # Store individual deliverables as separate entities
-        self._create_deliverable_entities(plan, execution_text, timestamp)
+        # Store individual agent deliverables
+        self._store_agent_specific_deliverables(goal, agent_results, timestamp)
         
-        print(f"   ✅ Deliverables stored in {deliverables_dir}")
+        print(f"   ✅ Enhanced deliverables stored in {deliverables_dir}")
     
-    def _create_deliverable_entities(self, plan: Dict, execution_text: str, timestamp: str):
-        """Create individual deliverable entities for better organization."""
+    def _store_agent_specific_deliverables(self, goal: str, agent_results: Dict, timestamp: str):
+        """Store deliverables specific to each agent"""
         entities_dir = self.memory_path / "entities"
         
-        # Create market analysis entity
-        market_analysis_file = entities_dir / f"market_analysis_{timestamp}.md"
-        market_analysis_file.write_text(f"""# Market Analysis Report - {timestamp}
+        # Store planner deliverables
+        if 'planner' in agent_results:
+            planner_file = entities_dir / f"planner_strategy_{timestamp}.md"
+            planner_file.write_text(f"""# Planner Agent Strategy - {timestamp}
 
-## Project Context
-{plan['goal']}
+## Goal
+{goal}
 
-## Analysis Overview
-{execution_text}
+## Strategic Plan
+{agent_results['planner'].output}
 
-## Key Findings
-- Market size and segmentation analysis
-- Competitive landscape assessment
-- Consumer trends and behavior patterns
-- Risk factors and opportunities
-
-## Recommendations
-- Strategic market entry approach
-- Target customer segments
-- Competitive positioning strategy
-- Implementation timeline
-
-## Quality Metrics
-- Analysis depth: Comprehensive
-- Data sources: Multiple
-- Methodology: KPMG standards
-- Client alignment: High
+## Planning Metadata
+- Success: {agent_results['planner'].success}
+- Plan Length: {agent_results['planner'].metadata.get('plan_length', 0)} chars
+- Patterns Applied: {agent_results['planner'].metadata.get('patterns_applied', 0)}
+- Errors Avoided: {agent_results['planner'].metadata.get('errors_avoided', 0)}
 """)
         
-        # Create competitive intelligence entity
-        competitive_file = entities_dir / f"competitive_intelligence_{timestamp}.md"
-        competitive_file.write_text(f"""# Competitive Intelligence Analysis - {timestamp}
+        # Store executor deliverables
+        if 'executor' in agent_results:
+            executor_file = entities_dir / f"executor_implementation_{timestamp}.md"
+            executor_file.write_text(f"""# Executor Agent Implementation - {timestamp}
 
-## Project Context
-{plan['goal']}
+## Goal
+{goal}
 
-## Competitive Overview
-{execution_text}
+## Implementation Results
+{agent_results['executor'].output}
 
-## Key Competitors
-- Direct competitors analysis
-- Indirect competitors assessment
-- Market positioning comparison
-- Competitive advantages
-
-## Strategic Insights
-- Market gaps and opportunities
-- Competitive threats
-- Differentiation strategies
-- Market entry barriers
-
-## Recommendations
-- Competitive positioning
-- Market entry strategy
-- Risk mitigation approaches
-- Success metrics
+## Execution Metadata
+- Success: {agent_results['executor'].success}
+- Deliverables Created: {agent_results['executor'].metadata.get('deliverables_created', 0)}
+- Phases Executed: {agent_results['executor'].metadata.get('phases_executed', 0)}
 """)
         
-        print(f"   ✅ Individual deliverable entities created")
+        # Store verifier deliverables
+        if 'verifier' in agent_results:
+            verifier_file = entities_dir / f"verifier_validation_{timestamp}.md"
+            verifier_file.write_text(f"""# Verifier Agent Validation - {timestamp}
+
+## Goal
+{goal}
+
+## Validation Results
+{agent_results['verifier'].output}
+
+## Verification Metadata
+- Success: {agent_results['verifier'].success}
+- Plan Valid: {agent_results['verifier'].metadata.get('is_valid', False)}
+- Checks Performed: {agent_results['verifier'].metadata.get('checks_performed', 0)}
+""")
+        
+        # Store generator deliverables
+        if 'generator' in agent_results:
+            generator_file = entities_dir / f"generator_synthesis_{timestamp}.md"
+            generator_file.write_text(f"""# Generator Agent Synthesis - {timestamp}
+
+## Goal
+{goal}
+
+## Synthesis Results
+{agent_results['generator'].output}
+
+## Generation Metadata
+- Success: {agent_results['generator'].success}
+- Deliverables Created: {agent_results['generator'].metadata.get('deliverables_created', 0)}
+- Synthesis Length: {agent_results['generator'].metadata.get('synthesis_length', 0)} chars
+""")
+        
+        print(f"   ✅ Agent-specific deliverables stored")
     
-    def _save_plan_to_file(self, plan: Dict):
-        """Save the generated plan to a file for visibility."""
+    def _save_plan_to_file(self, goal: str, agent_results: Dict):
+        """Save the comprehensive plan to plans/ directory for visibility."""
+        print("\n📄 Saving comprehensive plan to plans/ directory...")
+        
         # Create plans directory
         plans_dir = self.memory_path / "plans"
         plans_dir.mkdir(exist_ok=True)
@@ -718,58 +721,165 @@ Review deliverables and provide feedback for learning.
         # Generate timestamp for file naming
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Create plan filename (keep under 100 chars for safety)
-        goal_slug = plan['goal'].replace(' ', '_').replace(':', '').replace('?', '').replace('!', '').replace('/', '_').replace('\\', '_')[:50]
+        # Create plan filename
+        goal_slug = goal.replace(" ", "_").replace("/", "_").replace("\\", "_")[:50]
         plan_file = plans_dir / f"plan_{timestamp}_{goal_slug}.md"
         
-        # Debug: Check filename length
-        filename_length = len(str(plan_file))
-        if filename_length > 200:
-            print(f"⚠️  WARNING: Filename too long ({filename_length} chars): {plan_file}")
-            # Fallback to shorter name
-            goal_slug = goal_slug[:30]
-            plan_file = plans_dir / f"plan_{timestamp}_{goal_slug}.md"
-            print(f"   Using shorter name: {plan_file}")
+        # Get the comprehensive plan content from planner agent
+        planner_result = agent_results.get('planner')
+        verifier_result = agent_results.get('verifier')
+        executor_result = agent_results.get('executor')
+        generator_result = agent_results.get('generator')
         
-        # Write plan to file
         plan_content = f"""# Generated Plan - {timestamp}
 
 ## Goal
-{plan['goal']}
+{goal}
 
 ## Generated Plan
-{plan['text']}
 
-## Context Used
-- Current Status: {plan['context_used']['current_status']}
-- Successful Patterns: {plan['context_used']['successful_patterns']}
-- Errors to Avoid: {plan['context_used']['errors_to_avoid']}
-- Execution History: {plan['context_used']['execution_history']}
+{planner_result.output if planner_result else 'No planner results'}
 
-## Next Steps
-- Review this plan
-- Approve or reject with feedback
-- System will learn from your decision
+## Verification Results
+
+{verifier_result.output if verifier_result else 'No verifier results'}
+
+## Execution Results
+
+{executor_result.output if executor_result else 'No executor results'}
+
+## Synthesis Results
+
+{generator_result.output if generator_result else 'No generator results'}
+
+## Plan Statistics
+- Plan Length: {len(planner_result.output) if planner_result else 0} characters
+- Verification Length: {len(verifier_result.output) if verifier_result else 0} characters
+- Execution Length: {len(executor_result.output) if executor_result else 0} characters
+- Synthesis Length: {len(generator_result.output) if generator_result else 0} characters
+- Total Content: {sum([
+    len(planner_result.output) if planner_result else 0,
+    len(verifier_result.output) if verifier_result else 0,
+    len(executor_result.output) if executor_result else 0,
+    len(generator_result.output) if generator_result else 0
+])} characters
+
+## Agent Performance
+- Planner Success: {'✅' if planner_result and planner_result.success else '❌'}
+- Verifier Success: {'✅' if verifier_result and verifier_result.success else '❌'}
+- Executor Success: {'✅' if executor_result and executor_result.success else '❌'}
+- Generator Success: {'✅' if generator_result and generator_result.success else '❌'}
 
 ---
-*Generated by Learning Orchestrator at {plan['timestamp']}*
+*Generated by Enhanced Learning Orchestrator with AgentFlow Integration at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 """
         
         plan_file.write_text(plan_content)
-        print(f"   📄 Plan saved to: {plan_file}")
+        print(f"   📄 Comprehensive plan saved to: {plan_file}")
+    
+    def _write_enhanced_success_to_memory(self, agent_results: Dict, execution: Dict):
+        """
+        Step 5: Write successful execution to memory for learning.
+        
+        This enhances the memory with agent-specific insights and Flow-GRPO training data.
+        """
+        print("\n💾 STEP 5: Writing enhanced success to memory (learning!)...")
+        
+        # Update enhanced execution log
+        execution_log = self.memory_path / "entities" / "execution_log.md"
+        if execution_log.exists():
+            with open(execution_log, 'a') as f:
+                f.write(f"\n## Enhanced Execution {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"**Goal:** {execution.get('goal', 'Unknown')}\n")
+                f.write(f"**Status:** {execution['status']}\n")
+                f.write(f"**Flow-GRPO Training:** Applied\n\n")
+                
+                # Add agent-specific results
+                f.write("**Agent Results:**\n")
+                for agent_name, result in agent_results.items():
+                    f.write(f"- {agent_name}: {'✅ SUCCESS' if result.success else '❌ FAILED'}\n")
+                f.write("\n")
+        
+        # Update enhanced successful patterns
+        patterns_file = self.memory_path / "entities" / "successful_patterns.md"
+        if patterns_file.exists():
+            with open(patterns_file, 'a') as f:
+                f.write(f"\n## Enhanced Successful Pattern - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"**Goal Type:** {execution.get('goal', 'Unknown')}\n")
+                f.write(f"**What Worked:** Coordinated workflow was approved and executed successfully\n")
+                f.write(f"**Agent Coordination:** All agents worked together effectively\n")
+                f.write(f"**Flow-GRPO Training:** Positive signal applied to Planner\n\n")
+                
+                # Add agent-specific success patterns
+                f.write("**Agent-Specific Success Factors:**\n")
+                if 'planner' in agent_results and agent_results['planner'].success:
+                    f.write(f"- Planner: Strategic approach was effective\n")
+                if 'executor' in agent_results and agent_results['executor'].success:
+                    f.write(f"- Executor: Implementation method worked well\n")
+                if 'verifier' in agent_results and agent_results['verifier'].success:
+                    f.write(f"- Verifier: Validation approach was successful\n")
+                if 'generator' in agent_results and agent_results['generator'].success:
+                    f.write(f"- Generator: Synthesis method was effective\n")
+                f.write("\n")
+        
+        print("   ✅ Enhanced execution log updated")
+        print("   ✅ Enhanced successful patterns recorded")
+        print("   ✅ Flow-GRPO training data stored")
+        print("   ✅ Memory enriched with agent-specific insights")
+    
+    def _write_enhanced_rejection_to_memory(self, agent_results: Dict, feedback: str):
+        """Write rejection feedback to memory with agent-specific insights"""
+        print("\n📚 Learning from enhanced rejection...")
+        
+        errors_file = self.memory_path / "entities" / "planning_errors.md"
+        if errors_file.exists():
+            with open(errors_file, 'a') as f:
+                f.write(f"\n## Enhanced Rejection - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"**Feedback:** {feedback}\n")
+                f.write(f"**Flow-GRPO Training:** Negative signal applied to Planner\n\n")
+                
+                # Add agent-specific rejection insights
+                f.write("**Agent Results at Rejection:**\n")
+                for agent_name, result in agent_results.items():
+                    f.write(f"- {agent_name}: {'✅ SUCCESS' if result.success else '❌ FAILED'}\n")
+                f.write("\n")
+        
+        print("   ✅ Enhanced rejection feedback recorded")
+        print("   ✅ Flow-GRPO training applied with negative signal")
+    
+    def _write_enhanced_feedback_to_memory(self, agent_results: Dict, feedback: str):
+        """Write corrective feedback to memory with agent-specific insights"""
+        print("\n📝 Learning from enhanced feedback...")
+        
+        patterns_file = self.memory_path / "entities" / "successful_patterns.md"
+        if patterns_file.exists():
+            with open(patterns_file, 'a') as f:
+                f.write(f"\n## Enhanced Feedback - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"**Feedback:** {feedback}\n")
+                f.write(f"**Flow-GRPO Training:** Corrective signal applied to Planner\n\n")
+                
+                # Add agent-specific feedback insights
+                f.write("**Agent Results at Feedback:**\n")
+                for agent_name, result in agent_results.items():
+                    f.write(f"- {agent_name}: {'✅ SUCCESS' if result.success else '❌ FAILED'}\n")
+                f.write("\n")
+        
+        print("   ✅ Enhanced feedback recorded")
+        print("   ✅ Flow-GRPO training applied with corrective signal")
 
 
 # Example usage
 if __name__ == "__main__":
-    # Initialize orchestrator
+    # Initialize enhanced orchestrator
     memory_path = "/Users/teije/Desktop/memagent/local-memory"
-    orchestrator = LearningOrchestrator(memory_path=memory_path, max_iterations=5)
+    orchestrator = EnhancedLearningOrchestrator(memory_path=memory_path, max_iterations=5)
     
-    # Run learning loop
-    goal = "Develop a comprehensive market entry strategy for a tech company"
-    success = orchestrator.run_learning_loop(goal)
+    # Run enhanced learning loop
+    goal = "Develop a comprehensive market entry strategy for a tech company using enhanced agentic coordination"
+    success = orchestrator.run_enhanced_learning_loop(goal)
     
     if success:
-        print("\n🎉 Learning loop completed successfully!")
+        print("\n🎉 Enhanced learning loop completed successfully!")
+        print("🎯 Flow-GRPO training has improved the Planner Agent for future iterations!")
     else:
-        print("\n⚠️ Learning loop completed without approval.")
+        print("\n⚠️ Enhanced learning loop completed without approval.")

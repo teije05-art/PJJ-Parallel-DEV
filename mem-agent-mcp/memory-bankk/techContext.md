@@ -8,17 +8,24 @@
 - **MemAgent**: Memory management and retrieval system
 - **Llama 3.3 70B**: Planning and reasoning engine
 - **Claude Desktop**: Natural language interface
+- **Goal Analyzer**: Dynamic domain detection and context selection
+- **Domain Templates**: 7 comprehensive domain-specific planning templates
+- **AgentFlow Integration**: 4-agent coordination system with Flow-GRPO training
 
 ### Backend Options
 - **Fireworks API**: For Mac development (API calls, 0 VRAM)
 - **vLLM**: For H100 production (local inference, 80GB VRAM)
 - **Auto-Detection**: System automatically chooses based on platform
 
-### Memory System
+### Enhanced Memory System
 - **Markdown Files**: Human-readable memory storage
 - **Wikilink Navigation**: `[[entities/entity_name.md]]` format
 - **Unlimited Capacity**: No token limits, grows with usage
 - **No Hallucinations**: Strictly based on user input and stored data
+- **Domain-Specific Storage**: Memory organized by domain and context type
+- **Multi-Agent Tracking**: Separate logs for each specialized agent
+- **Flow-GRPO Training Data**: Real-time learning optimization records
+- **Entity Discovery**: `list_entities` tool for user-friendly browsing of all available entities
 
 ## Development Setup
 
@@ -41,6 +48,16 @@ make generate-mcp-json
 
 # Start MCP server
 make serve-mcp
+```
+
+### Orchestrator Usage
+```bash
+# Use orchestrator (domain-agnostic with 4-agent coordination)
+cd /Users/teije/Desktop/memagent/mem-agent-mcp/orchestrator
+python orchestrator.py
+
+# Legacy orchestrator (KPMG-specific, for reference only)
+python legacy_orchestrator.py
 ```
 
 ### Memory Configuration
@@ -76,11 +93,14 @@ memory/
 - **Memory Files**: No size limits, grows with usage
 - **Iteration Context**: Grows from 500 chars to 6000+ chars over 15 iterations
 
-### Performance Characteristics
+### Enhanced Performance Characteristics
 - **Iteration Time**: ~30 seconds average (faster as patterns stabilize)
-- **Learning Rate**: Progressive improvement over 10-15 iterations
-- **Context Growth**: ~400 chars per successful iteration
+- **Learning Rate**: Progressive improvement over 10-15 iterations with Flow-GRPO training
+- **Context Growth**: ~400 chars per successful iteration across all domains
 - **Success Rate**: Improves from ~60% to 90%+ over iterations
+- **Domain Adaptation**: Instant adaptation to any of 7 supported domains
+- **Multi-Agent Coordination**: 4 specialized agents working in parallel
+- **Flow-GRPO Training**: Real-time learning optimization based on outcomes
 
 ## Dependencies
 
@@ -105,6 +125,14 @@ dependencies = [
 - **FastMCP**: High-performance MCP server framework
 - **Claude Desktop**: MCP client for natural language interface
 - **JSON-RPC**: Communication protocol between client and server
+
+### Available MCP Tools
+- **use_memory_agent**: Query memory system with natural language
+- **start_planning_iteration**: Begin new planning iteration with goal
+- **approve_current_plan**: Approve current plan for execution
+- **reject_current_plan**: Reject current plan with feedback
+- **view_learning_summary**: View accumulated learning progress
+- **list_entities**: Browse all available entities in memory system
 
 ## Development Workflow
 

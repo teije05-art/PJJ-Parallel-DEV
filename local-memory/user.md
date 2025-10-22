@@ -9,6 +9,9 @@
 - **Name**: Not specified
 - **Age**: 20
 ## Entities
+- **Medical Device Companies**: Information about companies that design, manufacture, and market medical devices. [[entities/medical_device_companies.md]]
+- **Biotech Companies**: Information about companies applying biological systems and technologies. [[entities/biotech_companies.md]]
+- **Medical Device Companies**: Information about companies that design, manufacture, and market medical devices. [[entities/medical_device_companies.md]]
 - **Financial Industry Overview**: Comprehensive information about the financial and banking industry. [[entities/general_info_finance.md]]
 - **Manufacturing Industry Overview**: Comprehensive information about the manufacturing industry, including company types, operations, focus areas, and global trends. [[entities/general_info_manufacturing.md]]
 - **Planning System Bug Report**: Details of bugs found in the orchestrator planning system. [[entities/Planning_System_Bug_Report.md]]
@@ -33,3 +36,8 @@
 - KPMG Market Entry Strategy Blueprint: Approved comprehensive market entry strategy plan for Jardine Pacific Vietnam QSR/Casual Dining RFP. [[entities/KPMG_Market_Entry_Strategy_Blueprint.md]]
 ## Strategic Plans
 - **Japanese Hospital Vietnam Entry**: Planning for market entry into Vietnam's healthcare market. [[entities/Japanese_Hospital_Vietnam_Entry_Strategic_Planning.md]]
+
+## Projects
+- **Cleveland Clinic SEA Market Entry**: Leading market entry project for Cleveland Clinic in Southeast Asia. [[entities/Cleveland_Clinic_SEA_Market_Entry_Project.md]]
+## Favorite Color
+- favorite_color: [[entities/user_favorite_color.md]]

@@ -1,0 +1,1 @@
+User's favorite color is blue.

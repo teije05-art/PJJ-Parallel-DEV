@@ -4,6 +4,7 @@ import socket
 import asyncio
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 
 from fastmcp import FastMCP, Context
 
@@ -23,13 +24,13 @@ except Exception:
     from settings import MEMORY_AGENT_NAME
     MLX_4BIT_MEMORY_AGENT_NAME = "mem-agent-mlx@4bit"
 
-# Import enhanced orchestrator for planning tools
+# Import orchestrator for planning tools
 try:
-    from orchestrator.enhanced_orchestrator import EnhancedLearningOrchestrator
+    from orchestrator.orchestrator import EnhancedLearningOrchestrator
     ORCHESTRATOR_AVAILABLE = True
 except ImportError:
     ORCHESTRATOR_AVAILABLE = False
-    print("Warning: Enhanced Orchestrator not available. Planning tools will be disabled.", file=sys.stderr)
+    print("Warning: Orchestrator not available. Planning tools will be disabled.", file=sys.stderr)
 
 # Initialize FastMCP (the installed version doesn't accept a timeout kwarg)
 mcp = FastMCP("memory-agent-server")
@@ -348,22 +349,22 @@ async def start_planning_iteration(goal: str, ctx: Context) -> str:
 
 🧭 PLANNER AGENT RESULTS:
 {'✅ SUCCESS' if planner_result.success else '❌ FAILED'}
-{plan_text[:500]}{'...' if len(plan_text) > 500 else ''}
+{plan_text}
 
 ✅ VERIFIER AGENT RESULTS:
 {'✅ SUCCESS' if verifier_result.success else '❌ FAILED'}
 {'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ INVALID'}
-{verifier_result.output[:300]}{'...' if len(verifier_result.output) > 300 else ''}
+{verifier_result.output}
 
 🛠️ EXECUTOR AGENT RESULTS:
 {'✅ SUCCESS' if executor_result.success else '❌ FAILED'}
 {executor_result.metadata.get('deliverables_created', 0)} deliverables created
-{executor_result.output[:300]}{'...' if len(executor_result.output) > 300 else ''}
+{executor_result.output}
 
 ✍️ GENERATOR AGENT RESULTS:
 {'✅ SUCCESS' if generator_result.success else '❌ FAILED'}
 {generator_result.metadata.get('deliverables_created', 0)} deliverables synthesized
-{generator_result.output[:300]}{'...' if len(generator_result.output) > 300 else ''}
+{generator_result.output}
 
 🎯 FLOW-GRPO TRAINING APPLIED:
 ✅ Planner Agent training signal applied based on overall workflow success
@@ -372,14 +373,16 @@ async def start_planning_iteration(goal: str, ctx: Context) -> str:
 Status: {'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ ISSUES DETECTED'}
 
 Verification Details:
-{verifier_result.output[:400]}{'...' if len(verifier_result.output) > 400 else ''}
+{verifier_result.output}
 
 {'-'*80}
 
 💡 NEXT STEPS:
-To approve this plan, say: "Approve the plan" or use approve_current_plan()
-To reject this plan, say: "Reject because [reason]" or use reject_current_plan(reason)
-To see learning progress, use view_learning_summary()
+To view the complete plan: use view_full_plan()
+To view specific entity content: use view_entity_content(entity_name)
+To approve this plan: "Approve the plan" or use approve_current_plan()
+To reject this plan: "Reject because [reason]" or use reject_current_plan(reason)
+To see learning progress: use view_learning_summary()
 
 📁 PLAN DETAILS:
 - Goal: {goal}
@@ -508,6 +511,213 @@ The system will now avoid the rejected approach.
         
     except Exception as exc:
         return f"❌ Error rejecting plan: {type(exc).__name__}: {exc}"
+
+
+@mcp.tool()
+async def view_full_plan(ctx: Context) -> str:
+    """
+    View the complete plan and all generated content from the most recent planning iteration.
+    
+    This shows the full comprehensive plan without truncation, along with all agent outputs
+    and generated deliverables.
+    
+    Returns:
+        Complete plan details, agent outputs, and generated content
+    """
+    try:
+        if _orchestrator_state["current_plan"] is None:
+            return "❌ No plan available. Start a planning iteration first with start_planning_iteration(goal)."
+        
+        agent_results = _orchestrator_state.get("current_agent_results", {})
+        plan = _orchestrator_state["current_plan"]
+        
+        # Get full outputs from all agents
+        planner_result = agent_results.get('planner')
+        verifier_result = agent_results.get('verifier')
+        executor_result = agent_results.get('executor')
+        generator_result = agent_results.get('generator')
+        
+        result = f"""📋 COMPLETE PLAN AND GENERATED CONTENT
+
+🎯 FULL COMPREHENSIVE PLAN:
+{'-'*80}
+{planner_result.output if planner_result else 'No planner results'}
+
+✅ COMPLETE VERIFICATION RESULTS:
+{'-'*80}
+{verifier_result.output if verifier_result else 'No verifier results'}
+
+🛠️ COMPLETE EXECUTION RESULTS:
+{'-'*80}
+{executor_result.output if executor_result else 'No executor results'}
+
+✍️ COMPLETE SYNTHESIS RESULTS:
+{'-'*80}
+{generator_result.output if generator_result else 'No generator results'}
+
+📁 GENERATED ENTITIES:
+{'-'*80}
+"""
+        
+        # List all generated entity files
+        entities_dir = Path(_orchestrator_state.get("memory_path", "/Users/teije/Desktop/memagent/local-memory")) / "entities"
+        if entities_dir.exists():
+            entity_files = list(entities_dir.glob("*.md"))
+            for entity_file in sorted(entity_files):
+                if entity_file.name not in ["execution_log.md", "successful_patterns.md", "planning_errors.md", "agent_performance.md"]:
+                    result += f"- {entity_file.name}\n"
+        
+        result += f"""
+{'-'*80}
+📊 PLAN STATISTICS:
+- Plan Length: {len(planner_result.output) if planner_result else 0} characters
+- Verification Length: {len(verifier_result.output) if verifier_result else 0} characters
+- Execution Length: {len(executor_result.output) if executor_result else 0} characters
+- Synthesis Length: {len(generator_result.output) if generator_result else 0} characters
+- Total Content: {sum([
+    len(planner_result.output) if planner_result else 0,
+    len(verifier_result.output) if verifier_result else 0,
+    len(executor_result.output) if executor_result else 0,
+    len(generator_result.output) if generator_result else 0
+])} characters
+
+💡 NEXT STEPS:
+- To approve this plan: "Approve the plan" or use approve_current_plan()
+- To reject this plan: "Reject because [reason]" or use reject_current_plan(reason)
+- To see learning progress: use view_learning_summary()
+"""
+        
+        return result
+        
+    except Exception as exc:
+        return f"❌ Error viewing full plan: {type(exc).__name__}: {exc}"
+
+
+@mcp.tool()
+async def view_entity_content(ctx: Context, entity_name: str) -> str:
+    """
+    View the content of a specific entity file.
+    
+    Args:
+        entity_name: Name of the entity file to view (without .md extension)
+    
+    Returns:
+        Complete content of the specified entity file
+    """
+    try:
+        entities_dir = Path(_orchestrator_state.get("memory_path", "/Users/teije/Desktop/memagent/local-memory")) / "entities"
+        entity_file = entities_dir / f"{entity_name}.md"
+        
+        if not entity_file.exists():
+            return f"❌ Entity '{entity_name}' not found. Available entities:\n" + "\n".join([
+                f"- {f.stem}" for f in entities_dir.glob("*.md") 
+                if f.name not in ["execution_log.md", "successful_patterns.md", "planning_errors.md", "agent_performance.md"]
+            ])
+        
+        content = entity_file.read_text(encoding='utf-8')
+        
+        return f"""📄 ENTITY CONTENT: {entity_name}
+
+{'-'*80}
+{content}
+{'-'*80}
+
+📊 STATISTICS:
+- File Size: {len(content)} characters
+- Lines: {content.count(chr(10)) + 1}
+- Last Modified: {datetime.fromtimestamp(entity_file.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        
+    except Exception as exc:
+        return f"❌ Error viewing entity '{entity_name}': {type(exc).__name__}: {exc}"
+
+
+@mcp.tool()
+async def cleanup_empty_entities(ctx: Context) -> str:
+    """
+    Clean up empty or placeholder entities created by the system.
+    
+    This removes entities that contain only placeholder text or are empty,
+    keeping only entities with actual content.
+    
+    Returns:
+        Summary of cleanup actions taken
+    """
+    try:
+        entities_dir = Path(_orchestrator_state.get("memory_path", "/Users/teije/Desktop/memagent/local-memory")) / "entities"
+        
+        if not entities_dir.exists():
+            return "❌ No entities directory found."
+        
+        # Define patterns that indicate empty/placeholder entities
+        empty_patterns = [
+            "This file will store",
+            "This entity will be populated",
+            "This entity contains information relevant to the current project",
+            "This document outlines",
+            "This file contains",
+            "This entity contains",
+            "This file is used to store",
+            "This file tracks",
+            "This file contains information about"
+        ]
+        
+        cleaned_count = 0
+        kept_count = 0
+        empty_entities = []
+        content_entities = []
+        
+        for entity_file in entities_dir.glob("*.md"):
+            try:
+                content = entity_file.read_text(encoding='utf-8').strip()
+                
+                # Skip if file is empty or very short
+                if len(content) < 50:
+                    entity_file.unlink()
+                    cleaned_count += 1
+                    empty_entities.append(entity_file.name)
+                    continue
+                
+                # Check if content matches empty patterns
+                is_empty = any(pattern in content for pattern in empty_patterns)
+                
+                if is_empty:
+                    entity_file.unlink()
+                    cleaned_count += 1
+                    empty_entities.append(entity_file.name)
+                else:
+                    kept_count += 1
+                    content_entities.append(entity_file.name)
+                    
+            except Exception as e:
+                print(f"Error processing {entity_file.name}: {e}")
+                continue
+        
+        result = f"""🧹 ENTITY CLEANUP COMPLETED
+
+📊 Cleanup Summary:
+- Empty entities removed: {cleaned_count}
+- Content entities kept: {kept_count}
+- Total entities processed: {cleaned_count + kept_count}
+
+🗑️ Removed Empty Entities:
+{chr(10).join(f"- {name}" for name in empty_entities[:10])}
+{'...' if len(empty_entities) > 10 else ''}
+
+✅ Kept Content Entities:
+{chr(10).join(f"- {name}" for name in content_entities[:10])}
+{'...' if len(content_entities) > 10 else ''}
+
+💡 Next Steps:
+- Run a new planning iteration to create properly populated entities
+- Use view_full_plan() to see the comprehensive plan
+- Use view_entity_content(entity_name) to view specific entities
+"""
+        
+        return result
+        
+    except Exception as exc:
+        return f"❌ Error during cleanup: {type(exc).__name__}: {exc}"
 
 
 @mcp.tool()
@@ -878,6 +1088,93 @@ You can:
         
     except Exception as exc:
         return f"❌ Error stopping: {type(exc).__name__}: {exc}"
+
+
+@mcp.tool()
+async def list_entities(ctx: Context) -> str:
+    """
+    List all available entities in the memory system.
+    
+    This tool provides a comprehensive list of all entity files that can be viewed
+    or queried through the memory system. Perfect for discovering what information
+    is available before making specific queries.
+    
+    Returns:
+        Formatted list of all available entities with basic information
+    """
+    try:
+        from pathlib import Path
+        
+        # Get memory path
+        memory_path = Path(_read_memory_path())
+        entities_dir = memory_path / "entities"
+        
+        if not entities_dir.exists():
+            return "❌ No entities directory found. Memory system may not be initialized."
+        
+        # Get all entity files
+        entity_files = list(entities_dir.glob("*.md"))
+        
+        if not entity_files:
+            return "📁 No entities found in the memory system."
+        
+        # Categorize entities
+        system_entities = []
+        project_entities = []
+        other_entities = []
+        
+        for entity_file in sorted(entity_files):
+            entity_name = entity_file.stem
+            file_size = entity_file.stat().st_size
+            
+            # Categorize based on name patterns
+            if entity_name in ["execution_log", "successful_patterns", "planning_errors", "agent_performance", "agent_coordination", "planner_training_log"]:
+                system_entities.append((entity_name, file_size))
+            elif any(keyword in entity_name.lower() for keyword in ["project", "plan", "deliverable", "report", "analysis", "strategy", "framework", "timeline", "kpi", "metric"]):
+                project_entities.append((entity_name, file_size))
+            else:
+                other_entities.append((entity_name, file_size))
+        
+        # Format the response
+        result = "📚 AVAILABLE ENTITIES\n"
+        result += "=" * 50 + "\n\n"
+        
+        if system_entities:
+            result += "🔧 SYSTEM ENTITIES (Learning & Performance):\n"
+            for entity_name, file_size in system_entities:
+                size_kb = file_size / 1024
+                result += f"  • {entity_name} ({size_kb:.1f} KB)\n"
+            result += "\n"
+        
+        if project_entities:
+            result += "📋 PROJECT ENTITIES (Content & Deliverables):\n"
+            for entity_name, file_size in project_entities:
+                size_kb = file_size / 1024
+                result += f"  • {entity_name} ({size_kb:.1f} KB)\n"
+            result += "\n"
+        
+        if other_entities:
+            result += "📄 OTHER ENTITIES:\n"
+            for entity_name, file_size in other_entities:
+                size_kb = file_size / 1024
+                result += f"  • {entity_name} ({size_kb:.1f} KB)\n"
+            result += "\n"
+        
+        result += f"📊 SUMMARY:\n"
+        result += f"  Total entities: {len(entity_files)}\n"
+        result += f"  System entities: {len(system_entities)}\n"
+        result += f"  Project entities: {len(project_entities)}\n"
+        result += f"  Other entities: {len(other_entities)}\n\n"
+        
+        result += "💡 USAGE:\n"
+        result += "  • View specific entity: use view_entity_content(entity_name)\n"
+        result += "  • Query entities: use use_memory_agent(question)\n"
+        result += "  • View learning progress: use view_learning_summary()\n"
+        
+        return result
+        
+    except Exception as exc:
+        return f"❌ Error listing entities: {type(exc).__name__}: {exc}"
 
 
 if __name__ == "__main__":

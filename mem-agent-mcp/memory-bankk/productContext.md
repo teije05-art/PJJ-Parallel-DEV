@@ -30,15 +30,21 @@ Cursor AI agents have limited context windows and don't remember past errors, su
 - **Efficiency**: Reduces repetitive work and improves over time
 
 ## Target Use Cases
-- **KPMG Consulting**: Complex strategy projects with multiple deliverables
-- **Market Analysis**: Vietnam QSR market study with 10 key research questions
-- **Competitive Intelligence**: Analysis of market landscape and trends
-- **Risk Assessment**: Evaluation of market risks and opportunities
-- **Strategic Planning**: Long-term planning with iterative improvement
+- **Multi-Domain Consulting**: Complex strategy projects across healthcare, technology, manufacturing, retail, financial, and QSR domains
+- **Healthcare Market Entry**: Clinical development, regulatory approval, and medical device market analysis
+- **Technology Strategy**: Startup development, product-market fit, and digital transformation planning
+- **Manufacturing Operations**: Supply chain optimization, lean manufacturing, and industrial market entry
+- **Retail Strategy**: Consumer behavior analysis, e-commerce development, and retail market expansion
+- **Financial Services**: Banking frameworks, fintech development, and financial market analysis
+- **QSR Market Analysis**: Restaurant operations, food service market study, and franchise development
+- **General Strategic Planning**: Long-term planning with iterative improvement across any domain
 
 ## Success Metrics
-- **Learning Rate**: System improves plan quality over iterations
-- **Context Retention**: Maintains project context across sessions
-- **Error Reduction**: Fewer repeated mistakes over time
-- **Deliverable Quality**: High-quality outputs that meet consulting standards
-- **User Efficiency**: Less time spent on repetitive tasks
+- **Learning Rate**: System improves plan quality over iterations across all domains
+- **Context Retention**: Maintains project context across sessions and domains
+- **Error Reduction**: Fewer repeated mistakes over time with Flow-GRPO training
+- **Deliverable Quality**: High-quality outputs that meet domain-specific standards
+- **User Efficiency**: Less time spent on repetitive tasks across multiple domains
+- **Domain Adaptation**: Seamless switching between different industry contexts
+- **Multi-Agent Coordination**: Effective collaboration between specialized agents
+- **Flow-GRPO Training**: Real-time learning optimization based on outcomes
