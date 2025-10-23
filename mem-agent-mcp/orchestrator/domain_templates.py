@@ -31,17 +31,17 @@ class DomainTemplates:
     def get_planning_prompt(self, goal_analysis: GoalAnalysis, context_data: Dict[str, str]) -> str:
         """
         Generate a domain-specific planning prompt based on goal analysis.
-        
+
         Args:
             goal_analysis: Analyzed goal with domain, industry, market info
             context_data: Retrieved context data from memory
-            
+
         Returns:
             Formatted planning prompt tailored to the specific domain
         """
         domain = goal_analysis.domain
         template = self.templates.get(domain, self.templates['general'])
-        
+
         # Format the template with actual data
         prompt = template.format(
             goal=context_data.get('goal', 'Unknown'),
@@ -55,9 +55,10 @@ class DomainTemplates:
             successful_patterns=context_data.get('successful_patterns', 'No successful patterns yet'),
             error_patterns=context_data.get('error_patterns', 'No error patterns yet'),
             execution_history=context_data.get('execution_history', 'No execution history yet'),
-            current_status=context_data.get('current_status', 'No current status available')
+            current_status=context_data.get('current_status', 'No current status available'),
+            web_search_results=context_data.get('web_search_results', 'No web search results available')
         )
-        
+
         return prompt
     
     def _healthcare_template(self) -> str:
@@ -94,15 +95,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive healthcare strategic plan that:
 
-1. **LEVERAGES HEALTHCARE FRAMEWORKS**: Uses clinical development protocols, regulatory approval processes, and healthcare market entry methodologies
-2. **ADDRESSES REGULATORY REQUIREMENTS**: Incorporates FDA/EMA approval processes, clinical trial protocols, and compliance frameworks
-3. **CONSIDERS CLINICAL REALITIES**: Accounts for patient safety, clinical evidence requirements, and medical device regulations
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear regulatory milestones and clinical deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in regulatory approval gates and clinical validation steps
-6. **CONSIDERS HEALTHCARE CONSTRAINTS**: Account for clinical timelines, regulatory review periods, and healthcare data privacy requirements
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES HEALTHCARE FRAMEWORKS**: Uses clinical development protocols, regulatory approval processes, and healthcare market entry methodologies
+3. **ADDRESSES REGULATORY REQUIREMENTS**: Incorporates FDA/EMA approval processes, clinical trial protocols, and compliance frameworks
+4. **CONSIDERS CLINICAL REALITIES**: Accounts for patient safety, clinical evidence requirements, and medical device regulations
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear regulatory milestones and clinical deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in regulatory approval gates and clinical validation steps
+7. **CONSIDERS HEALTHCARE CONSTRAINTS**: Account for clinical timelines, regulatory review periods, and healthcare data privacy requirements
 
 Format your response as:
 
@@ -193,15 +198,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive technology strategic plan that:
 
-1. **LEVERAGES TECHNOLOGY FRAMEWORKS**: Uses agile development, lean startup, and product-market fit methodologies
-2. **ADDRESSES TECHNOLOGY REQUIREMENTS**: Incorporates scalability, security, performance, and user experience considerations
-3. **CONSIDERS MARKET DYNAMICS**: Accounts for technology adoption lifecycle, competitive landscape, and innovation cycles
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear technical milestones and development deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in user testing, performance validation, and market feedback loops
-6. **CONSIDERS TECHNOLOGY CONSTRAINTS**: Account for development timelines, technical debt, and technology infrastructure requirements
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES TECHNOLOGY FRAMEWORKS**: Uses agile development, lean startup, and product-market fit methodologies
+3. **ADDRESSES TECHNOLOGY REQUIREMENTS**: Incorporates scalability, security, performance, and user experience considerations
+4. **CONSIDERS MARKET DYNAMICS**: Accounts for technology adoption lifecycle, competitive landscape, and innovation cycles
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear technical milestones and development deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in user testing, performance validation, and market feedback loops
+7. **CONSIDERS TECHNOLOGY CONSTRAINTS**: Account for development timelines, technical debt, and technology infrastructure requirements
 
 Format your response as:
 
@@ -292,15 +301,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive manufacturing strategic plan that:
 
-1. **LEVERAGES MANUFACTURING FRAMEWORKS**: Uses lean manufacturing, six sigma, and supply chain optimization methodologies
-2. **ADDRESSES OPERATIONAL REQUIREMENTS**: Incorporates quality control, efficiency optimization, and industrial standards
-3. **CONSIDERS SUPPLY CHAIN DYNAMICS**: Accounts for logistics, supplier relationships, and operational continuity
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear operational milestones and manufacturing deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in quality gates, efficiency metrics, and operational performance reviews
-6. **CONSIDERS MANUFACTURING CONSTRAINTS**: Account for production timelines, quality standards, and industrial regulations
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES MANUFACTURING FRAMEWORKS**: Uses lean manufacturing, six sigma, and supply chain optimization methodologies
+3. **ADDRESSES OPERATIONAL REQUIREMENTS**: Incorporates quality control, efficiency optimization, and industrial standards
+4. **CONSIDERS SUPPLY CHAIN DYNAMICS**: Accounts for logistics, supplier relationships, and operational continuity
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear operational milestones and manufacturing deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in quality gates, efficiency metrics, and operational performance reviews
+7. **CONSIDERS MANUFACTURING CONSTRAINTS**: Account for production timelines, quality standards, and industrial regulations
 
 Format your response as:
 
@@ -391,15 +404,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive QSR strategic plan that:
 
-1. **LEVERAGES QSR FRAMEWORKS**: Uses KPMG market entry methodologies, restaurant industry protocols, and food service best practices
-2. **ADDRESSES RESTAURANT REQUIREMENTS**: Incorporates food safety, operational efficiency, and customer experience standards
-3. **CONSIDERS FOOD SERVICE DYNAMICS**: Accounts for consumer trends, competitive landscape, and restaurant operations
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear operational milestones and restaurant deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in operational reviews, customer feedback loops, and performance metrics
-6. **CONSIDERS QSR CONSTRAINTS**: Account for food safety regulations, operational timelines, and restaurant industry standards
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES QSR FRAMEWORKS**: Uses KPMG market entry methodologies, restaurant industry protocols, and food service best practices
+3. **ADDRESSES RESTAURANT REQUIREMENTS**: Incorporates food safety, operational efficiency, and customer experience standards
+4. **CONSIDERS FOOD SERVICE DYNAMICS**: Accounts for consumer trends, competitive landscape, and restaurant operations
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear operational milestones and restaurant deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in operational reviews, customer feedback loops, and performance metrics
+7. **CONSIDERS QSR CONSTRAINTS**: Account for food safety regulations, operational timelines, and restaurant industry standards
 
 Format your response as:
 
@@ -490,15 +507,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive retail strategic plan that:
 
-1. **LEVERAGES RETAIL FRAMEWORKS**: Uses consumer behavior analysis, e-commerce methodologies, and retail industry best practices
-2. **ADDRESSES CONSUMER REQUIREMENTS**: Incorporates customer experience, brand positioning, and retail operations
-3. **CONSIDERS RETAIL DYNAMICS**: Accounts for consumer trends, competitive landscape, and retail market evolution
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear retail milestones and consumer-focused deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in consumer feedback loops, retail performance reviews, and market validation
-6. **CONSIDERS RETAIL CONSTRAINTS**: Account for inventory management, retail operations, and consumer expectations
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES RETAIL FRAMEWORKS**: Uses consumer behavior analysis, e-commerce methodologies, and retail industry best practices
+3. **ADDRESSES CONSUMER REQUIREMENTS**: Incorporates customer experience, brand positioning, and retail operations
+4. **CONSIDERS RETAIL DYNAMICS**: Accounts for consumer trends, competitive landscape, and retail market evolution
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear retail milestones and consumer-focused deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in consumer feedback loops, retail performance reviews, and market validation
+7. **CONSIDERS RETAIL CONSTRAINTS**: Account for inventory management, retail operations, and consumer expectations
 
 Format your response as:
 
@@ -589,15 +610,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive financial services strategic plan that:
 
-1. **LEVERAGES FINANCIAL FRAMEWORKS**: Uses banking methodologies, fintech protocols, and financial industry best practices
-2. **ADDRESSES REGULATORY REQUIREMENTS**: Incorporates financial regulations, compliance frameworks, and risk management
-3. **CONSIDERS FINANCIAL DYNAMICS**: Accounts for market volatility, regulatory changes, and financial technology evolution
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear financial milestones and regulatory deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in regulatory compliance reviews, risk assessments, and financial performance monitoring
-6. **CONSIDERS FINANCIAL CONSTRAINTS**: Account for regulatory timelines, compliance requirements, and financial risk management
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES FINANCIAL FRAMEWORKS**: Uses banking methodologies, fintech protocols, and financial industry best practices
+3. **ADDRESSES REGULATORY REQUIREMENTS**: Incorporates financial regulations, compliance frameworks, and risk management
+4. **CONSIDERS FINANCIAL DYNAMICS**: Accounts for market volatility, regulatory changes, and financial technology evolution
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear financial milestones and regulatory deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in regulatory compliance reviews, risk assessments, and financial performance monitoring
+7. **CONSIDERS FINANCIAL CONSTRAINTS**: Account for regulatory timelines, compliance requirements, and financial risk management
 
 Format your response as:
 
@@ -688,15 +713,19 @@ CURRENT PROJECT STATE:
 EXECUTION HISTORY:
 {execution_history}
 
+CURRENT WEB RESEARCH RESULTS:
+{web_search_results}
+
 INSTRUCTIONS:
 Generate a comprehensive strategic plan that:
 
-1. **LEVERAGES PROVEN FRAMEWORKS**: Uses established business methodologies and industry best practices
-2. **ADDRESSES SPECIFIC REQUIREMENTS**: Incorporates relevant industry standards and market dynamics
-3. **CONSIDERS MARKET REALITIES**: Accounts for competitive landscape, regulatory environment, and business constraints
-4. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear milestones and measurable deliverables
-5. **INCLUDES VALIDATION CHECKPOINTS**: Build in performance reviews, market validation, and success metrics
-6. **CONSIDERS BUSINESS CONSTRAINTS**: Account for timeline, budget, resource, and operational limitations
+1. **USES CURRENT WEB RESEARCH**: Incorporate the real-world data, statistics, examples, and trends from the web search results above. Reference specific sources, URLs, and current market data.
+2. **LEVERAGES PROVEN FRAMEWORKS**: Uses established business methodologies and industry best practices
+3. **ADDRESSES SPECIFIC REQUIREMENTS**: Incorporates relevant industry standards and market dynamics
+4. **CONSIDERS MARKET REALITIES**: Accounts for competitive landscape, regulatory environment, and business constraints
+5. **PROVIDES SPECIFIC ACTIONS**: Each step should be actionable with clear milestones and measurable deliverables
+6. **INCLUDES VALIDATION CHECKPOINTS**: Build in performance reviews, market validation, and success metrics
+7. **CONSIDERS BUSINESS CONSTRAINTS**: Account for timeline, budget, resource, and operational limitations
 
 Format your response as:
 

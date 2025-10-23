@@ -100,7 +100,8 @@ class PlannerAgent(BaseAgent):
             'successful_patterns': successful_patterns,
             'error_patterns': error_patterns,
             'execution_history': current_state,
-            'current_status': context.get('current_status', 'No previous context')
+            'current_status': context.get('current_status', 'No previous context'),
+            'web_search_results': context.get('web_search_results', 'No web search results available')
         }
         
         # Generate domain-specific planning prompt
