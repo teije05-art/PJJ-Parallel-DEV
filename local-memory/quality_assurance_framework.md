@@ -1,1 +1,0 @@
-Quality assurance framework for Vietnamese restaurant franchise market entry

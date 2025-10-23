@@ -11,7 +11,6 @@ __version__ = "0.3.0"
 
 # Import the orchestrator classes
 from .simple_orchestrator import SimpleOrchestrator  # NEW: Modular version
-from .orchestrator import EnhancedLearningOrchestrator  # OLD: Backward compatibility
 from .agentflow_agents import (
     PlannerAgent,
     ExecutorAgent,
@@ -22,7 +21,6 @@ from .agentflow_agents import (
 
 __all__ = [
     "SimpleOrchestrator",  # NEW: Use this one!
-    "EnhancedLearningOrchestrator",  # OLD: For backward compatibility
     "PlannerAgent",
     "ExecutorAgent",
     "VerifierAgent",

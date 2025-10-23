@@ -1,1 +1,0 @@
-Timeline and resource allocation for Vietnamese restaurant franchise market entry

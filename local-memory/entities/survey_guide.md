@@ -1,1 +1,0 @@
-Survey guide for collecting primary data from healthcare professionals, patients, and other stakeholders.

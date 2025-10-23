@@ -7,6 +7,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "agent",
     "black>=25.1.0",
+    "duckduckgo-search>=8.1.1",
     "fireworks-ai>=0.19.19",
     "mcp-server",
     "rich>=13.7.0",

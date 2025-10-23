@@ -1,1 +1,0 @@
-Market analysis report for Vietnam QSR market

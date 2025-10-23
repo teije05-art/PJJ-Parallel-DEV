@@ -1,1 +1,0 @@
-Detailed implementation plan for Vietnamese restaurant franchise market entry

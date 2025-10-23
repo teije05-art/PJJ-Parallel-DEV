@@ -312,7 +312,7 @@ async def start_planning_iteration(goal: str, ctx: Context) -> str:
         await ctx.report_progress(progress=1, total=6)
         
         # Step 1: Retrieve enhanced context
-        context = orchestrator._retrieve_enhanced_context()
+        context = orchestrator._retrieve_enhanced_context(goal)
         await ctx.report_progress(progress=2, total=6)
         
         # Step 2: Coordinate agentic workflow (4 specialized agents)
@@ -873,7 +873,7 @@ Building up learned context progressively... 🧠
             
             try:
                 # Step 1: Retrieve enhanced context (gets richer each iteration!)
-                context = orchestrator._retrieve_enhanced_context()
+                context = orchestrator._retrieve_enhanced_context(goal)
                 
                 # Step 2: Coordinate agentic workflow (4 specialized agents)
                 agent_results = orchestrator.agent_coordinator.coordinate_agentic_workflow(goal, context)

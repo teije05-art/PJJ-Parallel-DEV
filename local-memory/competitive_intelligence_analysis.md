@@ -1,1 +1,0 @@
-Competitive intelligence analysis for Vietnam QSR market

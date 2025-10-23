@@ -1,1 +1,0 @@
-Project framework document for Vietnam QSR market
