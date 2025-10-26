@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Set working directory
-cd "/Users/teije/Desktop/memagent/mem-agent-mcp"
+cd "/Users/teije/Desktop/memagent-modular-fixed/mem-agent-mcp"
 
 # Log startup for debugging
 echo "INFO: Starting MCP wrapper script..." >&2

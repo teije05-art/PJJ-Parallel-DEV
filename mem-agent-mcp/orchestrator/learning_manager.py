@@ -73,10 +73,10 @@ class LearningManager:
 **Overall Success:** {success}
 
 **Agent Results:**
-- Planner: {'✅ SUCCESS' if agent_results.get('planner', type('obj', (), {'success': False})()).success else '❌ FAILED'}
-- Verifier: {'✅ SUCCESS' if agent_results.get('verifier', type('obj', (), {'success': False})()).success else '❌ FAILED'}
-- Executor: {'✅ SUCCESS' if agent_results.get('executor', type('obj', (), {'success': False})()).success else '❌ FAILED'}
-- Generator: {'✅ SUCCESS' if agent_results.get('generator', type('obj', (), {'success': False})()).success else '❌ FAILED'}
+- Planner: {'✅ SUCCESS' if agent_results.get('planner') and hasattr(agent_results['planner'], 'success') and agent_results['planner'].success else '❌ FAILED'}
+- Verifier: {'✅ SUCCESS' if agent_results.get('verifier') and hasattr(agent_results['verifier'], 'success') and agent_results['verifier'].success else '❌ FAILED'}
+- Executor: {'✅ SUCCESS' if agent_results.get('executor') and hasattr(agent_results['executor'], 'success') and agent_results['executor'].success else '❌ FAILED'}
+- Generator: {'✅ SUCCESS' if agent_results.get('generator') and hasattr(agent_results['generator'], 'success') and agent_results['generator'].success else '❌ FAILED'}
 
 **Training Signal:** {'POSITIVE' if success else 'NEGATIVE'}
 
@@ -104,16 +104,16 @@ class LearningManager:
 **Overall Workflow Success:** {success}
 
 **Agent Performance:**
-- Planner Agent: {'✅ SUCCESS' if agent_results.get('planner', type('obj', (), {'success': False})()).success else '❌ FAILED'}
-- Executor Agent: {'✅ SUCCESS' if agent_results.get('executor', type('obj', (), {'success': False})()).success else '❌ FAILED'}
-- Verifier Agent: {'✅ SUCCESS' if agent_results.get('verifier', type('obj', (), {'success': False})()).success else '❌ FAILED'}
-- Generator Agent: {'✅ SUCCESS' if agent_results.get('generator', type('obj', (), {'success': False})()).success else '❌ FAILED'}
+- Planner Agent: {'✅ SUCCESS' if agent_results.get('planner') and hasattr(agent_results['planner'], 'success') and agent_results['planner'].success else '❌ FAILED'}
+- Executor Agent: {'✅ SUCCESS' if agent_results.get('executor') and hasattr(agent_results['executor'], 'success') and agent_results['executor'].success else '❌ FAILED'}
+- Verifier Agent: {'✅ SUCCESS' if agent_results.get('verifier') and hasattr(agent_results['verifier'], 'success') and agent_results['verifier'].success else '❌ FAILED'}
+- Generator Agent: {'✅ SUCCESS' if agent_results.get('generator') and hasattr(agent_results['generator'], 'success') and agent_results['generator'].success else '❌ FAILED'}
 
 **Quality Metrics:**
-- Plan Quality: {agent_results.get('planner', type('obj', (), {'metadata': {}})()).metadata.get('plan_length', 0)} chars
-- Execution Quality: {agent_results.get('executor', type('obj', (), {'metadata': {}})()).metadata.get('deliverables_created', 0)} deliverables
-- Verification Checks: {agent_results.get('verifier', type('obj', (), {'metadata': {}})()).metadata.get('checks_performed', 0)} checks
-- Synthesis Quality: {agent_results.get('generator', type('obj', (), {'metadata': {}})()).metadata.get('deliverables_created', 0)} deliverables
+- Plan Quality: {agent_results.get('planner', {}).metadata.get('plan_length', 0) if agent_results.get('planner') and hasattr(agent_results['planner'], 'metadata') else 0} chars
+- Execution Quality: {agent_results.get('executor', {}).metadata.get('deliverables_created', 0) if agent_results.get('executor') and hasattr(agent_results['executor'], 'metadata') else 0} deliverables
+- Verification Checks: {agent_results.get('verifier', {}).metadata.get('checks_performed', 0) if agent_results.get('verifier') and hasattr(agent_results['verifier'], 'metadata') else 0} checks
+- Synthesis Quality: {agent_results.get('generator', {}).metadata.get('deliverables_created', 0) if agent_results.get('generator') and hasattr(agent_results['generator'], 'metadata') else 0} deliverables
 
 ---
 """

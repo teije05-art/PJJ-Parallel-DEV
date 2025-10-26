@@ -24,11 +24,12 @@ help:
 	@echo "  8. generate-mcp-json - Generate the MCP.json file"
 	@echo "  9. serve-mcp - Serve the MCP server"
 	@echo "  10. chat-cli - Run interactive CLI to chat with the agent"
-	@echo "  11. memory-wizard - Interactive wizard for connecting memory sources"  
-	@echo "  12. connect-memory - Connect memory sources using new connector system"
-	@echo "  13. convert-chatgpt - Convert ChatGPT export (legacy, use convert-memory instead)"
-	@echo "  14. serve-http - Start HTTP server for ChatGPT integration (use with ngrok)"
-	@echo "  15. serve-mcp-http - Start MCP-compliant HTTP server for ChatGPT (recommended)"
+	@echo "  11. serve-chatbox - Launch web chatbox interface (RECOMMENDED for planning)"
+	@echo "  12. memory-wizard - Interactive wizard for connecting memory sources"
+	@echo "  13. connect-memory - Connect memory sources using new connector system"
+	@echo "  14. convert-chatgpt - Convert ChatGPT export (legacy, use convert-memory instead)"
+	@echo "  15. serve-http - Start HTTP server for ChatGPT integration (use with ngrok)"
+	@echo "  16. serve-mcp-http - Start MCP-compliant HTTP server for ChatGPT (recommended)"
 
 # Check if uv is installed and install if needed
 check-uv:
@@ -101,6 +102,34 @@ serve-mcp:
 
 chat-cli:
 	uv run python chat_cli.py
+
+serve-chatbox:
+	@echo "=================================="
+	@echo "🚀 MEM AGENT - CHATBOX INTERFACE"
+	@echo "=================================="
+	@echo ""
+	@echo "Starting web interface on: http://localhost:9000"
+	@echo ""
+	@echo "✅ Features:"
+	@echo "   • Interactive chat mode (regular agent conversations)"
+	@echo "   • Autonomous planning mode (multi-iteration loops with learning)"
+	@echo "   • Full Unicode/emoji support (browser-native rendering)"
+	@echo "   • No MCP protocol overhead"
+	@echo ""
+	@echo "📋 Requirements:"
+	@echo "   1. Model server must be running: make run-agent"
+	@echo "   2. Memory path must be configured: make setup"
+	@echo ""
+	@echo "💡 Usage:"
+	@echo "   • Chat Mode: Ask questions and have conversations"
+	@echo "   • Planning Mode: Describe goals for autonomous planning loops"
+	@echo "   • Check memory directory for full planning results"
+	@echo ""
+	@echo "❌ Troubleshooting:"
+	@echo "   • Port 9000 already in use? Kill: lsof -i :9000 | kill -9 ..."
+	@echo "   • Browser shows 'Connection refused'? Start model server first"
+	@echo ""
+	uv run python simple_chatbox.py
 
 # Interactive Memory Wizard
 memory-wizard:

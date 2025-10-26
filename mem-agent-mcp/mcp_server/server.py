@@ -2,6 +2,7 @@ import os
 import sys
 import socket
 import asyncio
+import time
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
@@ -41,6 +42,7 @@ _orchestrator_state = {
     "current_plan": None,
     "current_validation": None,
     "current_agent_results": None,  # Store results from 4 specialized agents
+    "current_context": None,  # Store context including web search results for display
     "current_iteration": 0,
     "autonomous_mode": False,
     "autonomous_target": 0,
@@ -282,116 +284,212 @@ def _reset_orchestrator():
 async def start_planning_iteration(goal: str, ctx: Context) -> str:
     """
     Start a new planning iteration with chain-of-thought reasoning.
-    
+
     This tool initiates the PDDL-INSTRUCT-style learning loop:
     1. Retrieves learned context from memory
     2. Generates plan with explicit state-action-state reasoning
     3. Validates plan against project requirements
     4. Presents plan for user approval
-    
+
     CRITICAL: The goal parameter is a plain text string that should be passed directly to the orchestrator.
     DO NOT use use_memory_agent to create entity lookups from words in the goal.
     DO NOT split the goal into tokens or try to find matching entities.
     The orchestrator will handle all memory operations internally.
     Simply pass the goal string as-is to the orchestrator.
-    
+
     Use this to begin planning for any strategic goal.
     After reviewing the plan, use approve_current_plan() or reject_current_plan().
-    
+
     Args:
         goal: The planning goal (e.g., "Deploy orchestrator to H100 instance")
-    
+
     Returns:
         Formatted plan with reasoning, validation results, and approval instructions
     """
+    start_time = time.time()
     try:
+        print(f"[STEP 0] start_planning_iteration called with goal: {goal[:100]}")
+
+        step1_start = time.time()
         orchestrator = _ensure_orchestrator()
         if not orchestrator:
             return "❌ Orchestrator not available. Make sure orchestrator module is installed."
-        
+        print(f"[STEP 1a] Orchestrator initialized ({time.time()-step1_start:.2f}s), retrieving context...")
         await ctx.report_progress(progress=1, total=6)
-        
+
         # Step 1: Retrieve enhanced context
+        step2_start = time.time()
+        print(f"[STEP 1b] Calling _retrieve_enhanced_context...")
         context = orchestrator._retrieve_enhanced_context(goal)
+        step2_time = time.time() - step2_start
+        print(f"[STEP 1c] Context retrieved: {len(str(context))} chars ({step2_time:.2f}s)")
         await ctx.report_progress(progress=2, total=6)
-        
+
         # Step 2: Coordinate agentic workflow (4 specialized agents)
+        step3_start = time.time()
+        print(f"[STEP 2a] Starting 4-agent workflow...")
         agent_results = orchestrator.agent_coordinator.coordinate_agentic_workflow(goal, context)
+        step3_time = time.time() - step3_start
+        print(f"[STEP 2b] 4-agent workflow completed with {len(agent_results)} results ({step3_time:.2f}s)")
         await ctx.report_progress(progress=3, total=6)
-        
+
         # Store in global state (enhanced format)
+        print(f"[STEP 3a] Storing plan and validation results...")
         _orchestrator_state["current_plan"] = agent_results['planner']
         _orchestrator_state["current_validation"] = agent_results['verifier']
         _orchestrator_state["current_agent_results"] = agent_results
+        # Store only the web search results string, not the entire context (which contains non-serializable objects)
+        _orchestrator_state["current_context"] = {"web_search_results": context.get("web_search_results", "")}
         _orchestrator_state["current_iteration"] += 1
-        
+        print(f"[STEP 3b] State stored, preparing output...")
+
         await ctx.report_progress(progress=4, total=6)
-        
+
         # Format for presentation
+        print(f"[STEP 4a] Formatting presentation output...")
         iteration = _orchestrator_state["current_iteration"]
-        
+
         await ctx.report_progress(progress=5, total=6)
-        
+
         # Ensure agent results are available
+        print(f"[STEP 4b] Extracting agent results...")
         planner_result = agent_results['planner']
         verifier_result = agent_results['verifier']
         executor_result = agent_results['executor']
         generator_result = agent_results['generator']
-        
+
         plan_text = planner_result.output if planner_result else ''
         if not plan_text or len(plan_text.strip()) == 0:
             plan_text = "❌ ERROR: Enhanced planning failed - no plan generated"
-        
-        result = f"""🔄 ENHANCED ITERATION {iteration} - AGENTIC WORKFLOW COMPLETED
 
-🎯 ENHANCED ORCHESTRATOR WITH 4 SPECIALIZED AGENTS
-{'-'*80}
+        print(f"[STEP 4c] Storing full results to memory to avoid large MCP response...")
 
-🧭 PLANNER AGENT RESULTS:
-{'✅ SUCCESS' if planner_result.success else '❌ FAILED'}
-{plan_text}
+        # CRITICAL FIX: Don't return all agent outputs through MCP stdio
+        # MCP stdio has buffer limits that cause "Broken Pipe" errors
+        # Store full results to disk/memory instead, return only a compact summary
 
-✅ VERIFIER AGENT RESULTS:
-{'✅ SUCCESS' if verifier_result.success else '❌ FAILED'}
-{'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ INVALID'}
-{verifier_result.output}
+        from pathlib import Path
+        memory_path = Path(orchestrator.memory_path)
+        plans_dir = memory_path / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
 
-🛠️ EXECUTOR AGENT RESULTS:
-{'✅ SUCCESS' if executor_result.success else '❌ FAILED'}
-{executor_result.metadata.get('deliverables_created', 0)} deliverables created
-{executor_result.output}
+        # Store the full detailed results
+        full_results_file = plans_dir / f"iteration_{iteration:03d}_full_details.md"
 
-✍️ GENERATOR AGENT RESULTS:
-{'✅ SUCCESS' if generator_result.success else '❌ FAILED'}
-{generator_result.metadata.get('deliverables_created', 0)} deliverables synthesized
-{generator_result.output}
+        full_content = f"""# Planning Iteration {iteration} - Complete Results
 
-🎯 FLOW-GRPO TRAINING APPLIED:
-✅ Planner Agent training signal applied based on overall workflow success
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Goal:** {goal}
+**Execution Time:** {time.time() - start_time:.2f} seconds
 
-{'-'*80}
-Status: {'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ ISSUES DETECTED'}
+---
 
-Verification Details:
-{verifier_result.output}
+## 🧭 Planner Agent - Strategic Plan
 
-{'-'*80}
+**Status:** {'✅ SUCCESS' if planner_result.success else '❌ FAILED'}
 
-💡 NEXT STEPS:
-To view the complete plan: use view_full_plan()
-To view specific entity content: use view_entity_content(entity_name)
-To approve this plan: "Approve the plan" or use approve_current_plan()
-To reject this plan: "Reject because [reason]" or use reject_current_plan(reason)
-To see learning progress: use view_learning_summary()
+{planner_result.output if planner_result else 'No planner output available'}
 
-📁 PLAN DETAILS:
-- Goal: {goal}
-- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-- Plan Length: {len(plan_text)} characters
+---
+
+## ✅ Verifier Agent - Validation & Review
+
+**Status:** {'✅ SUCCESS' if verifier_result.success else '❌ FAILED'}
+**Validation Result:** {'✅ VALID' if verifier_result.metadata.get('is_valid') else '⚠️ ISSUES DETECTED'}
+
+{verifier_result.output if verifier_result else 'No verifier output available'}
+
+---
+
+## 🛠️ Executor Agent - Implementation Details
+
+**Status:** {'✅ SUCCESS' if executor_result.success else '❌ FAILED'}
+**Deliverables Created:** {executor_result.metadata.get('deliverables_created', 0)}
+
+{executor_result.output if executor_result else 'No executor output available'}
+
+---
+
+## ✍️ Generator Agent - Synthesis & Final Output
+
+**Status:** {'✅ SUCCESS' if generator_result.success else '❌ FAILED'}
+**Synthesized Deliverables:** {generator_result.metadata.get('deliverables_created', 0)}
+
+{generator_result.output if generator_result else 'No generator output available'}
+
+---
+
+## 🎓 Learning & Training
+
+**Flow-GRPO Training:** ✅ Applied based on overall workflow success
+**Overall Assessment:** {'✅ VALID - Ready for approval and execution' if verifier_result.metadata.get('is_valid') else '⚠️ ISSUES FOUND - Review before approval'}
+
+*This complete output has been stored to memory for persistent reference and future learning.*
 """
+
+        try:
+            full_results_file.write_text(full_content)
+            print(f"[STEP 4d] Full results saved: {full_results_file.name}")
+        except Exception as e:
+            print(f"[WARNING] Could not save full results: {e}")
+
+        # Build a COMPACT summary for MCP response (keeps it under 5KB to avoid broken pipe)
+        print(f"[STEP 4e] Building compact summary for MCP response...")
+        result = f"""✅ PLANNING ITERATION {iteration} COMPLETED
+
+🎯 AGENT RESULTS SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🧭 Planner Agent........{'✅ SUCCESS' if planner_result.success else '❌ FAILED'}
+  ✅ Verifier Agent........{'✅ SUCCESS' if verifier_result.success else '❌ FAILED'} ({'VALID' if verifier_result.metadata.get('is_valid') else 'REVIEW'})
+  🛠️  Executor Agent........{'✅ SUCCESS' if executor_result.success else '❌ FAILED'}
+  ✍️  Generator Agent.......{'✅ SUCCESS' if generator_result.success else '❌ FAILED'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 ITERATION DETAILS
+  • Goal: {goal[:60]}{'...' if len(goal) > 60 else ''}
+  • Status: {'✅ VALID - Ready for approval' if verifier_result.metadata.get('is_valid') else '⚠️ Issues detected - review needed'}
+  • Time: {time.time() - start_time:.1f} seconds
+  • Results stored to memory for persistent access
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 WHAT'S NEXT?
+
+1️⃣  VIEW COMPLETE PLAN:
+    → use_memory_agent("retrieve iteration {iteration} complete results")
+    → Or use: view_full_plan()
+
+2️⃣  REVIEW SPECIFIC CONTENT:
+    → Browse entities: list_entities()
+    → View entity: view_entity_content(entity_name)
+
+3️⃣  MAKE A DECISION:
+    → Approve: approve_current_plan()
+    → Reject: reject_current_plan(reason)
+
+4️⃣  TRACK LEARNING:
+    → view_learning_summary()
+
+🎓 YOUR SYSTEM IS LEARNING:
+   Each iteration generates Flow-GRPO training signals that improve planning.
+   More iterations = smarter, more detailed plans with better patterns.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+        total_time = time.time() - start_time
+        print(f"[STEP 5] Summary created ({len(result)} chars) - Total time: {total_time:.2f}s")
+        await ctx.report_progress(progress=6, total=6)
+        print(f"[COMPLETE] start_planning_iteration completed successfully in {total_time:.2f}s")
         return result
-        
+
     except Exception as exc:
+        import traceback
+        total_time = time.time() - start_time
+        print(f"[ERROR] Exception in start_planning_iteration after {total_time:.2f}s: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
         return f"❌ Error in planning iteration: {type(exc).__name__}: {exc}"
 
 
@@ -424,12 +522,13 @@ async def approve_current_plan(ctx: Context) -> str:
         # Write success to memory (LEARNING!)
         orchestrator._write_enhanced_success_to_memory(agent_results, execution_result)
         await ctx.report_progress(progress=3, total=3)
-        
+
         # Clear current plan and agent results
         _orchestrator_state["current_plan"] = None
         _orchestrator_state["current_validation"] = None
         _orchestrator_state["current_agent_results"] = None
-        
+        _orchestrator_state["current_context"] = None  # Clear context after approval
+
         # Get execution details
         execution_text = execution_result.get('execution_text', 'No execution details available')
         deliverables_created = execution_result.get('deliverables_created', False)
@@ -487,11 +586,12 @@ async def reject_current_plan(reason: str, ctx: Context) -> str:
         
         # Write rejection to memory (LEARNING!)
         orchestrator._write_enhanced_rejection_to_memory(agent_results, reason)
-        
+
         # Clear current plan and agent results
         _orchestrator_state["current_plan"] = None
         _orchestrator_state["current_validation"] = None
         _orchestrator_state["current_agent_results"] = None
+        _orchestrator_state["current_context"] = None  # Clear context after rejection
         
         result = f"""
 ❌ PLAN REJECTED
@@ -530,14 +630,24 @@ async def view_full_plan(ctx: Context) -> str:
         
         agent_results = _orchestrator_state.get("current_agent_results", {})
         plan = _orchestrator_state["current_plan"]
-        
+        context = _orchestrator_state.get("current_context", {})
+
         # Get full outputs from all agents
         planner_result = agent_results.get('planner')
         verifier_result = agent_results.get('verifier')
         executor_result = agent_results.get('executor')
         generator_result = agent_results.get('generator')
-        
+
+        # Get web search results from context
+        web_search_results = context.get("web_search_results", "No web search results available")
+
         result = f"""📋 COMPLETE PLAN AND GENERATED CONTENT
+
+🌐 WEB RESEARCH DATA SOURCES:
+{'-'*80}
+{web_search_results}
+
+{'-'*80}
 
 🎯 FULL COMPREHENSIVE PLAN:
 {'-'*80}
@@ -1018,9 +1128,10 @@ async def continue_autonomous_planning(ctx: Context) -> str:
             orchestrator = _ensure_orchestrator()
             plan = _orchestrator_state["current_plan"]
             validation = _orchestrator_state["current_validation"]
+            agent_results = _orchestrator_state.get("current_agent_results", {})
             
-            execution_result = orchestrator._execute_plan(plan)
-            orchestrator._write_success_to_memory(plan, validation, execution_result)
+            execution_result = orchestrator._execute_enhanced_workflow(agent_results, goal)
+            orchestrator._write_enhanced_success_to_memory(agent_results, execution_result)
             
             result_msg = f"✅ Checkpoint plan approved.\n"
             

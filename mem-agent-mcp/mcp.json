@@ -1,14 +1,12 @@
 {
-    "mcpServers": {
-      "memory-agent-stdio": {
-        "command": "bash",
-        "args": ["-lc", "cd /Users/teije/Desktop/memagent/mem-agent-mcp && uv run python mcp_server/server.py"],
-        "env": {
-          "FASTMCP_LOG_LEVEL": "INFO",
-          "MCP_TRANSPORT": "stdio",
-          "FIREWORKS_API_KEY": "fw_3ZG1oZ5Pde7LFHrsad8wPQUc"
-        },
-        "timeout": 600000
-      }
+  "mcpServers": {
+    "memory-agent-stdio": {
+      "command": "/Users/teije/Desktop/memagent-modular-fixed/mem-agent-mcp/mcp_server/scripts/start_server.sh",
+      "env": {
+        "FASTMCP_LOG_LEVEL": "INFO",
+        "MCP_TRANSPORT": "stdio"
+      },
+      "timeout": 600000
     }
   }
+}

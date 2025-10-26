@@ -190,49 +190,161 @@ class ContextManager:
 
     def _retrieve_web_search_results(self, goal: str, goal_analysis) -> str:
         """
-        NEW: Retrieve current real-world data via web search
+        EXTENSIVE Web Search - Comprehensive real-world data collection
 
         This dramatically improves plan quality by providing:
-        - Current market data and statistics
-        - Real company examples
-        - Industry trends
-        - Expert insights
+        - Current market data and statistics (with links)
+        - Real company examples and case studies
+        - Industry trends and forecasts
+        - Expert insights and research
+        - Regulatory and compliance information
+        - Competitive landscape analysis
+
+        Returns formatted search results with FULL URLs for reference and citation.
 
         Args:
             goal: The planning goal
             goal_analysis: Analyzed goal with domain/industry/market
 
         Returns:
-            Formatted web search results with current data
+            Organized web search results with comprehensive citations and links
         """
-        # Import search module (will be created next)
         try:
             from .search_module import SearchModule
             search = SearchModule()
+            from datetime import datetime
 
-            # Generate search queries based on goal
-            queries = [
-                f"{goal_analysis.industry} market analysis 2025",
-                f"{goal_analysis.domain} best practices case studies",
-                f"{goal} successful examples",
-                f"{goal_analysis.industry} trends statistics"
-            ]
+            # EXTENSIVE search queries - multiple angles for comprehensive coverage
+            search_queries = {
+                "Market Analysis": [
+                    f"{goal_analysis.industry} market size 2025",
+                    f"{goal_analysis.industry} market growth forecast",
+                    f"{goal_analysis.market} market research report",
+                    f"{goal_analysis.industry} industry analysis 2025"
+                ],
+                "Competitive Landscape": [
+                    f"{goal_analysis.industry} competitors analysis",
+                    f"{goal_analysis.industry} market leaders",
+                    f"{goal_analysis.industry} competitive advantage",
+                    f"{goal} competitive analysis"
+                ],
+                "Case Studies & Examples": [
+                    f"{goal_analysis.industry} successful companies",
+                    f"{goal_analysis.domain} case studies",
+                    f"{goal} successful implementation",
+                    f"{goal_analysis.industry} best practices examples"
+                ],
+                "Trends & Innovations": [
+                    f"{goal_analysis.industry} trends 2025",
+                    f"{goal_analysis.industry} innovations",
+                    f"{goal_analysis.domain} emerging trends",
+                    f"{goal_analysis.industry} future outlook"
+                ],
+                "Regulatory & Compliance": [
+                    f"{goal_analysis.industry} regulations",
+                    f"{goal_analysis.market} regulatory requirements",
+                    f"{goal_analysis.industry} compliance requirements",
+                    f"{goal_analysis.domain} legal requirements"
+                ],
+                "Expert Insights": [
+                    f"{goal_analysis.industry} expert analysis",
+                    f"{goal_analysis.domain} thought leaders",
+                    f"{goal_analysis.industry} research papers",
+                    f"{goal_analysis.domain} best practices guide"
+                ]
+            }
 
-            all_results = []
-            for query in queries:
-                results = search.search(query, num_results=3)
+            # Collect results organized by category
+            organized_results = {}
+            total_searches = 0
+            total_results = 0
+
+            print(f"   🔍 Starting extensive web search ({len(search_queries)} categories)...")
+
+            for category, queries in search_queries.items():
+                print(f"      → Searching: {category}...")
+                organized_results[category] = []
+
+                for query in queries:
+                    # Get 5-10 results per query for comprehensive coverage
+                    results = search.search(query, num_results=8)
+                    total_searches += 1
+
+                    if results:
+                        for idx, result in enumerate(results, 1):
+                            organized_results[category].append({
+                                'title': result.title,
+                                'snippet': result.snippet,
+                                'url': result.url,
+                                'source': result.source,
+                                'query': query
+                            })
+                            total_results += 1
+
+                print(f"      ✓ {category}: {len(organized_results[category])} results found")
+
+            # Format results for agents to use with proper citations
+            print(f"   ✓ Web search complete: {total_results} results from {total_searches} queries")
+
+            if total_results == 0:
+                return "No web search results available - internet may be unavailable"
+
+            # Build comprehensive formatted output with citations
+            formatted_output = f"""# 🌐 EXTENSIVE WEB RESEARCH DATA
+*Comprehensive real-world data collection with {total_results} sources across {len(search_queries)} categories*
+
+---
+
+"""
+
+            for category, results in organized_results.items():
                 if results:
-                    all_results.append(f"\n### Search: {query}")
-                    for result in results:
-                        all_results.append(f"**{result.title}**")
-                        all_results.append(f"{result.snippet}")
-                        all_results.append(f"Source: {result.url}\n")
+                    formatted_output += f"\n## 📊 {category}\n"
+                    formatted_output += f"*{len(results)} sources identified*\n\n"
 
-            if all_results:
-                return "\n".join(all_results)
-            else:
-                return "No web search results available"
+                    for idx, result in enumerate(results, 1):
+                        # Format with clear citations and clickable URLs
+                        formatted_output += f"""### [{idx}] {result['title']}
+
+**Source:** {result['source']}
+**URL:** {result['url']}
+
+{result['snippet']}
+
+---
+
+"""
+
+            # Add research methodology note
+            formatted_output += f"""
+## 📈 Research Methodology
+
+- **Total Sources Analyzed:** {total_results}
+- **Search Categories:** {len(search_queries)}
+- **Queries Executed:** {total_searches}
+- **Search Method:** DuckDuckGo (Real-time web search)
+- **Results Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+### How to Use These Sources
+1. Agents can reference specific sources by number [1], [2], etc.
+2. URLs can be verified for accuracy and current information
+3. Snippets provide context from each source
+4. Sources are organized by research category for easy navigation
+
+### Citation Format for Agents
+When using these sources, agents should cite as:
+- "[Title] [Source - URL]" or
+- "According to [Source]: [finding]"
+
+This ensures all planning decisions are grounded in real, verifiable information.
+
+---
+"""
+
+            return formatted_output
 
         except Exception as e:
             print(f"   ⚠️ Web search unavailable: {e}")
-            return "Web search not available (module not found or API key missing)"
+            import traceback
+            traceback.print_exc()
+            return f"Web search unavailable: {str(e)}"

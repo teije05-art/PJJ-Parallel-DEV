@@ -100,13 +100,13 @@ class MemoryManager:
 
                 # Add agent-specific success patterns
                 f.write("**Agent-Specific Success Factors:**\n")
-                if 'planner' in agent_results and agent_results['planner'].success:
+                if 'planner' in agent_results and agent_results['planner'] and hasattr(agent_results['planner'], 'success') and agent_results['planner'].success:
                     f.write(f"- Planner: Strategic approach was effective\n")
-                if 'executor' in agent_results and agent_results['executor'].success:
+                if 'executor' in agent_results and agent_results['executor'] and hasattr(agent_results['executor'], 'success') and agent_results['executor'].success:
                     f.write(f"- Executor: Implementation method worked well\n")
-                if 'verifier' in agent_results and agent_results['verifier'].success:
+                if 'verifier' in agent_results and agent_results['verifier'] and hasattr(agent_results['verifier'], 'success') and agent_results['verifier'].success:
                     f.write(f"- Verifier: Validation approach was successful\n")
-                if 'generator' in agent_results and agent_results['generator'].success:
+                if 'generator' in agent_results and agent_results['generator'] and hasattr(agent_results['generator'], 'success') and agent_results['generator'].success:
                     f.write(f"- Generator: Synthesis method was effective\n")
                 f.write("\n")
 
@@ -127,6 +127,8 @@ class MemoryManager:
                 for agent_name, result in agent_results.items():
                     if isinstance(result, AgentResult):
                         f.write(f"- {agent_name}: {'✅ SUCCESS' if result.success else '❌ FAILED'}\n")
+                    elif result is None:
+                        f.write(f"- {agent_name}: ⚠️ NO RESULT\n")
                 f.write("\n")
 
         print("   ✅ Rejected workflow stored for learning")

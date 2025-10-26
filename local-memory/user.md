@@ -41,3 +41,9 @@
 - **Cleveland Clinic SEA Market Entry**: Leading market entry project for Cleveland Clinic in Southeast Asia. [[entities/Cleveland_Clinic_SEA_Market_Entry_Project.md]]
 ## Favorite Color
 - favorite_color: [[entities/user_favorite_color.md]]
+## Projects
+- Tech Market Analysis: [[entities/tech_market_analysis.md]]
+## Projects
+- Startup Ecosystem: [[entities/startup_ecosystem.md]]
+## Projects
+- Digital Transformation: [[entities/digital_transformation.md]]
