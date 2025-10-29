@@ -1,4 +1,5 @@
 ## Projects
+- **Current Project**: Healthcare regulations compliance. [[entities/healthcare_regulations.md]]
 - **emiel&treloar_project**: Autonomous planning AI system developed during KPMG internship. [[entities/emiel&treloar_project.md]]
 - **mem-agent-mcp**: Configuration and migration details for the mem-agent-mcp project. [[entities/mem_agent_mcp_setup.md]]
 ## User Information
@@ -42,8 +43,9 @@
 ## Favorite Color
 - favorite_color: [[entities/user_favorite_color.md]]
 ## Projects
-- Tech Market Analysis: [[entities/tech_market_analysis.md]]
+- **Tech Market Analysis**: Project details can be found in the dedicated entity file. [[entities/tech_market_analysis.md]]
 ## Projects
 - Startup Ecosystem: [[entities/startup_ecosystem.md]]
 ## Projects
 - Digital Transformation: [[entities/digital_transformation.md]]
+- **Healthcare Regulations Compliance**: Ongoing project. [[entities/healthcare_regulations.md]]

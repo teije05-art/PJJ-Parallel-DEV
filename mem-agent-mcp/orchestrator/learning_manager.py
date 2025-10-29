@@ -24,7 +24,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from agent import Agent
-from .agentflow_agents import AgentResult
+from .agents import AgentResult
 
 
 class LearningManager:

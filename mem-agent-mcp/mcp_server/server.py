@@ -878,8 +878,8 @@ async def view_learning_summary(ctx: Context) -> str:
             pattern_lines = [l for l in lines if l.startswith('### Pattern')][:5]
             patterns_preview = '\n'.join(pattern_lines)
         
-        total = successes + failures
-        success_rate = (successes / total * 100) if total > 0 else 0
+        total = int(successes) + int(failures)
+        success_rate = (int(successes) / int(total) * 100) if int(total) > 0 else 0
         
         result = f"""
 📊 LEARNING SUMMARY
@@ -1037,7 +1037,7 @@ Progress so far:
 - Completed: {i} iterations
 - Successful: {successful}
 - Failed: {failed}
-- Success rate: {(successful/(i+1)*100) if i > 0 else 0:.1f}%
+- Success rate: {(int(successful)/int(i+1)*100) if i > 0 else 0:.1f}%
 
 Current plan:
 {plan.output}
@@ -1086,7 +1086,7 @@ Use reject_current_plan(reason) to provide feedback, then continue.
 Total iterations: {num_iterations}
 Successful: {successful}
 Failed: {failed}
-Success rate: {(successful/num_iterations*100):.1f}%
+Success rate: {(int(successful)/int(num_iterations)*100):.1f}%
 
 💾 Memory enriched with {num_iterations} iterations of learned context!
 

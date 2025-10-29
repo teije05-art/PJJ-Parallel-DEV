@@ -14,7 +14,7 @@ No dependencies on: Context retrieval, agent execution, memory storage
 import sys
 from typing import Tuple
 from dataclasses import dataclass
-from .agentflow_agents import AgentResult
+from .agents import AgentResult
 
 
 @dataclass
@@ -26,11 +26,17 @@ class ApprovalDecision:
 
 
 class ApprovalHandler:
-    """Handles human approval workflow"""
+    """Handles human approval workflow with LLM-based summarization"""
 
-    def __init__(self):
-        """Initialize approval handler"""
-        pass
+    def __init__(self, agent=None):
+        """
+        Initialize approval handler
+
+        Args:
+            agent: Optional Agent instance for generating summaries.
+                   If not provided, will attempt to create one.
+        """
+        self.agent = agent
 
     def get_approval(self, agent_results: dict, goal: str) -> ApprovalDecision:
         """
@@ -59,6 +65,10 @@ class ApprovalHandler:
         print("📋 COORDINATED WORKFLOW RESULTS:")
         print("-" * 50)
         print(f"\n🎯 GOAL: {goal}\n")
+
+        # DEFERRED: Summary generation moved to post-success async call
+        # This avoids extra LLM calls in the critical path
+        # After approval, call generate_approval_summary_async() if needed
 
         if 'planner' in agent_results:
             planner_result = agent_results['planner']
@@ -125,3 +135,95 @@ class ApprovalHandler:
                 sys.exit(0)
             else:
                 print("❌ Invalid choice. Please enter y, n, edit, or quit.")
+
+    def _generate_approval_summary(self, agent_results: dict, goal: str) -> str:
+        """
+        Generate an executive summary of the workflow results.
+
+        This helps the human approver understand the plan quickly without
+        reading through all the detailed outputs.
+
+        Args:
+            agent_results: Results from all 4 agents
+            goal: The planning goal
+
+        Returns:
+            Concise executive summary (3-4 sentences)
+        """
+        try:
+            # Prepare full outputs
+            planner_output = agent_results.get('planner', type('obj', (), {'output': 'Not available'})()).output or 'Not available'
+            verifier_output = agent_results.get('verifier', type('obj', (), {'output': 'Not available'})()).output or 'Not available'
+            executor_output = agent_results.get('executor', type('obj', (), {'output': 'Not available'})()).output or 'Not available'
+
+            # Verify validity
+            verifier_valid = agent_results.get('verifier', type('obj', (), {'metadata': {}}))().metadata.get('is_valid', False)
+
+            # Create summarization prompt
+            summary_prompt = f"""You are creating an executive summary for a decision-maker who needs to quickly understand a strategic plan.
+
+GOAL: {goal}
+
+STRATEGIC PLAN (from Planner Agent):
+{planner_output[:2000]}
+
+VERIFICATION RESULTS (from Verifier Agent):
+{verifier_output[:1000]}
+
+EXECUTION RESULTS (from Executor Agent):
+{executor_output[:1000]}
+
+PLAN VALIDITY: {'VALID' if verifier_valid else 'INVALID'}
+
+Create a concise executive summary (3-4 sentences) that answers:
+1. What is this plan trying to accomplish?
+2. Does the plan appear sound and complete?
+3. What are the key risks or concerns?
+4. Should this plan be approved?
+
+Keep the summary clear, professional, and actionable.
+Highlight any red flags that would prevent approval."""
+
+            # Get summary from agent
+            agent = self._get_agent_for_summary()
+            if not agent:
+                return "Unable to generate summary - agent not available"
+
+            response = agent.chat(summary_prompt)
+            summary = response.reply or "Unable to generate summary"
+
+            # Ensure summary is reasonable length
+            if len(summary) > 1000:
+                summary = summary[:1000] + "..."
+
+            if len(summary) < 50:
+                # If summary is too short, generate a default one
+                return f"Plan Status: {'Valid and ready for approval' if verifier_valid else 'Invalid - needs revision'}"
+
+            return summary
+
+        except Exception as e:
+            print(f"   ⚠️ Summary generation failed: {e}")
+            return "Unable to generate summary"
+
+    def _get_agent_for_summary(self):
+        """
+        Get the agent instance for summary generation.
+
+        This method supports both:
+        - Standalone ApprovalHandler (may not have agent access)
+        - ApprovalHandler within SimpleOrchestrator (has shared agent)
+
+        Returns:
+            Agent instance if available, None otherwise
+        """
+        if hasattr(self, 'agent') and self.agent:
+            return self.agent
+
+        # Fallback: try to create a temporary agent for summary
+        try:
+            from agent import Agent
+            return Agent(use_fireworks=True, predetermined_memory_path=False)
+        except Exception:
+            # If agent creation fails, return None
+            return None

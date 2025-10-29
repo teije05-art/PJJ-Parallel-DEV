@@ -11,12 +11,13 @@ __version__ = "0.3.0"
 
 # Import the orchestrator classes
 from .simple_orchestrator import SimpleOrchestrator  # NEW: Modular version
-from .agentflow_agents import (
+from .agents import (
     PlannerAgent,
     ExecutorAgent,
     VerifierAgent,
     GeneratorAgent,
-    AgentCoordinator
+    AgentCoordinator,
+    AgentResult
 )
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "ExecutorAgent",
     "VerifierAgent",
     "GeneratorAgent",
-    "AgentCoordinator"
+    "AgentCoordinator",
+    "AgentResult"
 ]
 
