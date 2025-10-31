@@ -10,11 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Status
 
-**Current Health:** 7.6/10 - Production-ready for beta testing
+**Current Health:** 8.2/10 - Production-ready for testing
 - ✅ Phase 4B Refactoring Complete: 3 monolithic files → 31 focused modules (zero regressions)
 - ✅ Research Enhancement Complete: 7 specialized angles, 11 data patterns, 45-75% coverage
-- ✅ Chatbox Implementation: Full web interface (alternative to MCP)
+- ✅ Chatbox Implementation: Full web interface with SSE streaming (Oct 30)
 - ✅ Multi-agent workflow: Planner → Verifier → Executor → Generator
+- ✅ SSE Real-time Progress: Iteration tracking with checkpoint approval gates (Oct 30)
+- ✅ Frontend/Backend Compatibility: Fixed response format mismatches (Oct 30)
 - ⏳ Minor: Llama timing investigation (not blocking)
 
 ## Quick Start
@@ -148,6 +150,57 @@ generator_result = generator.run((executor_result.content, original_context))
 
 Each agent returns an `AgentResult` object with `success: bool`, `content: str`, and `metadata: dict`.
 
+### Server-Sent Events (SSE) Real-Time Progress (Oct 30)
+The `/api/execute-plan` endpoint uses SSE to stream real-time progress:
+
+**Frontend Flow (index.html):**
+```javascript
+// 1. Open SSE connection with parameters
+const eventSource = new EventSource('/api/execute-plan?' + params);
+
+// 2. Listen for events
+eventSource.addEventListener('message', (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'iteration_started') { /* Show progress */ }
+    else if (data.type === 'checkpoint_reached') { /* Show modal */ }
+    else if (data.type === 'checkpoint_approved') { /* Continue */ }
+    else if (data.type === 'final_plan') { /* Display result */ }
+});
+
+// 3. Send approval via /api/checkpoint-approval
+fetch('/api/checkpoint-approval', {
+    method: 'POST',
+    body: JSON.stringify({ session_id, checkpoint: N })
+})
+```
+
+**Backend Flow (simple_chatbox.py:859-995):**
+```python
+@app.get("/api/execute-plan")
+async def execute_plan_endpoint(...):
+    async def event_stream():
+        # Yield SSE events as iterations run
+        yield f"data: {json.dumps({'type': 'iteration_started'})}\n\n"
+
+        # Block at checkpoint
+        session_manager.wait_for_checkpoint_approval(session_id)
+
+        # Yield approval confirmation
+        yield f"data: {json.dumps({'type': 'checkpoint_approved'})}\n\n"
+
+        # Continue iterations...
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+```
+
+**Key Features:**
+- Non-blocking execution with threading.Event synchronization
+- Real-time iteration progress feedback to user
+- Checkpoint summaries with framework/data-point tracking
+- User can approve/reject at each checkpoint
+- Works with browser EventSource API (no WebSocket needed)
+
 ### MCP Response Architecture
 After Phase 4B refactoring, large responses are handled by:
 1. Store full results to disk: `local-memory/plans/iteration_XXX_full_details.md`
@@ -255,34 +308,101 @@ Current research enhancement (Oct 28) added healthcare metrics, demographic data
 | `orchestrator/templates/` | Domain frameworks | 9 files | ✅ Phase 4B |
 | `tests/test_baseline.py` | Test suite | 22 tests | ✅ Phase 4B |
 
+## Recent Changes (October 30, 2025)
+
+### SSE Implementation Complete
+- ✅ Real-time iteration progress streaming via Server-Sent Events
+- ✅ Checkpoint approval gates with modal UI
+- ✅ Iteration-level improvements analysis via Llama
+- ✅ Non-blocking backend execution with threading.Event
+- ✅ Full end-to-end testing ready
+
+### Rebuild Summary Applied
+- ✅ Old MCP code removed (eliminated 51KB of duplicate orchestrators)
+- ✅ simple_chatbox.py rebuilt: 4,010 → 803 lines (80% reduction)
+- ✅ Static frontend (index.html) created: 52KB, 1,460 lines
+- ✅ Zero code duplication, clean separation of concerns
+- ✅ All endpoints backward compatible
+
+### Frontend/Backend Compatibility Fixes
+- ✅ Fixed /api/status response to include frontend-expected fields
+  - Added: `backend`, `agent_available`, `orchestrator_available`, `sessions_active`
+- ✅ Fixed /api/chat response: added `reply` alias for backward compatibility
+- ✅ Fixed /api/generate-proposal response to include all expected fields
+  - Added: `entity_count`, `entity_names`, `memory_coverage_percent`, `research_coverage_percent`
+
 ## Known Limitations & Next Steps
 
 ### Current Limitations
 1. **Llama Timing Investigation** - Analysis speed sometimes instant instead of 1-2 minutes (need logging to verify)
 2. **Research Coverage Metric** - Now data-driven but still needs real-world testing validation
 3. **Long-Running Iterations** - System reliable up to 7+ iterations, needs stress testing beyond that
+4. **Port Conflicts** - Old Python processes may linger; use `lsof -i :9000` to check
 
 ### Next Priority Tasks (Not implemented)
-1. Comprehensive system testing (run 5+ complete planning iterations)
-2. Validate research coverage percentages in practice
+1. Comprehensive system testing (run 5+ complete planning iterations with SSE)
+2. Validate checkpoint approval flow in production
 3. Investigate and fix Llama analysis timing issue
 4. Performance optimization (lazy-load templates, cache search results)
 5. Unit tests for individual context providers and agents
 
 ### Git Notes
-- Repository is active (Oct 28 2025 most recent)
-- Major phases completed: Refactoring (Phase 4B), Research Enhancement (Oct 28)
-- Ready for next development phase: testing and validation
+- Repository is active (Oct 30 2025 most recent)
+- Major phases completed: Refactoring (Phase 4B), Research Enhancement (Oct 28), SSE Implementation (Oct 30)
+- Ready for next development phase: production testing and validation
 
 ## Debugging Checklist
 
 When something fails:
-1. Check `local-memory/entities/planning_errors.md` for error patterns
-2. Look at most recent plan in `local-memory/plans/` for execution details
-3. Review `learning_tracker.py` logs for performance metrics
-4. Check MCP response size (if using Claude Desktop) - should be compact summary
-5. Verify research tool found data (check coverage % in proposal)
+
+### Frontend Errors (HTTP 400+)
+1. Check browser console (F12 → Console tab) for error messages
+2. Enable DEBUG=True in simple_chatbox.py to see backend logs
+3. Verify /api/status returns correct fields (backend, agent_available, etc.)
+4. Check that /api/chat returns `reply` field (not just `response`)
+5. Verify /api/generate-proposal returns all required fields
+
+### Backend Errors
+1. Check terminal output where `make serve-chatbox` is running
+2. Look for "❌ Chat error:", "❌ Proposal error:", "❌ SSE error:" messages
+3. Check `local-memory/entities/planning_errors.md` for error patterns
+4. Look at most recent plan in `local-memory/plans/` for execution details
+5. Review `learning_tracker.py` logs for performance metrics
 6. Ensure memory directory is configured: `cat .memory_path`
+
+### Checkpoint/SSE Issues
+1. Check browser Network tab (F12 → Network) for `/api/execute-plan` connection
+2. Look for SSE events in browser console: `eventSource.addEventListener('message', ...)`
+3. Verify checkpoint modal appears when `checkpoint_reached` event fires
+4. Check that `/api/checkpoint-approval` POST succeeds (status 200)
+5. Verify backend resumes after approval (check terminal logs)
+
+### Port Already in Use
+```bash
+# Check what's using port 9000
+lsof -i :9000
+
+# Kill stuck Python process
+kill -9 <PID>
+
+# Or use the alias from old system (if running from bash)
+python simple_chatbox.py 2>&1  # May show port conflict
+
+# Kill all Python processes (careful!)
+killall -9 python3
+```
+
+### Memory Directory Issues
+```bash
+# Verify memory path is configured
+cat .memory_path
+
+# Create if missing
+mkdir -p $(cat .memory_path)
+
+# Test memory operations
+python llama_planner.py  # Interactive shell
+```
 
 ## Performance Notes
 

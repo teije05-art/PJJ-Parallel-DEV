@@ -49,22 +49,22 @@ install: check-uv
 	uv sync
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
 		if ! command -v lms > /dev/null; then \
-			echo "lms not found. Installing lms..."; \
-			chmod +x mcp_server/scripts/install_lms.sh; \
-			./mcp_server/scripts/install_lms.sh; \
+			echo "lms not found. Installing lms using brew..."; \
+			brew install lms || echo "Please install lms manually: brew install lms"; \
 		else \
 			echo "lms is already installed"; \
 		fi; \
 	fi
 
 setup:
-	uv run python mcp_server/scripts/memory_setup.py && uv run python mcp_server/scripts/setup_scripts_and_json.py && chmod +x mcp_server/scripts/start_server.sh
+	@echo "MemAgent is ready to use. Configuration stored in .memory_path"
+	@echo "If you need to change the memory path, create/edit .memory_path"
 
 add-filters:
-	uv run python mcp_server/scripts/filters.py --add
+	@echo "Filter configuration is managed in .filters file"
 
 reset-filters:
-	uv run python mcp_server/scripts/filters.py --reset
+	@echo "To reset filters, delete .filters and reconfigure"
 
 run-agent:
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
@@ -91,14 +91,14 @@ run-agent:
 	fi
 
 generate-mcp-json:
-	@echo "Generating mcp.json..."
-	@echo '{"mcpServers": {"memory-agent-stdio": {"command": "bash", "args": ["-lc", "cd $(REPO_ROOT) && uv run python mcp_server/server.py"], "env": {"FASTMCP_LOG_LEVEL": "INFO", "MCP_TRANSPORT": "stdio"}, "timeout": 600000}}}' > mcp.json
-	@echo "Wrote mcp.json the following contents:"
-	@cat mcp.json
+	@echo "⚠️  MCP server has been replaced with web chatbox interface"
+	@echo "For Claude Desktop integration, use the web chatbox instead"
+	@echo "Run: make serve-chatbox"
 
 serve-mcp:
-	@echo "Starting MCP server over STDIO"
-	FASTMCP_LOG_LEVEL=INFO MCP_TRANSPORT=stdio uv run python -m mcp_server.server
+	@echo "⚠️  MCP server has been replaced with web chatbox interface"
+	@echo "For Claude Desktop integration, use the web chatbox instead"
+	@echo "Run: make serve-chatbox"
 
 chat-cli:
 	uv run python chat_cli.py
@@ -184,27 +184,12 @@ convert-chatgpt:
 
 # HTTP Server for ChatGPT Integration
 serve-http:
-	@echo "🌐 Starting HTTP server for ChatGPT integration..."
-	@echo "💡 This creates an HTTP wrapper around the existing stdio MCP server"
-	@echo "🔗 Server will be available at: http://localhost:8080"
-	@echo ""
-	@echo "📋 Next steps:"
-	@echo "   1. Make sure your memory server is properly configured (make setup)"
-	@echo "   2. In another terminal, run: ngrok http 8080"
-	@echo "   3. Use the ngrok URL in ChatGPT Developer Mode"
-	@echo ""
-	uv run python mcp_server/http_server.py
+	@echo "⚠️  HTTP server has been replaced with web chatbox"
+	@echo "Use the web chatbox instead: make serve-chatbox"
+	@echo "Web chatbox is available at http://localhost:9000"
 
 # MCP-Compliant HTTP Server for ChatGPT
 serve-mcp-http:
-	@echo "🌐 Starting MCP-compliant HTTP server for ChatGPT..."
-	@echo "📋 This implements proper Model Context Protocol over HTTP"
-	@echo "🔗 Server will be available at: http://localhost:8081"
-	@echo "🔗 MCP endpoint: http://localhost:8081/mcp"
-	@echo ""
-	@echo "📋 Next steps:"
-	@echo "   1. In another terminal, run: ngrok http 8081"
-	@echo "   2. In ChatGPT, use: https://your-ngrok-url.ngrok.io/mcp"
-	@echo "   3. Set protocol to 'HTTP' (not SSE)"
-	@echo ""
-	uv run python mcp_server/mcp_http_server.py
+	@echo "⚠️  MCP HTTP server has been replaced with web chatbox"
+	@echo "Use the web chatbox instead: make serve-chatbox"
+	@echo "Web chatbox is available at http://localhost:9000"

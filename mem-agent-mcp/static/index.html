@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Jupiter Planner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+        }
+
+        .sidebar h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .mode-btn.active {
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .mode-btn:hover:not(.active) {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+
+        .status-info {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 12px;
+            color: #166534;
+            margin-bottom: 20px;
+        }
+
+        .status-info strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .current-mode {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        #chatbox {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message-content {
+            padding: 15px 18px;
+            border-radius: 8px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+
+        .message.user .message-label {
+            color: #2563eb;
+        }
+
+        .message.user .message-content {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .message.agent .message-label {
+            color: #059669;
+        }
+
+        .message.agent .message-content {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .message.planning .message-label {
+            color: #9333ea;
+        }
+
+        .message.planning .message-content {
+            background: #faf5ff;
+            color: #6b21a8;
+        }
+
+        .input-container {
+            border-top: 1px solid #e0e0e0;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+        }
+
+        .input-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #message-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #message-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #4b5563;
+        }
+
+        .loading {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #9ca3af;
+            margin-top: 100px;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 15px;
+            margin-top: 10px;
+        }
+
+        .status-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+
+            .main-content {
+                flex: 1;
+            }
+        }
+
+        /* ============================================ */
+        /* ENTITY SELECTOR CSS (Phase 1B) */
+        /* ============================================ */
+
+        .sidebar-panel {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .search-box {
+            margin-bottom: 12px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .entity-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .entity-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-item:hover {
+            background: #f3f4f6;
+        }
+
+        .entity-item.selected {
+            background: #dbeafe;
+            border-left: 3px solid #2563eb;
+        }
+
+        .entity-checkbox {
+            margin-right: 6px;
+        }
+
+        .agent-list {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .agent-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .agent-item:hover {
+            background: #f3f4f6;
+        }
+
+        .agent-item.selected {
+            background: #dbeafe;
+            border-left: 3px solid #2563eb;
+        }
+
+        .agent-checkbox {
+            margin-right: 6px;
+            margin-top: 3px;
+        }
+
+        .entity-controls,
+        .selection-summary {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            gap: 8px;
+        }
+
+        .entity-controls button {
+            flex: 1;
+            padding: 6px;
+            font-size: 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-controls button:hover {
+            background: #f9fafb;
+        }
+
+        /* ============================================ */
+        /* APPROVAL GATE MODAL CSS (Phase 1B) */
+        /* ============================================ */
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .approval-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .approval-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .goal-box,
+        .info-box {
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #333;
+            border-left: 3px solid #2563eb;
+        }
+
+        .approval-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #059669;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: #dc2626;
+        }
+
+        .btn-adjust {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-adjust:hover {
+            background: #2563eb;
+        }
+
+        .btn-confirm {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #999;
+            color: white;
+        }
+
+        #adjustment-text {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 11px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-small:hover {
+            background: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2>Mode</h2>
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="chat">💬 Chat</button>
+                <button class="mode-btn" data-mode="plan">🎯 Plan</button>
+            </div>
+
+            <div class="status-info" id="status-info">
+                <strong>System Status</strong>
+                <div id="status-content">Loading...</div>
+            </div>
+
+            <!-- Entity Selector (Phase 1B) -->
+            <div id="entity-selector-panel" class="sidebar-panel" style="display: none;">
+                <h3>📚 Select Memory Entities</h3>
+
+                <div class="search-box">
+                    <input type="text" id="entity-search" placeholder="Search entities..."
+                           onkeyup="filterEntities(this.value)">
+                </div>
+
+                <div id="entity-list" class="entity-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <div class="entity-controls">
+                    <button class="btn-small" onclick="saveEntitySelection()">Save</button>
+                    <button class="btn-small" onclick="clearEntitySelection()">Clear</button>
+                </div>
+
+                <div class="selection-summary">
+                    <small id="selection-count">Selected: 0</small>
+                </div>
+            </div>
+
+            <!-- Agent Selector (Phase 1D) -->
+            <div id="agent-selector-panel" class="sidebar-panel" style="display: none;">
+                <h3>🔧 Select Planning Agents</h3>
+
+                <div id="agent-list" class="agent-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <div class="entity-controls" style="margin-top: 10px;">
+                    <button class="btn-small" onclick="saveAgentSelection()">Save</button>
+                </div>
+
+                <div class="selection-summary">
+                    <small id="agent-selection-count">Selected: 0</small>
+                </div>
+            </div>
+
+            <h2>Planning Options</h2>
+            <div id="planning-options" style="display: none;">
+                <label style="display: block; margin-bottom: 10px; font-size: 13px;">
+                    Max Iterations:
+                    <input type="number" id="max-iterations" value="9" min="1" max="30" style="width: 100%; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 4px;">
+                </label>
+                <label style="display: block; font-size: 13px;">
+                    Checkpoint Interval:
+                    <input type="number" id="checkpoint-interval" value="3" min="1" max="10" style="width: 100%; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 4px;">
+                </label>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div>
+                    <h1>Project Jupiter Planner <span class="current-mode" id="current-mode">Chat Mode</span></h1>
+                    <p>Memory-augmented autonomous planning system</p>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div id="chatbox">
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    <p id="empty-message">Start a conversation with your memory agent</p>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input
+                        type="text"
+                        id="message-input"
+                        placeholder="Ask me anything or describe your planning goal..."
+                        autocomplete="off"
+                    >
+                    <div class="btn-group">
+                        <button id="send-btn">Send</button>
+                        <button id="clear-btn" class="btn-secondary">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approval Gate Modal (Phase 1B) -->
+        <div id="approval-gate-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>✨ Approve Planning Approach</h2>
+
+                <div class="approval-section">
+                    <h3>Goal</h3>
+                    <div id="approval-goal" class="goal-box"></div>
+                </div>
+
+                <div class="approval-section">
+                    <h3>Memory Search</h3>
+                    <div id="approval-memory" class="info-box"></div>
+                </div>
+
+                <div class="approval-section">
+                    <h3>Proposed Approach</h3>
+                    <div id="approval-approach" class="info-box"></div>
+                </div>
+
+                <div class="approval-section">
+                    <h3>⚙️ Planning Configuration</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 10px; background: #f9fafb; border-radius: 4px;">
+                        <div>
+                            <label for="max-iterations" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">
+                                Max Iterations
+                            </label>
+                            <input type="number" id="max-iterations" min="1" max="20" value="6"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                            <small style="display: block; margin-top: 3px; color: #666;">How many iteration cycles (1-20)</small>
+                        </div>
+                        <div>
+                            <label for="checkpoint-interval" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">
+                                Checkpoint Interval
+                            </label>
+                            <input type="number" id="checkpoint-interval" min="1" max="10" value="3"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                            <small style="display: block; margin-top: 3px; color: #666;">Show summary every N iterations (1-10)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="approval-controls">
+                    <button class="btn btn-approve" onclick="approveApproach()">✓ APPROVE</button>
+                    <button class="btn btn-reject" onclick="rejectApproach()">✗ REJECT</button>
+                    <button class="btn btn-adjust" onclick="toggleAdjustmentForm()">? ADJUST</button>
+                </div>
+
+                <div id="adjustment-form" style="display: none;" class="approval-section">
+                    <h3>Describe Changes</h3>
+                    <textarea id="adjustment-text" placeholder="Describe what you'd like to change..."
+                              rows="3"></textarea>
+                    <div class="approval-controls">
+                        <button class="btn btn-confirm" onclick="submitAdjustment()">Send</button>
+                        <button class="btn btn-cancel" onclick="toggleAdjustmentForm()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let currentMode = 'chat';
+        let sessionId = localStorage.getItem('mem_agent_session_id');
+        const chatbox = document.getElementById('chatbox');
+        const input = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const modeButtons = document.querySelectorAll('.mode-btn');
+        const planningOptions = document.getElementById('planning-options');
+        const currentModeLabel = document.getElementById('current-mode');
+        const emptyMessage = document.getElementById('empty-message');
+
+        // Load system status
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const statusContent = document.getElementById('status-content');
+                statusContent.innerHTML = `
+                    <strong>Backend:</strong> ${data.backend}<br>
+                    <strong>Agent:</strong> ${data.agent_available ? '✅' : '❌'}<br>
+                    <strong>Planning:</strong> ${data.orchestrator_available ? '✅' : '❌'}<br>
+                    <strong>Sessions:</strong> ${data.sessions_active}
+                `;
+            } catch (error) {
+                document.getElementById('status-content').textContent = 'Status unavailable';
+            }
+        }
+
+        // Mode switching
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode;
+
+                if (currentMode === 'chat') {
+                    planningOptions.style.display = 'none';
+                    input.placeholder = 'Ask me anything or describe your planning goal...';
+                    currentModeLabel.textContent = 'Chat Mode';
+                    emptyMessage.textContent = 'Start a conversation with your memory agent';
+                } else {
+                    planningOptions.style.display = 'block';
+                    input.placeholder = 'Describe your planning goal...';
+                    currentModeLabel.textContent = 'Planning Mode';
+                    emptyMessage.textContent = 'Start autonomous planning iterations';
+                }
+            });
+        });
+
+        // Parse mode prefix from message
+        function parseModePrefix(message) {
+            if (message.startsWith('/chat ')) {
+                return { mode: 'chat', clean: message.substring(6).trim() };
+            } else if (message.startsWith('/memory ')) {
+                return { mode: 'memory', clean: message.substring(8).trim() };
+            } else if (message.startsWith('/plan ')) {
+                return { mode: 'plan', clean: message.substring(6).trim() };
+            }
+            return { mode: null, clean: message };
+        }
+
+        // Send message
+        async function sendMessage() {
+            const userInput = input.value.trim();
+            if (!userInput) return;
+
+            input.value = '';
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = 'Thinking<span class="loading"></span>';
+
+            const emptyState = chatbox.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            // Check for approval commands when awaiting approval
+            if (window.awaitingApproval && userInput.toUpperCase() === 'APPROVE') {
+                addMessage(userInput, 'user');
+
+                try {
+                    // Send approval to continue execution
+                    const response = await fetch('/api/execute-plan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: sessionId,
+                            approval_status: 'approved'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    sessionId = data.session_id;
+                    localStorage.setItem('mem_agent_session_id', sessionId);
+
+                    // Handle the response (should be success status)
+                    if (data.status === 'success') {
+                        window.awaitingApproval = false;
+                        let planContent = `✅ Planning executed successfully!\n\n${data.plan_content || 'Plan completed.'}`;
+                        addMessage(planContent, 'agent');
+                    } else {
+                        addMessage(`Unexpected status: ${data.status}`, 'agent');
+                    }
+
+                } catch (error) {
+                    addMessage(`Error: ${error.message}`, 'agent');
+                } finally {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                    input.focus();
+                }
+                return;
+            }
+
+            // Detect mode from prefix
+            const { mode: detectedMode, clean: cleanMessage } = parseModePrefix(userInput);
+            const effectiveMode = detectedMode || currentMode;
+
+            // Display message with original input (including prefix)
+            addMessage(userInput, effectiveMode === 'chat' ? 'user' : 'planning');
+
+            try {
+                if (effectiveMode === 'plan') {
+                    // Phase 1: Generate proposal first (without executing tools)
+                    console.log('Phase 1: Generating proposal...');
+                    addMessage('🔄 Analyzing goal and generating proposal...', 'agent');
+
+                    const proposalResponse = await fetch('/api/generate-proposal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            goal: userInput,
+                            selected_entities: selectedEntities,
+                            selected_agents: selectedAgents,
+                            session_id: sessionId
+                        })
+                    });
+
+                    if (!proposalResponse.ok) {
+                        throw new Error(`Failed to generate proposal: HTTP ${proposalResponse.status}`);
+                    }
+
+                    const proposalData = await proposalResponse.json();
+
+                    if (proposalData.status === 'success') {
+                        // Show the proposal in the modal with all breakdown details
+                        showProposalModal(
+                            userInput,
+                            proposalData.proposal,
+                            {
+                                entity_count: proposalData.entity_count,
+                                entity_names: proposalData.entity_names,
+                                memory_coverage_percent: proposalData.memory_coverage_percent,
+                                research_coverage_percent: proposalData.research_coverage_percent,
+                                agents_to_use: proposalData.agents_to_use,
+                                max_iterations: proposalData.max_iterations,
+                                checkpoint_interval: proposalData.checkpoint_interval,
+                                session_id: proposalData.session_id
+                            }
+                        );
+
+                        // Store pending execution data
+                        window.pendingExecution = {
+                            goal: userInput,
+                            selected_entities: selectedEntities,
+                            selected_agents: selectedAgents,
+                            session_id: sessionId,
+                            proposal: proposalData.proposal
+                        };
+                    } else {
+                        addMessage(`❌ Failed to generate proposal: ${proposalData.error || 'Unknown error'}`, 'agent');
+                    }
+
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                    input.focus();
+                    return;
+                }
+
+                // Chat mode
+                const endpoint = '/api/chat';
+                const body = {
+                    message: userInput,
+                    session_id: sessionId
+                };
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                sessionId = data.session_id;
+                localStorage.setItem('mem_agent_session_id', sessionId);
+
+                if (effectiveMode === 'chat') {
+                    addMessage(data.reply, 'agent');
+                } else {
+                    // PLANNING MODE - Handle different statuses from /api/execute-plan
+                    let planContent = '';
+
+                    if (data.status === 'awaiting_approval') {
+                        // Llama proposed an approach - show approval gate
+                        planContent = `
+🔍 APPROACH PROPOSAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${data.proposal || 'No proposal details available'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+To proceed, type one of:
+  APPROVE - Execute the plan as proposed
+  ADJUST - Tell me what to change
+  REJECT - Cancel and start over
+                        `.trim();
+
+                        addMessage(planContent, 'agent');
+
+                        // Store that we're waiting for approval
+                        window.awaitingApproval = true;
+                        window.pendingApprovalSessionId = data.session_id;
+
+                    } else if (data.status === 'error') {
+                        planContent = `
+❌ Planning failed: ${data.message || 'Unknown error'}
+
+Error details:
+${data.error || 'No additional error information available'}
+                        `.trim();
+                        addMessage(planContent, 'agent');
+
+                    } else if (data.status === 'success') {
+                        // Full execution completed
+                        planContent = `
+✅ Planning completed successfully
+
+📊 Execution Summary:
+  • Goal: ${data.goal || 'Not specified'}
+  • Selected Entities: ${data.selected_entities ? data.selected_entities.join(', ') : 'None'}
+  • Tools Executed: ${data.tool_executions || 0}
+  • Iterations: ${data.iterations || 0}
+  • Status: ${data.status.toUpperCase()}
+                        `.trim();
+
+                        // Add the complete plan
+                        planContent += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 COMPLETE PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+                        // Display the full plan content
+                        if (data.plan_content && data.plan_content.trim().length > 0) {
+                            planContent += `\n\n${data.plan_content}`;
+                        } else {
+                            planContent += `\n\n⚠️ No plan content generated.`;
+                        }
+
+                        // Add summary footer
+                        planContent += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Session Information
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  • Session ID: ${data.session_id || 'Not available'}
+  • Memory-first approach: Search entities first, research fills gaps
+  • Plan grounded in: ${data.selected_entities && data.selected_entities.length > 0 ? data.selected_entities.join(', ') : 'General knowledge'}
+`;
+                        addMessage(planContent, 'agent');
+                        window.awaitingApproval = false;
+                    } else {
+                        // Unknown status
+                        planContent = `Unexpected response status: ${data.status}`;
+                        addMessage(planContent, 'agent');
+                    }
+                }
+
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, 'agent');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+                input.focus();
+            }
+        }
+
+        // Add message to chat
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const label = document.createElement('div');
+            label.className = 'message-label';
+            label.textContent = sender === 'user' ? 'You' : sender === 'agent' ? 'Agent' : 'Planning';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = text;
+
+            messageDiv.appendChild(label);
+            messageDiv.appendChild(content);
+            chatbox.appendChild(messageDiv);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            chatbox.innerHTML = `
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    <p>${currentMode === 'chat' ? 'Start a conversation with your memory agent' : 'Start autonomous planning iterations'}</p>
+                </div>
+            `;
+        });
+
+        // ============================================
+        // ENTITY SELECTOR JAVASCRIPT (Phase 1B)
+        // ============================================
+
+        let selectedEntities = [];
+
+        async function initEntitySelector() {
+            // Load entity list from memory directory
+            try {
+                const response = await fetch('/api/entities');
+                const entities = await response.json();
+
+                // Load saved selection from localStorage
+                const savedSelection = localStorage.getItem('llama_selected_entities');
+                selectedEntities = savedSelection ? JSON.parse(savedSelection) : [];
+
+                // Render entity list
+                renderEntityList(entities);
+
+                // Show entity selector when in planning mode
+                document.getElementById('entity-selector-panel').style.display = 'block';
+            } catch (e) {
+                console.error('Failed to init entity selector:', e);
+            }
+        }
+
+        function renderEntityList(entities) {
+            const list = document.getElementById('entity-list');
+            list.innerHTML = entities.map(entity => `
+                <div class="entity-item ${selectedEntities.includes(entity.name) ? 'selected' : ''}">
+                    <input type="checkbox" class="entity-checkbox"
+                           data-entity-name="${entity.name}"
+                           ${selectedEntities.includes(entity.name) ? 'checked' : ''}>
+                    <span onclick="toggleEntityBySpan('${entity.name}')">${entity.name}</span>
+                    <small style="display: block; margin-top: 4px; color: #999;">
+                        ${entity.description || 'No description'}
+                    </small>
+                </div>
+            `).join('');
+
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.entity-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const entityName = checkbox.getAttribute('data-entity-name');
+                    toggleEntity(entityName);
+                });
+            });
+
+            updateSelectionSummary();
+        }
+
+        function toggleEntityBySpan(name) {
+            const checkbox = document.querySelector(`input[data-entity-name="${name}"]`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                toggleEntity(name);
+            }
+        }
+
+        function toggleEntity(name) {
+            if (selectedEntities.includes(name)) {
+                selectedEntities = selectedEntities.filter(e => e !== name);
+            } else {
+                selectedEntities.push(name);
+            }
+            saveEntitySelection();
+        }
+
+        function saveEntitySelection() {
+            localStorage.setItem('llama_selected_entities', JSON.stringify(selectedEntities));
+            updateSelectionSummary();
+        }
+
+        function clearEntitySelection() {
+            selectedEntities = [];
+            saveEntitySelection();
+        }
+
+        function filterEntities(query) {
+            const items = document.querySelectorAll('.entity-item');
+            items.forEach(item => {
+                const name = item.textContent.toLowerCase();
+                item.style.display = name.includes(query.toLowerCase()) ? 'block' : 'none';
+            });
+        }
+
+        function updateSelectionSummary() {
+            document.getElementById('selection-count').textContent =
+                `Selected: ${selectedEntities.length}`;
+        }
+
+        // ============================================
+        // AGENT SELECTOR JAVASCRIPT (Phase 1D)
+        // ============================================
+
+        let selectedAgents = [];
+        const availableAgents = [
+            { name: 'planner', label: 'Planner', description: 'Strategic planning specialist' },
+            { name: 'verifier', label: 'Verifier', description: 'Plan validation expert' },
+            { name: 'executor', label: 'Executor', description: 'Implementation details' },
+            { name: 'generator', label: 'Generator', description: 'Results synthesis' }
+        ];
+
+        async function initAgentSelector() {
+            try {
+                // Load saved selection from localStorage
+                const savedSelection = localStorage.getItem('llama_selected_agents');
+                selectedAgents = savedSelection ? JSON.parse(savedSelection) : ['planner'];
+
+                // Render agent list
+                renderAgentList();
+
+                // Show agent selector
+                const agentPanel = document.getElementById('agent-selector-panel');
+                if (agentPanel) {
+                    agentPanel.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Failed to init agent selector:', e);
+            }
+        }
+
+        function renderAgentList() {
+            const list = document.getElementById('agent-list');
+            if (!list) return;
+
+            list.innerHTML = availableAgents.map(agent => `
+                <div class="agent-item ${selectedAgents.includes(agent.name) ? 'selected' : ''}">
+                    <input type="checkbox" class="agent-checkbox"
+                           data-agent-name="${agent.name}"
+                           ${selectedAgents.includes(agent.name) ? 'checked' : ''}>
+                    <div>
+                        <span onclick="toggleAgentBySpan('${agent.name}')">${agent.label}</span>
+                        <small style="display: block; margin-top: 4px; color: #999;">
+                            ${agent.description}
+                        </small>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.agent-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const agentName = checkbox.getAttribute('data-agent-name');
+                    toggleAgent(agentName);
+                });
+            });
+
+            updateAgentSummary();
+        }
+
+        function toggleAgentBySpan(name) {
+            const checkbox = document.querySelector(`input[data-agent-name="${name}"]`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                toggleAgent(name);
+            }
+        }
+
+        function toggleAgent(name) {
+            if (selectedAgents.includes(name)) {
+                selectedAgents = selectedAgents.filter(a => a !== name);
+            } else {
+                selectedAgents.push(name);
+            }
+            saveAgentSelection();
+        }
+
+        function saveAgentSelection() {
+            localStorage.setItem('llama_selected_agents', JSON.stringify(selectedAgents));
+            updateAgentSummary();
+        }
+
+        function updateAgentSummary() {
+            const summary = document.getElementById('agent-selection-count');
+            if (summary) {
+                summary.textContent = `Selected: ${selectedAgents.length}`;
+            }
+        }
+
+        // ============================================
+        // PROPOSAL MODAL JAVASCRIPT (Phase 2)
+        // ============================================
+
+        let pendingExecution = null;
+
+        function showProposalModal(goal, proposal, breakdown) {
+            // Store execution data (including iteration parameters)
+            pendingExecution = {
+                goal: goal,
+                proposal: proposal,
+                breakdown: breakdown,
+                max_iterations: breakdown.max_iterations || 6,
+                checkpoint_interval: breakdown.checkpoint_interval || 3
+            };
+
+            // Populate modal with proposal content
+            document.getElementById('approval-goal').textContent = goal;
+
+            document.getElementById('approval-memory').innerHTML = `
+                <strong>📊 Analysis</strong>
+                <p><strong>Entities to search:</strong> ${breakdown.entity_names.join(', ')}</p>
+                <p><strong>Memory coverage:</strong> ${breakdown.memory_coverage_percent}%</p>
+                <p><strong>Research coverage:</strong> ${breakdown.research_coverage_percent}%</p>
+                <p><strong>Agents:</strong> ${breakdown.agents_to_use.join(', ')}</p>
+            `;
+
+            document.getElementById('approval-approach').innerHTML = `
+                <strong>📋 Proposal</strong>
+                <div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f9fafb; border-radius: 4px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">
+                    ${proposal}
+                </div>
+            `;
+
+            // Show modal
+            document.getElementById('approval-gate-modal').style.display = 'flex';
+        }
+
+        async function approveApproach() {
+            if (!pendingExecution) {
+                alert('No pending execution found');
+                return;
+            }
+
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Executing...';
+
+            try {
+                // Read custom iteration parameters from input fields
+                const maxIterations = parseInt(document.getElementById('max-iterations').value) || 6;
+                const checkpointInterval = parseInt(document.getElementById('checkpoint-interval').value) || 3;
+
+                // Validate inputs
+                if (maxIterations < 1 || maxIterations > 20) {
+                    alert('Max iterations must be between 1 and 20');
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                    return;
+                }
+                if (checkpointInterval < 1 || checkpointInterval > 10) {
+                    alert('Checkpoint interval must be between 1 and 10');
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                    return;
+                }
+                if (checkpointInterval > maxIterations) {
+                    alert('Checkpoint interval cannot be greater than max iterations');
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                    return;
+                }
+
+                console.log(`Phase 2: Executing with ${maxIterations} iterations, checkpoint every ${checkpointInterval}`);
+
+                // Hide modal IMMEDIATELY
+                document.getElementById('approval-gate-modal').style.display = 'none';
+
+                // Show that planning started
+                addMessage(`🚀 Starting planning with ${maxIterations} iterations (checkpoint every ${checkpointInterval})...`, 'agent');
+
+                // Phase 2: Execute the plan using Server-Sent Events (SSE)
+                const params = new URLSearchParams({
+                    goal: pendingExecution.goal,
+                    proposal: pendingExecution.proposal || '',
+                    max_iterations: maxIterations,
+                    checkpoint_interval: checkpointInterval,
+                    session_id: sessionId
+                });
+
+                const eventSource = new EventSource('/api/execute-plan?' + params);
+                let currentCheckpoint = 0;
+
+                eventSource.addEventListener('message', (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('SSE Event:', data.type, data);
+
+                        if (data.type === 'planning_started') {
+                            addMessage(`📋 Planning proposal approved! Starting ${data.max_iterations} iterations...`, 'agent');
+                        }
+
+                        else if (data.type === 'iteration_started') {
+                            addMessage(`🔄 Starting iteration ${data.iteration} of ${data.max}...`, 'agent');
+                        }
+
+                        else if (data.type === 'checkpoint_reached') {
+                            currentCheckpoint = data.checkpoint_number;
+                            addMessage(`⏹️ CHECKPOINT REACHED (Iteration ${data.iteration})`, 'agent');
+
+                            // Show summary of progress so far
+                            let summary = `
+✅ Checkpoint ${currentCheckpoint} Summary:
+  • Frameworks applied: ${(data.frameworks_so_far || []).join(', ') || 'None yet'}
+  • Data points extracted: ${data.data_points_so_far || 0}
+  • Planning progress: Iteration ${data.iteration} of ${maxIterations}
+
+⏳ Waiting for your approval to continue...
+                            `.trim();
+                            addMessage(summary, 'agent');
+
+                            // Show checkpoint approval modal
+                            showCheckpointModal(currentCheckpoint, data);
+                        }
+
+                        else if (data.type === 'checkpoint_approved') {
+                            addMessage(`✅ Checkpoint approved! Continuing iterations...`, 'agent');
+                        }
+
+                        else if (data.type === 'final_plan') {
+                            eventSource.close();
+
+                            addMessage(`✅ Planning completed!`, 'agent');
+
+                            // Show final plan
+                            let finalContent = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 FINAL COMPREHENSIVE PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${data.plan || '⚠️ No plan content generated.'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Final Metrics:
+  • Total Iterations: ${data.iterations || 'Unknown'}
+  • Checkpoints: ${data.checkpoints || 0}
+  • Frameworks Applied: ${(data.frameworks || []).join(', ') || 'None'}
+  • Data Points Extracted: ${data.data_points || 0}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                            `.trim();
+
+                            addMessage(finalContent, 'agent');
+
+                            // Phase 3: Save plan as entity in memory
+                            console.log('Phase 3: Saving plan as entity...');
+                            try {
+                                fetch('/api/save-entity', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        goal: pendingExecution.goal,
+                                        plan_content: data.plan || 'Plan executed',
+                                        session_id: sessionId
+                                    })
+                                }).then(r => r.json())
+                                  .then(saveData => {
+                                      if (saveData.status === 'success') {
+                                          addMessage(`💾 Plan saved to memory as entity: ${saveData.entity_name}`, 'agent');
+                                      }
+                                  });
+                            } catch (err) {
+                                console.warn('Error saving entity:', err);
+                            }
+
+                            // Reset state
+                            pendingExecution = null;
+                            window.awaitingApproval = false;
+                        }
+
+                        else if (data.type === 'error') {
+                            eventSource.close();
+                            addMessage(`❌ Planning error: ${data.error}`, 'agent');
+                        }
+
+                        else if (data.type === 'complete') {
+                            eventSource.close();
+                        }
+                    } catch (err) {
+                        console.error('Error parsing SSE event:', err);
+                    }
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    addMessage('❌ Connection error during planning. Please check the server.', 'agent');
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                };
+
+            } catch (error) {
+                addMessage(`Error during execution: ${error.message}`, 'agent');
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        }
+
+        // Checkpoint modal handler
+        function showCheckpointModal(checkpointNumber, checkpointData) {
+            // Reuse the approval modal for checkpoint display
+            const modal = document.getElementById('approval-gate-modal');
+            const content = modal.querySelector('.modal-content');
+
+            // Update modal title
+            content.querySelector('h2').textContent = `✋ Checkpoint ${checkpointNumber} - Review Progress`;
+
+            // Update goal section
+            document.getElementById('approval-goal').textContent = `Iteration Progress: ${checkpointData.iteration || '?'}`;
+
+            // Get improvements data
+            const improvements = checkpointData.improvements || {};
+            const isFirstCheckpoint = improvements.is_first_checkpoint || false;
+
+            // Build improvement analysis section
+            let improvementsHTML = '';
+
+            if (isFirstCheckpoint) {
+                improvementsHTML = `
+                    <div style="padding: 12px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px; margin-top: 10px;">
+                        <p style="color: #166534; margin: 0;">
+                            <strong>✓ First Checkpoint:</strong> Completed initial iteration cycle - ready for deeper analysis in next iteration
+                        </p>
+                    </div>
+                `;
+            } else if (improvements.improvements) {
+                const imp = improvements.improvements;
+                const comp = improvements.comparison || {};
+
+                improvementsHTML = `
+                    <div style="margin-top: 15px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                        <p style="margin: 0 0 10px 0; font-weight: 600; color: #92400e;">🚀 How the System is Learning & Improving:</p>
+
+                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
+                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Research Improvements:</p>
+                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.research_improvements || 'Analyzing new research angles...'}</p>
+                        </div>
+
+                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
+                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Frameworks Applied:</p>
+                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.frameworks_applied || 'Integrating new frameworks...'}</p>
+                        </div>
+
+                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
+                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Use Cases Found:</p>
+                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.use_cases_found || 'Discovering new applications...'}</p>
+                        </div>
+
+                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
+                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Analytical Improvements:</p>
+                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.analytical_improvements || 'Developing new analytical approaches...'}</p>
+                        </div>
+
+                        <div style="padding: 8px; background: #dbeafe; border-radius: 3px;">
+                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #1e40af;">💡 Key Discovery:</p>
+                            <p style="margin: 0; color: #1e40af; font-size: 13px;">${imp.key_discovery || 'Critical insights emerging...'}</p>
+                        </div>
+
+                        <div style="margin-top: 10px; padding: 10px; background: #f3f4f6; border-radius: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center;">
+                            <div>
+                                <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; text-transform: uppercase;">New Frameworks</p>
+                                <p style="margin: 0; font-size: 20px; font-weight: 700; color: #2563eb;">+${comp.frameworks_added || 0}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; text-transform: uppercase;">Data Points Gained</p>
+                                <p style="margin: 0; font-size: 20px; font-weight: 700; color: #10b981;">+${comp.data_points_gained || 0}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; text-transform: uppercase;">Depth Score</p>
+                                <p style="margin: 0; font-size: 20px; font-weight: 700; color: #f59e0b;">${comp.depth_score || 5}/10</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Update approach section with summary + improvements
+            document.getElementById('approval-approach').innerHTML = `
+                <strong>📊 Progress & Learning Summary:</strong>
+                <div style="margin-top: 10px; padding: 10px; background: #f9fafb; border-radius: 4px;">
+                    <p><strong>Frameworks applied so far:</strong></p>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        ${(checkpointData.frameworks_so_far || []).map(f => `<li>${f}</li>`).join('')}
+                    </ul>
+                    <p style="margin-top: 10px;"><strong>Data points extracted:</strong> ${checkpointData.data_points_so_far || 0}</p>
+                </div>
+
+                ${improvementsHTML}
+
+                <div style="margin-top: 15px; padding: 10px; background: #f3f4f6; border-radius: 4px;">
+                    <p style="margin: 0; font-size: 13px; color: #555;">
+                        <strong>Next step:</strong> Approve to continue to the next iteration for even deeper analysis
+                    </p>
+                </div>
+            `;
+
+            // Clear adjustment form
+            const adjustForm = document.getElementById('adjustment-form');
+            if (adjustForm) adjustForm.style.display = 'none';
+
+            // Update button handlers
+            const approveBtn = content.querySelector('.btn-approve');
+            const rejectBtn = content.querySelector('.btn-reject');
+            const adjustBtn = content.querySelector('.btn-adjust');
+
+            // Remove old listeners by cloning
+            const newApproveBtn = approveBtn.cloneNode(true);
+            approveBtn.parentNode.replaceChild(newApproveBtn, approveBtn);
+
+            newApproveBtn.onclick = () => {
+                approveCheckpoint(checkpointNumber);
+                modal.style.display = 'none';
+            };
+
+            rejectBtn.onclick = () => {
+                modal.style.display = 'none';
+                addMessage('❌ Checkpoint rejected. Stopping planning.', 'agent');
+                location.reload(); // Simple approach - reload
+            };
+
+            adjustBtn.style.display = 'none'; // Hide adjust for checkpoints
+
+            // Show modal
+            modal.style.display = 'flex';
+        }
+
+        // Send checkpoint approval to backend
+        async function approveCheckpoint(checkpointNumber) {
+            try {
+                const response = await fetch('/api/checkpoint-approval', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        checkpoint: checkpointNumber
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Checkpoint approved:', data);
+            } catch (error) {
+                console.error('Error approving checkpoint:', error);
+                addMessage(`Error approving checkpoint: ${error.message}`, 'agent');
+            }
+        }
+
+        function rejectApproach() {
+            // Close modal and reset
+            document.getElementById('approval-gate-modal').style.display = 'none';
+            pendingExecution = null;
+
+            // Show rejection message
+            addMessage('❌ Planning approach rejected. You can enter a new goal or adjust your entity/agent selection.', 'agent');
+        }
+
+        function toggleAdjustmentForm() {
+            const form = document.getElementById('adjustment-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function submitAdjustment() {
+            const adjustment = document.getElementById('adjustment-text').value;
+            if (!adjustment.trim()) {
+                alert('Please enter your adjustment request');
+                return;
+            }
+
+            // Close modal
+            document.getElementById('approval-gate-modal').style.display = 'none';
+
+            // Display adjustment request
+            addMessage(`🔄 Adjustment requested: ${adjustment}`, 'user');
+            addMessage('⚠️ Please modify your entity/agent selection and try again with a new goal.', 'agent');
+
+            // Reset
+            pendingExecution = null;
+            document.getElementById('adjustment-text').value = '';
+            toggleAdjustmentForm();
+        }
+
+        // Initialize
+        loadStatus();
+        setInterval(loadStatus, 5000);
+        input.focus();
+        initEntitySelector();
+        initAgentSelector();
+    </script>
+</body>
+</html>

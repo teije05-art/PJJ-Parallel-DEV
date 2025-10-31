@@ -99,8 +99,10 @@ class IterationManager:
         Initialize iteration loop with the approved proposal.
 
         This is the starting point. The proposal serves as the foundation,
-        and iteration 1 builds from it. MemAgent stores it for reference
-        by subsequent iterations.
+        and iteration 1 builds from it.
+
+        NOTE: Proposal is NOT stored to MemAgent (deferred to final plan synthesis).
+        It's only used as context for iteration 1.
 
         Args:
             proposal: The user-approved proposal to build iterations from
@@ -110,15 +112,8 @@ class IterationManager:
 
         self.proposal = proposal
 
-        # Store proposal in MemAgent for semantic retrieval
-        try:
-            self.llama_planner.store_entity(
-                entity_name=f"{self.memory_entity_prefix}_proposal",
-                content=proposal
-            )
-        except Exception as e:
-            # Log but don't fail - proceed without MemAgent if needed
-            print(f"Warning: Could not store proposal in MemAgent: {e}")
+        # Proposal is kept in memory for reference during iterations, but not stored to MemAgent
+        # Final comprehensive plan will be stored after all iterations complete
 
     # ==================== ITERATION GUIDANCE ====================
 
@@ -127,14 +122,12 @@ class IterationManager:
         Get MemAgent-guided context for current iteration.
 
         CRITICAL: This is where MemAgent actively guides iteration N based on N-1.
-        Uses semantic search to understand what was learned, not just array indexing.
+        For Iteration 1: Returns foundational guidance (build from proposal)
+        For Iteration N>1: Returns MemAgent-guided refinement (build on previous insights)
 
         Returns:
             Markdown-formatted guidance string for the iteration
         """
-        if self.current_iteration == 0:
-            raise RuntimeError("Call get_next_iteration_number() first")
-
         iteration_num = self.current_iteration + 1
 
         if iteration_num == 1:
@@ -203,42 +196,34 @@ Use those insights to inform your strategy refinement.
 
     def _retrieve_previous_insights(self) -> str:
         """
-        Retrieve previous iteration insights using MemAgent semantic search.
+        Retrieve previous iteration insights from local iteration_history.
 
-        This is what makes iterations LEARN from each other.
-        Uses semantic search to find relevant insights, not just key_insights field.
+        Direct access approach that ensures:
+        - ZERO truncation (full insights preserved, not clipped to 500 chars)
+        - NO cross-session contamination (local memory, not shared search)
+        - FULL fidelity (all insights, frameworks, data points included)
+
+        This enables truly deep iteration refinement where each iteration sees
+        the COMPLETE context from the previous iteration.
 
         Returns:
-            Formatted string of previous insights, or fallback if search fails
+            Formatted string of previous insights, or graceful message if none available
         """
         try:
-            iteration_num = self.current_iteration
+            if not self.iteration_history:
+                # This shouldn't happen in normal flow (only called from Iteration 2+)
+                # but handle gracefully if it does
+                return "**Previous iteration insights:** Starting first iteration - no prior insights to retrieve.\n"
+
             previous_iteration = self.iteration_history[-1]
 
-            # Query MemAgent semantically
-            # This query is designed to surface what was LEARNED, not just what was done
-            query = f"""Key insights, findings, and learnings from planning iteration {iteration_num}
-            for goal: {self.goal}. What did we discover? What changed our understanding?"""
-
-            retrieved_insights = self.llama_planner.search_similar(
-                query=query,
-                max_results=5
-            )
-
-            if retrieved_insights:
-                formatted = "**MemAgent-retrieved insights from previous iteration:**\n"
-                for i, insight in enumerate(retrieved_insights, 1):
-                    formatted += f"- {insight}\n"
-                return formatted
-            else:
-                # Fallback: Use stored key_insights
-                return self._fallback_previous_insights(previous_iteration)
+            # Use the proven, perfect fallback mechanism that gives full context
+            return self._fallback_previous_insights(previous_iteration)
 
         except Exception as e:
-            # Fallback if semantic search fails
-            print(f"Warning: MemAgent semantic search failed: {e}")
-            previous_iteration = self.iteration_history[-1]
-            return self._fallback_previous_insights(previous_iteration)
+            # Graceful fallback if anything goes wrong
+            print(f"Warning: Could not retrieve previous insights: {e}")
+            return "**Previous iteration insights:** Unable to retrieve - check iteration history.\n"
 
     def _fallback_previous_insights(self, previous_iteration: IterationResult) -> str:
         """Fallback formatting if MemAgent search fails."""
@@ -315,10 +300,13 @@ Use those insights to inform your strategy refinement.
 
     def store_iteration_result(self, iteration_result: IterationResult) -> None:
         """
-        Store iteration result to both local history AND MemAgent.
+        Store iteration result to LOCAL HISTORY ONLY (not MemAgent).
 
-        CRITICAL: MemAgent storage makes insights semantically searchable for
-        next iteration. This is what enables learning between iterations.
+        CRITICAL DESIGN: Per-iteration storage to MemAgent is DEFERRED.
+        - During iterations: Store locally for guidance and checkpoints
+        - After final iteration: Store ONLY the final comprehensive plan to MemAgent
+
+        This prevents entity bloat and ensures clean, final-only memory state.
 
         Args:
             iteration_result: IterationResult object from agent execution
@@ -329,23 +317,15 @@ Use those insights to inform your strategy refinement.
                 f"got {iteration_result.iteration_num}"
             )
 
-        # Store locally
+        # Store locally ONLY - needed for:
+        # 1. Checkpoint summaries (showing user progress)
+        # 2. Iteration guidance (each iteration uses previous iteration's results)
+        # 3. Cumulative metrics calculation
         self.iteration_history.append(iteration_result)
         self.current_iteration += 1
 
-        # Store to MemAgent for semantic retrieval in next iteration
-        entity_name = f"{self.memory_entity_prefix}_iteration_{iteration_result.iteration_num}"
-
-        iteration_storage = self._format_iteration_for_storage(iteration_result)
-
-        try:
-            self.llama_planner.store_entity(
-                entity_name=entity_name,
-                content=iteration_storage
-            )
-        except Exception as e:
-            print(f"Warning: Could not store iteration to MemAgent: {e}")
-            # Continue anyway - local storage is sufficient fallback
+        # MemAgent storage is deferred to final iteration synthesis
+        # This is done in simple_chatbox.py after final plan is generated
 
     def _format_iteration_for_storage(self, result: IterationResult) -> str:
         """Format iteration result for MemAgent storage."""

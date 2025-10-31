@@ -954,6 +954,146 @@ to recommend approaches for future planning tasks with similar characteristics.
         except Exception as e:
             print(f"Warning: Failed to save learning history: {e}")
 
+    # ========================================
+    # ITERATION MEMORY OPERATIONS
+    # ========================================
+
+    def store_entity(
+        self,
+        entity_name: str,
+        content: str
+    ) -> bool:
+        """
+        Store an entity (insight, plan, data) to memory for iteration guidance.
+
+        Used by iteration_manager to persist proposals and iteration insights
+        to /local-memory/entities/ for retrieval in subsequent iterations.
+
+        Args:
+            entity_name: Name for the entity (should include session_id prefix)
+                        Example: "planning_session_20251030_100000_iteration_1"
+            content: The content to store (markdown or text)
+
+        Returns:
+            True if successful, False otherwise
+
+        Example:
+            >>> planner.store_entity(
+            ...     entity_name="planning_session_20251030_100000_proposal",
+            ...     content="User-approved proposal text..."
+            ... )
+            ✅ Entity stored: planning_session_20251030_100000_proposal
+            True
+        """
+        try:
+            entities_dir = Path(self.memory_path) / "entities"
+            entities_dir.mkdir(parents=True, exist_ok=True)
+
+            # Ensure .md extension
+            entity_filename = entity_name if entity_name.endswith('.md') else f"{entity_name}.md"
+            entity_file_path = entities_dir / entity_filename
+
+            entity_file_path.write_text(content, encoding='utf-8')
+            return True
+
+        except Exception as e:
+            print(f"⚠️  Warning: Could not store entity '{entity_name}': {e}")
+            return False
+
+    def search_similar(
+        self,
+        query: str,
+        session_id: Optional[str] = None,
+        max_results: int = 5
+    ) -> List[str]:
+        """
+        Semantically search entity files for similar content.
+
+        Used by iteration_manager to retrieve insights from previous iterations.
+        Implements keyword-based semantic matching.
+
+        CRITICAL FOR CORRECTNESS: Filters results to session_id to prevent
+        cross-session contamination when multiple planning sessions run concurrently.
+
+        Args:
+            query: Search query (natural language question or statement)
+                  Example: "What did we learn about market analysis?"
+            session_id: Optional session ID to filter results (e.g., "20251030_100000")
+                       If provided, ONLY returns entities matching "planning_session_{session_id}_*"
+                       This prevents mixing insights from different planning sessions.
+            max_results: Maximum number of results to return (default: 5)
+
+        Returns:
+            List of most relevant entity content snippets (up to max_results)
+            Empty list if no matches found
+
+        Session Filtering Logic:
+            If session_id="20251030_100000":
+            ✅ Returns: planning_session_20251030_100000_iteration_1.md
+            ❌ Skips: planning_session_20251030_101500_iteration_1.md (different session)
+
+        Example:
+            >>> insights = planner.search_similar(
+            ...     query="What did we learn about market size?",
+            ...     session_id="20251030_100000",
+            ...     max_results=3
+            ... )
+            >>> for insight in insights:
+            ...     print(insight[:200])  # First 200 chars of each insight
+        """
+        try:
+            entities_dir = Path(self.memory_path) / "entities"
+
+            if not entities_dir.exists():
+                return []
+
+            # Tokenize query for matching (exclude very short words)
+            query_terms = set(word.lower() for word in query.split() if len(word) > 2)
+
+            if not query_terms:
+                return []  # Query too generic or empty
+
+            # Score each entity file based on relevance
+            scored_results = []
+
+            for entity_file in sorted(entities_dir.glob("*.md")):
+                # SESSION FILTERING: Skip entities from other sessions if session_id provided
+                if session_id:
+                    session_prefix = f"planning_session_{session_id}"
+                    if not entity_file.stem.startswith(session_prefix):
+                        continue  # Skip - belongs to different session
+
+                try:
+                    content = entity_file.read_text(encoding='utf-8')
+
+                    # Count keyword overlaps (basic semantic matching)
+                    content_words = set(word.lower() for word in content.split() if len(word) > 2)
+                    overlap_count = len(query_terms & content_words)
+
+                    # Only include if at least one term matched
+                    if overlap_count > 0:
+                        # Extract snippet: first 500 chars or up to 3 sentences
+                        snippet = content[:500]
+                        if len(content) > 500:
+                            # Try to break at sentence boundary
+                            periods = [i for i, c in enumerate(snippet) if c == '.']
+                            if periods:
+                                last_period = max(p for p in periods if p < len(snippet))
+                                snippet = snippet[:last_period+1]
+
+                        scored_results.append((overlap_count, snippet))
+
+                except Exception as e:
+                    continue  # Skip unreadable files
+
+            # Sort by relevance (highest overlap first) and return top N
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            return [snippet for score, snippet in scored_results[:max_results]]
+
+        except Exception as e:
+            print(f"⚠️  Warning: search_similar() failed: {e}")
+            return []  # Return empty list, allows fallback to work
+
 
 if __name__ == "__main__":
     # Example usage (requires actual agent setup)

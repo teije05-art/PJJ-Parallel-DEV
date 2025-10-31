@@ -223,7 +223,7 @@ class SimpleOrchestrator:
         # Use provided llama_planner or create default
         from llama_planner import LlamaPlanner
         if llama_planner is None:
-            llama_planner = LlamaPlanner(self.memory_path)
+            llama_planner = LlamaPlanner(self.agent, self.memory_path)
 
         # Initialize iteration manager with MemAgent guidance
         iteration_mgr = IterationManager(
@@ -245,6 +245,18 @@ class SimpleOrchestrator:
             print(f"{'─'*80}")
 
             try:
+                # CRITICAL: Create fresh Agent instance for this iteration
+                # This prevents chat history accumulation across iterations
+                # Each iteration starts with clean context (only system prompt)
+                from agent import Agent
+                iteration_agent = Agent(memory_path=str(self.memory_path))
+
+                # Create fresh workflow coordinator with the iteration-specific agent
+                from orchestrator.workflow_coordinator import WorkflowCoordinator
+                iteration_workflow = WorkflowCoordinator(iteration_agent, self.memory_path)
+
+                print(f"   ℹ️  Using fresh Agent instance for iteration {iteration_num} (prevents chat history accumulation)")
+
                 # Step 1: Get base context
                 context = self.context_manager.retrieve_context(goal)
 
@@ -253,7 +265,7 @@ class SimpleOrchestrator:
 
                 # Step 3: Run the 4-agent pipeline with iteration guidance
                 print(f"Running 4-agent workflow with MemAgent guidance...")
-                agent_results = self.workflow_coordinator.run_workflow(goal, context)
+                agent_results = iteration_workflow.run_workflow(goal, context)
 
                 # Step 4: Extract metadata from agent results
                 # This is a simplification - you may need to adjust based on actual agent output format
@@ -275,6 +287,11 @@ class SimpleOrchestrator:
                 print(f"   Data points: {iteration_result.data_points_count}")
 
                 # Step 6: Check if we should checkpoint
+                # Detailed logging to diagnose checkpoint issues
+                print(f"   Checkpoint check: current_iteration={iteration_mgr.current_iteration}, "
+                      f"checkpoint_interval={iteration_mgr.checkpoint_interval}, "
+                      f"divisible={iteration_mgr.current_iteration % iteration_mgr.checkpoint_interval == 0}")
+
                 if iteration_mgr.should_checkpoint():
                     iteration_mgr.mark_checkpoint_complete()
 
@@ -285,12 +302,15 @@ class SimpleOrchestrator:
                     )
 
                     print(f"\n{'='*80}")
-                    print(f"🎯 CHECKPOINT REACHED: Iteration {iteration_num}")
+                    print(f"🎯 CHECKPOINT REACHED: Iteration {iteration_num}/{iteration_mgr.max_iterations}")
                     print(f"{'='*80}")
+                    print(f"Checkpoint {iteration_mgr.checkpoint_count}: {iteration_mgr.checkpoint_interval} iterations reached")
+                    print(f"Checkpoint Summary:\n{checkpoint_summary[:500]}...\n")
 
                     yield {
                         'type': 'checkpoint',
                         'iteration': iteration_num,
+                        'checkpoint_count': iteration_mgr.checkpoint_count,
                         'summary': checkpoint_summary,
                         'progress': iteration_mgr.get_iteration_summary(),
                         'metrics': iteration_mgr.get_cumulative_metrics(),
@@ -303,6 +323,8 @@ class SimpleOrchestrator:
                 elif iteration_mgr.at_final_iteration():
                     print(f"\n✅ Final iteration {iteration_num} complete")
                     break
+                else:
+                    print(f"   No checkpoint yet (next checkpoint at iteration {iteration_mgr.get_next_checkpoint_number()})")
 
             except KeyboardInterrupt:
                 print(f"\n🛑 Iteration loop interrupted by user")
@@ -328,7 +350,9 @@ class SimpleOrchestrator:
 
         metrics = iteration_mgr.get_cumulative_metrics()
 
-        return {
+        # CRITICAL FIX: Must YIELD (not return) in a generator function
+        # This ensures the final plan is sent to the frontend's iteration loop
+        yield {
             'type': 'final_plan',
             'plan': final_plan,
             'iteration_count': len(all_results),
@@ -345,77 +369,105 @@ class SimpleOrchestrator:
         """
         Extract key insights from agent results.
 
-        This is a placeholder - adapt based on actual agent output format.
+        Args:
+            agent_results: Dict[str, AgentResult] from workflow coordinator
+                          Keys: 'planner', 'verifier', 'executor', 'generator'
         """
         insights = []
         try:
-            # Try to extract from various possible formats
-            if isinstance(agent_results, dict):
-                if 'insights' in agent_results:
-                    insights = agent_results['insights']
-                elif 'key_findings' in agent_results:
-                    insights = agent_results['key_findings']
-                elif 'content' in agent_results:
-                    # Parse content to find insight markers
-                    content = agent_results['content']
-                    if 'Key insight' in content or 'Finding:' in content:
-                        # Simple extraction - can be improved
-                        lines = content.split('\n')
-                        for line in lines:
-                            if 'insight' in line.lower() or 'finding' in line.lower():
-                                insights.append(line.strip())
+            if not isinstance(agent_results, dict):
+                return insights
+
+            # Extract from all agent outputs
+            for agent_name, agent_result in agent_results.items():
+                # Skip if not an AgentResult or if failed
+                if not hasattr(agent_result, 'output') or not agent_result.output:
+                    continue
+
+                # Parse output for insight markers
+                content = agent_result.output
+                lines = content.split('\n')
+                for line in lines:
+                    # Look for lines mentioning insights, findings, or recommendations
+                    if any(marker in line.lower() for marker in
+                           ['insight', 'finding', 'recommendation', 'key point', 'discovery']):
+                        stripped = line.strip()
+                        if stripped and len(stripped) > 10:  # Filter out noise
+                            insights.append(stripped)
+
         except Exception as e:
             print(f"Warning: Could not extract insights: {e}")
 
-        return insights[:5]  # Top 5 insights
+        return insights[:10]  # Top 10 insights
 
     def _extract_frameworks_used(self, agent_results) -> list:
         """
         Extract frameworks mentioned in agent results.
 
-        This is a placeholder - adapt based on actual agent output format.
+        Args:
+            agent_results: Dict[str, AgentResult] from workflow coordinator
         """
-        frameworks = []
+        frameworks = set()
+        framework_keywords = [
+            'Porter\'s Five Forces', 'SWOT', 'Market analysis',
+            'Competitive analysis', 'Risk assessment', 'PESTLE',
+            'Value proposition', 'Implementation roadmap',
+            'Financial projections', 'Go-to-market', 'Business model',
+            'Customer journey', 'Value chain', 'Strategic fit',
+            'Gap analysis', 'Root cause', 'Scenario planning'
+        ]
+
         try:
-            if isinstance(agent_results, dict):
-                if 'frameworks' in agent_results:
-                    frameworks = agent_results['frameworks']
-                elif 'content' in agent_results:
-                    # Simple extraction of framework keywords
-                    content = agent_results['content']
-                    framework_keywords = [
-                        'Porter\'s Five Forces', 'SWOT', 'Market analysis',
-                        'Competitive analysis', 'Risk assessment', 'PESTLE',
-                        'Value proposition', 'Implementation roadmap',
-                        'Financial projections', 'Go-to-market'
-                    ]
-                    for keyword in framework_keywords:
-                        if keyword in content:
-                            frameworks.append(keyword)
+            if not isinstance(agent_results, dict):
+                return list(frameworks)
+
+            # Extract from all agent outputs
+            for agent_name, agent_result in agent_results.items():
+                if not hasattr(agent_result, 'output') or not agent_result.output:
+                    continue
+
+                content = agent_result.output
+                for keyword in framework_keywords:
+                    if keyword.lower() in content.lower():
+                        frameworks.add(keyword)
+
         except Exception as e:
             print(f"Warning: Could not extract frameworks: {e}")
 
-        return frameworks
+        return sorted(list(frameworks))
 
     def _extract_data_point_count(self, agent_results) -> int:
         """
         Count data points (metrics, figures, citations) in agent results.
 
-        This is a placeholder - adapt based on actual agent output format.
+        Args:
+            agent_results: Dict[str, AgentResult] from workflow coordinator
         """
         count = 0
         try:
-            if isinstance(agent_results, dict):
-                if 'data_points' in agent_results:
-                    count = agent_results['data_points']
-                elif 'content' in agent_results:
-                    # Count citations and numeric data points
-                    content = agent_results['content']
-                    import re
-                    # Count [source: ...] citations
-                    count = len(re.findall(r'\[source:', content, re.IGNORECASE))
-                    # Count percentage figures (30%, $5M, etc.)
-                    count += len(re.findall(r'\d+(\.\d+)?%|\$\d+[BM]?', content))
+            if not isinstance(agent_results, dict):
+                return count
+
+            import re
+
+            for agent_name, agent_result in agent_results.items():
+                if not hasattr(agent_result, 'output') or not agent_result.output:
+                    continue
+
+                content = agent_result.output
+
+                # Count [source: ...] citations
+                count += len(re.findall(r'\[source:', content, re.IGNORECASE))
+
+                # Count percentage figures (30%, 0.5%, etc.)
+                count += len(re.findall(r'\d+(\.\d+)?%', content))
+
+                # Count currency amounts ($5M, $1.2B, etc.)
+                count += len(re.findall(r'\$[\d.]+[BM]?', content))
+
+                # Count numeric metrics (e.g., "2024", "5 years", "150,000")
+                count += len(re.findall(r'\b\d+(?:,\d+)?\s+(?:years?|months?|days?|units?|customers?|users?)\b', content))
+
         except Exception as e:
             print(f"Warning: Could not count data points: {e}")
 
@@ -660,40 +712,12 @@ From research, memory, and analysis:
                 'total_data_points': sum(r.data_points_count for r in all_results)
             }
 
-            # Use generator agent for synthesis
-            from .agents import GeneratorAgent
-            generator = GeneratorAgent()
-
-            synthesis_prompt = f"""
-You are synthesizing a comprehensive final plan from {len(all_results)} iterative planning cycles.
-
-GOAL: {goal}
-
-ITERATION SUMMARIES:
-{self._format_iteration_history(all_results)}
-
-Your task: Create a comprehensive 5000+ word final plan that:
-1. Integrates insights from all {len(all_results)} iterations
-2. Highlights the evolution of thinking across iterations
-3. Includes all {sum(r.data_points_count for r in all_results)} data points found
-4. Applies all {len(set([f for r in all_results for f in r.frameworks_used]))} frameworks identified
-5. Provides actionable, specific recommendations
-
-Format: Well-structured markdown with clear sections, data citations [source: ...], and a comprehensive executive summary.
-"""
-
-            final_result = generator.run(synthesis_prompt)
-
-            # Extract content from agent result
-            if hasattr(final_result, 'content'):
-                return final_result.content
-            elif isinstance(final_result, dict) and 'content' in final_result:
-                return final_result['content']
-            else:
-                return str(final_result)
+            # Simple synthesis: combine all iteration plans into one comprehensive plan
+            # Skip complex GeneratorAgent call - fallback works better
+            return self._create_fallback_synthesis(all_results, goal)
 
         except Exception as e:
-            print(f"Warning: Could not synthesize with GeneratorAgent: {e}")
+            print(f"Warning: Could not synthesize iterations: {e}")
             # Fallback: Create basic synthesis from iteration plans
             return self._create_fallback_synthesis(all_results, goal)
 

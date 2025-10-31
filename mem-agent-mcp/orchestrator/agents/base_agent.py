@@ -69,7 +69,9 @@ class BaseAgent:
 """
 
         # Store in agent coordination log
-        coordination_file = self.memory_path / "entities" / "agent_coordination.md"
+        # Convert to Path if it's a string
+        memory_path = Path(self.memory_path) if isinstance(self.memory_path, str) else self.memory_path
+        coordination_file = memory_path / "entities" / "agent_coordination.md"
         try:
             if coordination_file.exists():
                 with open(coordination_file, 'a') as f:
