@@ -13,23 +13,23 @@ BF16_MEMORY_AGENT_SEARCH_NAME := mem-agent-mlx-bf16
 # Help command
 help:
 	@echo "Usage: make <target>"
-	@echo "Targets:"
-	@echo "  1. help - Show this help message"
-	@echo "  2. check-uv - Check if uv is installed and install if needed"
-	@echo "  3. install - Install dependencies using uv"
-	@echo "  4. setup - Choose memory directory via GUI and save to .memory_path"
-	@echo "  5. add-filters - Add filters to .filters"
-	@echo "  6. reset-filters - Reset filters in .filters"
-	@echo "  7. run-agent - Run the agent"
-	@echo "  8. generate-mcp-json - Generate the MCP.json file"
-	@echo "  9. serve-mcp - Serve the MCP server"
-	@echo "  10. chat-cli - Run interactive CLI to chat with the agent"
-	@echo "  11. serve-chatbox - Launch web chatbox interface (RECOMMENDED for planning)"
-	@echo "  12. memory-wizard - Interactive wizard for connecting memory sources"
-	@echo "  13. connect-memory - Connect memory sources using new connector system"
-	@echo "  14. convert-chatgpt - Convert ChatGPT export (legacy, use convert-memory instead)"
-	@echo "  15. serve-http - Start HTTP server for ChatGPT integration (use with ngrok)"
-	@echo "  16. serve-mcp-http - Start MCP-compliant HTTP server for ChatGPT (recommended)"
+	@echo ""
+	@echo "Essential Targets:"
+	@echo "  check-uv       - Verify uv package manager is installed"
+	@echo "  install        - Install all dependencies"
+	@echo "  setup          - Configure memory directory path"
+	@echo "  run-agent      - Start LM Studio (macOS) or vLLM (Linux) model server"
+	@echo "  serve-chatbox  - Start web interface on http://localhost:9000 (RECOMMENDED)"
+	@echo ""
+	@echo "Development:"
+	@echo "  test           - Run test suite"
+	@echo "  format         - Format code with Black"
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  1. make install"
+	@echo "  2. make setup"
+	@echo "  3. make run-agent          (Terminal 1)"
+	@echo "  4. make serve-chatbox      (Terminal 2)"
 
 # Check if uv is installed and install if needed
 check-uv:
@@ -60,12 +60,6 @@ setup:
 	@echo "MemAgent is ready to use. Configuration stored in .memory_path"
 	@echo "If you need to change the memory path, create/edit .memory_path"
 
-add-filters:
-	@echo "Filter configuration is managed in .filters file"
-
-reset-filters:
-	@echo "To reset filters, delete .filters and reconfigure"
-
 run-agent:
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
 		echo "Detected macOS (Darwin). Starting MLX server via lms..."; \
@@ -89,19 +83,6 @@ run-agent:
 		echo "Non-macOS detected. Starting vLLM server..."; \
 		uv run vllm serve driaforall/mem-agent; \
 	fi
-
-generate-mcp-json:
-	@echo "⚠️  MCP server has been replaced with web chatbox interface"
-	@echo "For Claude Desktop integration, use the web chatbox instead"
-	@echo "Run: make serve-chatbox"
-
-serve-mcp:
-	@echo "⚠️  MCP server has been replaced with web chatbox interface"
-	@echo "For Claude Desktop integration, use the web chatbox instead"
-	@echo "Run: make serve-chatbox"
-
-chat-cli:
-	uv run python chat_cli.py
 
 serve-chatbox:
 	@echo "=================================="
@@ -131,65 +112,12 @@ serve-chatbox:
 	@echo ""
 	uv run python simple_chatbox.py
 
-# Interactive Memory Wizard
-memory-wizard:
-	@echo "🧙‍♂️ Starting Memory Connector Wizard..."
-	uv run python -m memory_connectors.memory_wizard
+# Test suite
+test:
+	@echo "Running test suite..."
+	uv run python -m pytest tests/ -v
 
-# Memory Connectors (unified system)
-connect-memory:
-	@echo "Memory Connectors - Convert various sources to mem-agent format"
-	@echo "Usage: make connect-memory CONNECTOR=<type> SOURCE=<path> [OUTPUT=<path>] [MAX_ITEMS=<num>] [TOKEN=<token>]"
-	@echo ""
-	@echo "Available connectors:"
-	@uv run python -m memory_connectors.memory_connect --list
-	@echo ""
-	@if [ -z "$(CONNECTOR)" ] || [ -z "$(SOURCE)" ]; then \
-		echo "Examples:"; \
-		echo "  Export-based: make connect-memory CONNECTOR=chatgpt SOURCE=/path/to/export.zip"; \
-		echo "  Live GitHub:  make connect-memory CONNECTOR=github SOURCE='owner/repo' TOKEN=github_token"; \
-		echo "  Live Google:  make connect-memory CONNECTOR=google-docs SOURCE='folder_id' TOKEN=access_token"; \
-		exit 1; \
-	fi
-	@if [ "$(CONNECTOR)" != "github" ] && [ "$(CONNECTOR)" != "google-docs" ] && [ ! -e "$(SOURCE)" ]; then \
-		echo "Error: Source path does not exist: $(SOURCE)"; \
-		exit 1; \
-	fi
-	@cmd="uv run python -m memory_connectors.memory_connect $(CONNECTOR) $(SOURCE)"; \
-	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; fi; \
-	if [ -n "$(MAX_ITEMS)" ]; then cmd="$$cmd --max-items $(MAX_ITEMS)"; fi; \
-	if [ -n "$(TOKEN)" ]; then cmd="$$cmd --token $(TOKEN)"; fi; \
-	echo "Running: $$cmd"; \
-	$$cmd
-
-# Legacy ChatGPT converter (kept for backwards compatibility)
-convert-chatgpt:
-	@echo "⚠️  Legacy ChatGPT converter (use 'make connect-memory CONNECTOR=chatgpt' instead)"
-	@echo "Usage: make convert-chatgpt EXPORT_PATH=/path/to/chatgpt-export [MAX_CONVERSATIONS=100]"
-	@echo ""
-	@if [ -z "$(EXPORT_PATH)" ]; then \
-		echo "Error: EXPORT_PATH is required"; \
-		echo "Example: make convert-chatgpt EXPORT_PATH=/Users/username/Downloads/chatgpt-export"; \
-		exit 1; \
-	fi
-	@if [ ! -e "$(EXPORT_PATH)" ]; then \
-		echo "Error: Export path does not exist: $(EXPORT_PATH)"; \
-		exit 1; \
-	fi
-	@cmd="uv run python -m memory_connectors.memory_connect chatgpt $(EXPORT_PATH)"; \
-	if [ -n "$(MAX_CONVERSATIONS)" ]; then cmd="$$cmd --max-items $(MAX_CONVERSATIONS)"; fi; \
-	echo "🔄 Redirecting to new connector system..."; \
-	echo "Running: $$cmd"; \
-	$$cmd
-
-# HTTP Server for ChatGPT Integration
-serve-http:
-	@echo "⚠️  HTTP server has been replaced with web chatbox"
-	@echo "Use the web chatbox instead: make serve-chatbox"
-	@echo "Web chatbox is available at http://localhost:9000"
-
-# MCP-Compliant HTTP Server for ChatGPT
-serve-mcp-http:
-	@echo "⚠️  MCP HTTP server has been replaced with web chatbox"
-	@echo "Use the web chatbox instead: make serve-chatbox"
-	@echo "Web chatbox is available at http://localhost:9000"
+# Code formatting
+format:
+	@echo "Formatting code with Black..."
+	uv run black mem-agent-mcp/ --line-length 100
