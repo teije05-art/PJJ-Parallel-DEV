@@ -1,7 +1,6 @@
 import os
 import shutil
-
-import black
+import re
 
 from agent.settings import (
     SYSTEM_PROMPT_PATH,
@@ -98,82 +97,37 @@ def delete_memory(path: str = MEMORY_PATH) -> None:
         shutil.rmtree(path)
 
 
-def _format_python_code_with_black(code: str) -> str:
+def _normalize_python_code(code: str) -> str:
     """
-    Format Python code using Black formatter.
-    
+    Normalize Python code extracted from LLM responses.
+
+    Simple normalization without external dependencies:
+    - Strip leading/trailing whitespace
+    - Fix basic indentation issues
+
     Args:
-        code: The Python code to format
-        
+        code: The Python code to normalize
+
     Returns:
-        The formatted Python code, or original code if formatting fails
+        Normalized Python code
     """
     if not code.strip():
         return code
-        
-    try:
-        # For incomplete code fragments, wrap them in a function to make them valid Python
-        # This helps Black parse and format them correctly
-        lines = code.strip().split('\n')
-        
-        # Check if code looks like complete statements or just expressions/fragments
-        needs_wrapping = True
-        for line in lines:
-            stripped = line.strip()
-            if (stripped.startswith(('def ', 'class ', 'import ', 'from ')) or 
-                stripped.startswith(('if ', 'for ', 'while ', 'try:', 'with ')) or
-                '=' in stripped or stripped.startswith(('print(', 'return '))):
-                needs_wrapping = False
-                break
-        
-        if needs_wrapping:
-            # Wrap in a function to make it valid Python for Black
-            wrapped_code = f"def temp_function():\n" + "\n".join(f"    {line}" for line in lines)
-            
-            try:
-                formatted_wrapped = black.format_str(
-                    wrapped_code,
-                    mode=black.FileMode(
-                        line_length=88,
-                        string_normalization=True,
-                        is_pyi=False,
-                    )
-                )
-                # Extract the formatted content back out, removing the wrapper
-                formatted_lines = formatted_wrapped.split('\n')[1:]  # Skip "def temp_function():"
-                formatted_code = '\n'.join(line[4:] if line.startswith('    ') else line 
-                                         for line in formatted_lines if line.strip()).strip()
-                return formatted_code
-            except:
-                # If wrapping fails, try formatting as-is
-                pass
-        
-        # Try formatting the code as-is
-        formatted_code = black.format_str(
-            code, 
-            mode=black.FileMode(
-                line_length=88,
-                string_normalization=True,
-                is_pyi=False,
-            )
-        )
-        return formatted_code
-        
-    except (black.InvalidInput, ValueError, SyntaxError, Exception) as e:
-        # If Black fails to format (e.g., invalid syntax), return original code
-        # This ensures we don't break the training pipeline
-        return code
+
+    # Strip and return - LLM output is generally well-formatted already
+    # No need for heavy Black processing
+    return code.strip()
 
 
 def extract_python_code(response: str) -> str:
     """
-    Extract the python code from the response and format it with Black.
+    Extract Python code from LLM response.
 
     Args:
         response: The response from the model.
 
     Returns:
-        The formatted python code from the response.
+        The extracted and normalized Python code, or empty string if not found.
     """
     if "<python>" in response and "</python>" in response:
         response = response.split("<python>")[1].split("</python>")[0]
@@ -181,9 +135,9 @@ def extract_python_code(response: str) -> str:
             code = response.split("```")[1].split("```")[0]
         else:
             code = response
-        
-        # Format the extracted code with Black
-        return _format_python_code_with_black(code)
+
+        # Normalize the extracted code (simple strip, no external formatting needed)
+        return _normalize_python_code(code)
     else:
         return ""
 
