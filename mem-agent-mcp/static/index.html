@@ -1084,6 +1084,13 @@ ${data.error || 'No additional error information available'}
                 const savedSelection = localStorage.getItem('llama_selected_entities');
                 selectedEntities = savedSelection ? JSON.parse(savedSelection) : [];
 
+                // BUGFIX: Filter out deleted entities - only keep selections that still exist
+                const existingEntityNames = entities.map(e => e.name);
+                selectedEntities = selectedEntities.filter(name => existingEntityNames.includes(name));
+
+                // Save corrected selection back to localStorage
+                localStorage.setItem('llama_selected_entities', JSON.stringify(selectedEntities));
+
                 // Render entity list
                 renderEntityList(entities);
 
