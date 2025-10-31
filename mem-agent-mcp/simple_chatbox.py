@@ -37,6 +37,11 @@ from llama_planner import LlamaPlanner, PlanningApproach
 from orchestrator.simple_orchestrator import SimpleOrchestrator
 from orchestrator.iteration_manager import IterationManager, IterationResult
 
+# Phase 5 extraction modules - fixing broken frontend-backend integration
+from approval_gates import SessionManager, PlanningSession
+from context_manager import generate_goal_specific_queries, generate_detailed_checkpoint_summary, analyze_iteration_improvements
+from planning_coordinator import execute_planning_iterations, generate_proposal_with_context
+
 # ==================== CONFIGURATION ====================
 
 DEBUG = True
@@ -56,66 +61,6 @@ def get_memory_path() -> str:
     Path(default_path).mkdir(parents=True, exist_ok=True)
     memory_path_file.write_text(default_path)
     return default_path
-
-
-def _generate_goal_specific_queries(goal: str) -> List[str]:
-    """
-    Generate intelligent, goal-specific search queries tailored to the goal.
-
-    Returns list of targeted search queries based on goal characteristics.
-    """
-    goal_lower = goal.lower()
-    queries = [goal]  # Always include goal itself
-
-    # GROWTH/STRATEGY GOALS
-    if any(word in goal_lower for word in ["growth", "strategy", "expand", "scale"]):
-        queries.extend([
-            "revenue metrics and growth rates",
-            "customer acquisition cost (CAC) and lifetime value (LTV)",
-            "market size and expansion opportunities",
-            "competitive analysis and positioning",
-            "historical growth patterns and trends",
-        ])
-
-    # PLANNING/EXECUTION GOALS
-    if any(word in goal_lower for word in ["plan", "launch", "implement", "execute", "roadmap"]):
-        queries.extend([
-            "timeline and milestones",
-            "resource requirements and dependencies",
-            "implementation approach and methodology",
-            "risk assessment and mitigation",
-            "success metrics and KPIs",
-        ])
-
-    # DATA/ANALYSIS GOALS
-    if any(word in goal_lower for word in ["analyze", "research", "data", "market"]):
-        queries.extend([
-            "current market trends and data",
-            "key metrics and benchmarks",
-            "industry standards and comparisons",
-            "recent developments and changes",
-        ])
-
-    # FINANCIAL GOALS
-    if any(word in goal_lower for word in ["financial", "budget", "cost", "revenue", "profit", "pricing"]):
-        queries.extend([
-            "financial projections and forecasts",
-            "pricing strategies and models",
-            "cost structure and optimization",
-            "profitability metrics and benchmarks",
-        ])
-
-    # PRODUCT GOALS
-    if any(word in goal_lower for word in ["product", "feature", "develop", "build"]):
-        queries.extend([
-            "product roadmap and features",
-            "user requirements and feedback",
-            "competitive product analysis",
-            "technical architecture and requirements",
-        ])
-
-    # Remove duplicates and limit
-    return list(dict.fromkeys(queries))[:15]
 
 
 # ==================== REQUEST/RESPONSE MODELS ====================
@@ -222,73 +167,8 @@ class SystemStatusResponse(BaseModel):
 
 
 # ==================== SESSION MANAGEMENT ====================
-
-class SessionManager:
-    """Manage user sessions for web chatbox."""
-
-    def __init__(self):
-        self.sessions: Dict[str, Dict[str, Any]] = {}
-
-    def get_or_create(self, session_id: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
-        """Get existing session or create new one."""
-        if session_id and session_id in self.sessions:
-            return session_id, self.sessions[session_id]
-
-        # Create new session
-        new_id = str(uuid.uuid4())[:12]
-        memory_path = get_memory_path()
-
-        session = {
-            "id": new_id,
-            "created_at": datetime.now().isoformat(),
-            "agent": Agent(memory_path=memory_path),
-            "orchestrator": None,
-            "pending_approvals": {},
-            "execution_state": {},
-            "checkpoint_approved": False,  # For checkpoint approval
-            "checkpoint_approval_event": threading.Event()  # Synchronization
-        }
-
-        self.sessions[new_id] = session
-        if DEBUG:
-            print(f"✅ Created new session: {new_id}")
-
-        return new_id, session
-
-    def get(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Get session by ID."""
-        return self.sessions.get(session_id)
-
-    def clear_pending_approval(self, session_id: str, approval_id: str):
-        """Clear a pending approval after it's been processed."""
-        if session_id in self.sessions:
-            self.sessions[session_id]["pending_approvals"].pop(approval_id, None)
-
-    def set_checkpoint_approved(self, session_id: str):
-        """Mark checkpoint as approved by user."""
-        if session_id in self.sessions:
-            session = self.sessions[session_id]
-            session["checkpoint_approved"] = True
-            session["checkpoint_approval_event"].set()
-
-    def wait_for_checkpoint_approval(self, session_id: str, timeout: int = 3600):
-        """Wait for user to approve checkpoint (blocks until approved)."""
-        if session_id in self.sessions:
-            session = self.sessions[session_id]
-            # Reset event for next checkpoint
-            session["checkpoint_approval_event"].clear()
-            session["checkpoint_approved"] = False
-            # Wait for approval (up to 1 hour)
-            session["checkpoint_approval_event"].wait(timeout=timeout)
-            return session["checkpoint_approved"]
-        return False
-
-    def reset_checkpoint_state(self, session_id: str):
-        """Reset checkpoint state for new iteration."""
-        if session_id in self.sessions:
-            session = self.sessions[session_id]
-            session["checkpoint_approved"] = False
-            session["checkpoint_approval_event"].clear()
+# SessionManager is now imported from approval_gates.py (Phase 5.1 extraction)
+# Keeps session-based state: plan storage, checkpoint summaries, proposal data
 
 
 # ==================== GLOBAL STATE ====================
@@ -339,21 +219,38 @@ async def handle_chat(request: ChatRequest):
     """
     Handle regular chat requests.
 
+    FIX #1 (Phase 5.1): Now can answer questions about generated plans!
+    Includes stored plan context from session if available.
+
     Can include:
     - Regular LLM chat
     - Memory retrieval (prefixed with /memory)
+    - Questions about generated plans (chat now has access to stored plans)
     """
     session_id, session = session_manager.get_or_create(request.session_id)
-    agent = session["agent"]
+    agent = session.agent
 
     try:
         if DEBUG:
             print(f"\n💬 CHAT: {request.message[:100]}")
 
+        # FIX #1: Check if there's a stored plan in session context
+        plan_context = session_manager.get_plan_context(session_id)
+
+        # If user is asking about the plan and we have one, include it in context
+        message_to_send = request.message
+        if plan_context.get("plan") and any(keyword in request.message.lower() for keyword in ["plan", "planning", "approach", "framework", "insight", "recommendation"]):
+            # Include plan context in the message
+            plan_summary = f"[Plan Context Available]\n\nGenerated Plan:\n{plan_context['plan'][:2000]}...\n\nMetadata: {plan_context['metadata']}\n\n"
+            message_to_send = plan_summary + f"User Question: {request.message}"
+
+            if DEBUG:
+                print(f"   📝 Including stored plan in context (available from session)")
+
         # Let agent handle the message (agent automatically uses memory)
         response = await asyncio.to_thread(
             agent.chat,
-            request.message
+            message_to_send
         )
 
         return ChatResponse(
@@ -374,6 +271,9 @@ async def handle_chat(request: ChatRequest):
 async def start_planning(request: PlanRequest):
     """
     Start planning process.
+
+    FIX #2 (Phase 5.2): Control values (max_iterations, checkpoint_interval) are now stored
+    in the proposal stage to ensure they sync with execution.
 
     Routes to:
     - Single-iteration planning (max_iterations=1)
@@ -399,6 +299,9 @@ async def handle_approval(request: ApprovalRequest):
     """
     Handle user approval decision on planning proposal.
 
+    FIX #2 (Phase 5.2): Uses control values from stored proposal to ensure consistency.
+    Never re-requests iterations/checkpoint settings from frontend.
+
     Routes to execution if approved.
     """
     session_id, session = session_manager.get_or_create(request.session_id)
@@ -407,12 +310,17 @@ async def handle_approval(request: ApprovalRequest):
         print(f"\n✋ APPROVAL: {request.decision} (ID: {request.approval_id[:8]})")
 
     if request.decision == "approve":
+        # FIX #2: Get control values from stored proposal (not from request which might differ)
+        stored_proposal = session_manager.get_proposal(session_id)
+        max_iterations = stored_proposal.get("max_iterations", request.max_iterations or 4) if stored_proposal else request.max_iterations or 4
+        checkpoint_interval = stored_proposal.get("checkpoint_interval", request.checkpoint_interval or 2) if stored_proposal else request.checkpoint_interval or 2
+
         return await _execute_multi_iteration_planning(
             session,
             request.goal,
             request.proposal or "",
-            request.max_iterations or 4,
-            request.checkpoint_interval or 2,
+            max_iterations,
+            checkpoint_interval,
             session_id
         )
 
@@ -438,124 +346,8 @@ async def handle_approval(request: ApprovalRequest):
 
 
 # ==================== PLANNING METHODS ====================
-
-async def _analyze_iteration_improvements(
-    session: Dict[str, Any],
-    goal: str,
-    iteration_number: int,
-    current_result: Dict[str, Any],
-    previous_result: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """
-    Use Llama to analyze what improved from previous iteration.
-
-    Llama's critical thinking analyzes:
-    - Better/more comprehensive research
-    - New frameworks applied
-    - Additional use cases discovered
-    - New angles of analysis
-    - Deeper insights into the problem
-
-    Returns structured improvement data for display to user.
-    """
-    try:
-        if not previous_result:
-            # First checkpoint - no previous iteration to compare
-            return {
-                "is_first_checkpoint": True,
-                "status": "Completed first iteration cycle - ready for deeper analysis"
-            }
-
-        agent = session["agent"]
-
-        # Prepare comparison prompt for Llama
-        current_frameworks = current_result.get("frameworks_used", [])
-        previous_frameworks = previous_result.get("frameworks_used", [])
-        current_data_points = current_result.get("data_points_count", 0)
-        previous_data_points = previous_result.get("data_points_count", 0)
-
-        comparison_prompt = f"""Analyze the improvements made from iteration {iteration_number - 2} to iteration {iteration_number - 1}.
-
-GOAL: {goal}
-
-PREVIOUS ITERATION (Iteration {iteration_number - 2}):
-- Frameworks used: {previous_frameworks}
-- Data points extracted: {previous_data_points}
-- Summary: {previous_result.get('summary', 'N/A')[:500]}
-
-CURRENT ITERATION (Iteration {iteration_number - 1}):
-- Frameworks used: {current_frameworks}
-- Data points extracted: {current_data_points}
-- Summary: {current_result.get('summary', 'N/A')[:500]}
-
-Analyze and provide a concise JSON response with these improvements:
-{{
-    "research_improvements": "What new research angles or sources were discovered? Be specific.",
-    "frameworks_applied": "What new frameworks were added and why are they valuable?",
-    "use_cases_found": "Were any new use cases or applications discovered?",
-    "analytical_improvements": "What new ways of analyzing this problem emerged?",
-    "key_discovery": "What is the most important new insight from this iteration?",
-    "depth_increase": "How much deeper/more specific did the analysis become? (1-10 scale)"
-}}
-
-Return ONLY valid JSON, no other text."""
-
-        if DEBUG:
-            print(f"   🧠 Llama analyzing improvements from iteration {iteration_number - 2} → {iteration_number - 1}...")
-
-        # Call agent to get Llama's analysis
-        llama_response = await asyncio.to_thread(
-            agent.chat,
-            comparison_prompt
-        )
-
-        if DEBUG:
-            print(f"   ✓ Analysis complete")
-
-        # Parse JSON response
-        try:
-            # Extract JSON from response (Llama might add extra text)
-            import re
-            json_match = re.search(r'\{.*\}', llama_response, re.DOTALL)
-            if json_match:
-                improvements = json.loads(json_match.group())
-            else:
-                improvements = {
-                    "research_improvements": "Analysis ongoing",
-                    "frameworks_applied": "New frameworks being integrated",
-                    "use_cases_found": "Use cases being refined",
-                    "analytical_improvements": "Deeper analysis in progress",
-                    "key_discovery": "Critical insights emerging from iteration refinement",
-                    "depth_increase": 7
-                }
-        except json.JSONDecodeError:
-            improvements = {
-                "research_improvements": llama_response[:200],
-                "frameworks_applied": "See analysis above",
-                "use_cases_found": "See analysis above",
-                "analytical_improvements": "See analysis above",
-                "key_discovery": "System is learning and refining approach",
-                "depth_increase": 6
-            }
-
-        return {
-            "is_first_checkpoint": False,
-            "improvements": improvements,
-            "comparison": {
-                "frameworks_added": len(set(current_frameworks) - set(previous_frameworks)),
-                "data_points_gained": current_data_points - previous_data_points,
-                "depth_score": improvements.get("depth_increase", 5)
-            }
-        }
-
-    except Exception as e:
-        if DEBUG:
-            print(f"   ⚠️ Error analyzing improvements: {e}")
-        return {
-            "is_first_checkpoint": False,
-            "status": "Improvements being analyzed",
-            "error": str(e)
-        }
+# analyze_iteration_improvements is now imported from context_manager.py (Phase 5.2 extraction)
+# Provides detailed Llama analysis of improvements between iterations
 
 
 async def _execute_single_iteration_planning(
@@ -632,12 +424,15 @@ async def _execute_single_iteration_planning(
 
 
 async def _generate_planning_proposal(
-    session: Dict[str, Any],
+    session: PlanningSession,
     request: PlanRequest,
     session_id: str
 ) -> ProposalResponse:
     """
     Generate planning proposal for multi-iteration planning.
+
+    FIX #2 (Phase 5.2): Stores proposal data (including control values) in session
+    to ensure max_iterations and checkpoint_interval sync to execution.
 
     Shows user:
     - What will be searched in memory
@@ -646,7 +441,7 @@ async def _generate_planning_proposal(
     """
     try:
         memory_path = get_memory_path()
-        agent = session["agent"]
+        agent = session.agent
 
         if DEBUG:
             print(f"   📋 Generating proposal for multi-iteration planning...")
@@ -654,8 +449,8 @@ async def _generate_planning_proposal(
         # Initialize LlamaPlanner for proposal generation
         llama_planner = LlamaPlanner(agent, memory_path)
 
-        # Generate goal-specific queries
-        queries = _generate_goal_specific_queries(request.goal)
+        # Generate goal-specific queries (using imported function from context_manager)
+        queries = generate_goal_specific_queries(request.goal)
 
         # Search memory for relevant entities
         memory_results = await asyncio.to_thread(
@@ -709,25 +504,28 @@ async def _generate_planning_proposal(
 Click "Approve" to start multi-iteration planning.
 """
 
-        # Store approval request
+        # FIX #2: Store proposal data in session with control values
         approval_id = str(uuid.uuid4())[:12]
-        session["pending_approvals"][approval_id] = {
-            "goal": request.goal,
-            "proposal": proposal_obj.to_dict(),
-            "max_iterations": request.max_iterations,
-            "checkpoint_interval": request.checkpoint_interval,
-            "selected_entities": request.selected_entities,
-            "created_at": datetime.now().isoformat()
-        }
+        session_manager.store_proposal(
+            session_id=session_id,
+            goal=request.goal,
+            proposal_text=proposal_text,
+            selected_entities=request.selected_entities or [],
+            selected_agents=["PlannerAgent", "VerifierAgent", "ExecutorAgent", "GeneratorAgent"],
+            max_iterations=request.max_iterations,
+            checkpoint_interval=request.checkpoint_interval,
+            approach_summary=proposal_obj.to_dict() if hasattr(proposal_obj, 'to_dict') else {}
+        )
 
         if DEBUG:
             print(f"   ✅ Proposal generated (ID: {approval_id})")
+            print(f"   📌 Control values stored: {request.max_iterations} iterations, {request.checkpoint_interval} checkpoint interval")
 
         return ProposalResponse(
             status="success",  # Changed from "awaiting_approval" - frontend expects "success"
             proposal_id=approval_id,
             proposal=proposal_text,
-            approach=proposal_obj.to_dict(),
+            approach=proposal_obj.to_dict() if hasattr(proposal_obj, 'to_dict') else {},
             memory_coverage=0.6,
             research_coverage=0.4,
             session_id=session_id,
@@ -956,12 +754,14 @@ async def execute_plan_endpoint(
                             current_iteration = item.get("iteration", checkpoint_count * checkpoint_interval)
 
                             # CRITICAL: Analyze improvements using Llama's thinking
-                            improvement_analysis = await _analyze_iteration_improvements(
-                                session=session,
+                            # Now using improved version from context_manager.py (Phase 5.2 extraction)
+                            improvement_analysis = await analyze_iteration_improvements(
+                                agent=session["agent"],
                                 goal=goal,
                                 iteration_number=current_iteration,
                                 current_result=item,
-                                previous_result=previous_iteration_result
+                                previous_result=previous_iteration_result,
+                                debug=DEBUG
                             )
 
                             # Send checkpoint summary to frontend
