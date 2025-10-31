@@ -138,15 +138,8 @@ def get_model_response(
             pass
 
         return "".join(parts)
-    elif use_vllm:
-        completion = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            #stop=["</reply>", "</python>"]
-        )
-            
-        return completion.choices[0].message.content
     else:
+        # Both vLLM and default (OpenRouter) use identical OpenAI-compatible API
         completion = client.chat.completions.create(
             model=model,
             messages=messages,
