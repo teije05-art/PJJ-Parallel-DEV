@@ -1,30 +1,16 @@
-# Planning Errors to Avoid
+# Planning Errors & Rejected Patterns
 
-This file tracks planning mistakes and rejected approaches across all agents.
+## Rejections to Learn From
+This entity tracks planning patterns that users rejected, for negative learning signals.
 
-## Error Categories
+### Rejected Checkpoints
+- (Will be populated when users reject checkpoints)
 
-### Strategic Planning Errors
-- Overly complex plans that are difficult to execute
-- Plans that don't align with project requirements
-- Missing key stakeholders or considerations
+### Patterns to Avoid
+- (Anti-patterns will be learned from rejections)
 
-### Implementation Errors  
-- Unrealistic timelines or resource allocation
-- Missing critical deliverables
-- Inadequate risk assessment
+### Error Statistics
+- Total rejections: 0
+- Rejection rate: 0% (baseline)
+- Last updated: 2025-11-03
 
-### Validation Errors
-- Insufficient quality checks
-- Missing compliance requirements
-- Incomplete verification processes
-
-### Synthesis Errors
-- Poor integration of agent outputs
-- Missing executive summaries
-- Incomplete final deliverables
-
-## Learning Notes
-- This file will be populated as the system learns from rejections
-- Each rejection provides valuable feedback for improvement
-- Flow-GRPO training uses this data to improve future planning

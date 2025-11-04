@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Jupiter Planner</title>
+    <title>MemAgent Planning System</title>
     <style>
         * {
             margin: 0;
@@ -11,137 +11,270 @@
             box-sizing: border-box;
         }
 
-        html, body {
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-        }
-
         body {
-            background: #f9f9f9;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .container {
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .sidebar {
-            width: 300px;
-            background: white;
-            border-right: 1px solid #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
-            overflow-y: auto;
-            box-shadow: 2px 0 4px rgba(0,0,0,0.05);
-        }
-
-        .sidebar h2 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
             color: #333;
         }
 
-        .mode-selector {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 20px;
+            height: calc(100vh - 40px);
         }
 
-        .mode-btn {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #d1d5db;
+        /* ==================== SIDEBAR ==================== */
+        .sidebar {
             background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .entity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #eee;
             border-radius: 6px;
+            padding: 10px;
+        }
+
+        .entity-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 13px;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-item:hover {
+            background: #e8e8ff;
+        }
+
+        .entity-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .entity-counter {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .agent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .agent-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .agent-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        /* Planning Options - FIXED IDs */
+        .planning-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .option-group label {
             font-size: 13px;
             font-weight: 500;
-            transition: all 0.2s;
-            color: #666;
+            color: #555;
         }
 
-        .mode-btn.active {
-            border-color: #2563eb;
-            background: #eff6ff;
-            color: #2563eb;
-        }
-
-        .mode-btn:hover:not(.active) {
-            border-color: #9ca3af;
-            background: #f9fafb;
-        }
-
-        .status-info {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
+        .option-group input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
             border-radius: 6px;
-            padding: 12px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .option-group input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* FIXED: Use unique IDs for sidebar controls */
+        #sidebar-max-iterations,
+        #sidebar-checkpoint-interval {
+            /* These now have unique IDs */
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 6px;
             font-size: 12px;
-            color: #166534;
-            margin-bottom: 20px;
+            margin-top: 15px;
         }
 
-        .status-info strong {
-            display: block;
-            margin-bottom: 4px;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
         }
 
+        .status-dot.disconnected {
+            background: #ff6b6b;
+        }
+
+        /* ==================== MAIN CONTENT ==================== */
         .main-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 12px;
+        }
+
+        #goalInput {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        #goalInput:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .chat-container {
             flex: 1;
             display: flex;
             flex-direction: column;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
         }
 
-        .header {
-            background: white;
-            border-bottom: 1px solid #e0e0e0;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-
-        .header p {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        .current-mode {
-            display: inline-block;
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 10px;
-        }
-
-        #chatbox {
+        .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 30px;
-            max-width: 900px;
-            width: 100%;
-            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #fafafa;
         }
 
         .message {
-            margin-bottom: 20px;
-            animation: fadeIn 0.3s ease-in;
+            display: flex;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
         }
 
-        @keyframes fadeIn {
+        @keyframes slideIn {
             from {
                 opacity: 0;
                 transform: translateY(10px);
@@ -152,1508 +285,1586 @@
             }
         }
 
-        .message-label {
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .message.user {
+            justify-content: flex-end;
         }
 
         .message-content {
-            padding: 15px 18px;
+            max-width: 70%;
+            padding: 12px 16px;
             border-radius: 8px;
-            line-height: 1.6;
-            white-space: pre-wrap;
             word-wrap: break-word;
             font-size: 14px;
-        }
-
-        .message.user .message-label {
-            color: #2563eb;
+            line-height: 1.5;
         }
 
         .message.user .message-content {
-            background: #eff6ff;
-            color: #1e40af;
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 2px;
         }
 
-        .message.agent .message-label {
-            color: #059669;
+        .message.bot .message-content {
+            background: #e8e8e8;
+            color: #333;
+            border-bottom-left-radius: 2px;
         }
 
-        .message.agent .message-content {
-            background: #f0fdf4;
-            color: #166534;
-        }
-
-        .message.planning .message-label {
-            color: #9333ea;
-        }
-
-        .message.planning .message-content {
-            background: #faf5ff;
-            color: #6b21a8;
-        }
-
-        .input-container {
-            border-top: 1px solid #e0e0e0;
+        .chat-input-section {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
             background: white;
-            padding: 20px;
-            box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
         }
 
-        .input-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        #message-input {
+        #chatInput {
             flex: 1;
-            min-width: 200px;
-            padding: 12px 16px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
             font-size: 14px;
+            font-family: inherit;
+        }
+
+        #chatInput:focus {
             outline: none;
-            transition: border-color 0.2s;
+            border-color: #667eea;
         }
 
-        #message-input:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        button {
-            padding: 12px 24px;
-            background: #2563eb;
+        .btn-send {
+            padding: 10px 20px;
+            background: #667eea;
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        button:hover:not(:disabled) {
-            background: #1d4ed8;
-        }
-
-        button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-
-        .btn-secondary {
-            background: #6b7280;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: #4b5563;
-        }
-
-        .loading {
-            display: inline-block;
-            margin-left: 5px;
-        }
-
-        .loading::after {
-            content: '...';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-
-        .empty-state {
-            text-align: center;
-            color: #9ca3af;
-            margin-top: 100px;
-        }
-
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .empty-state p {
-            font-size: 15px;
-            margin-top: 10px;
-        }
-
-        .status-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #e0e0e0;
-            border-top-color: #2563eb;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                border-right: none;
-                border-bottom: 1px solid #e0e0e0;
-            }
-
-            .main-content {
-                flex: 1;
-            }
-        }
-
-        /* ============================================ */
-        /* ENTITY SELECTOR CSS (Phase 1B) */
-        /* ============================================ */
-
-        .sidebar-panel {
-            margin-bottom: 20px;
-        }
-
-        .sidebar-panel h3 {
-            font-size: 14px;
             font-weight: 600;
+        }
+
+        .btn-send:hover {
+            background: #5568d3;
+        }
+
+        /* ==================== RIGHT PANEL ==================== */
+        .right-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .right-panel h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .progress-item {
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 6px;
             margin-bottom: 12px;
+            font-size: 13px;
+            border-left: 3px solid #667eea;
+        }
+
+        .progress-item.complete {
+            border-left-color: #4caf50;
+        }
+
+        .progress-item.error {
+            border-left-color: #ff6b6b;
+        }
+
+        .progress-label {
+            font-weight: 600;
+            margin-bottom: 4px;
             color: #333;
         }
 
-        .search-box {
-            margin-bottom: 12px;
+        .progress-value {
+            color: #666;
+            font-size: 12px;
         }
 
-        .search-box input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 13px;
+        /* ==================== ITERATION PROGRESS BAR ==================== */
+        .iteration-tracker {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .entity-list {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            margin-bottom: 12px;
-        }
-
-        .entity-item {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .entity-item:hover {
-            background: #f3f4f6;
-        }
-
-        .entity-item.selected {
-            background: #dbeafe;
-            border-left: 3px solid #2563eb;
-        }
-
-        .entity-checkbox {
-            margin-right: 6px;
-        }
-
-        .agent-list {
-            max-height: 250px;
-            overflow-y: auto;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            margin-bottom: 12px;
-        }
-
-        .agent-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-        }
-
-        .agent-item:hover {
-            background: #f3f4f6;
-        }
-
-        .agent-item.selected {
-            background: #dbeafe;
-            border-left: 3px solid #2563eb;
-        }
-
-        .agent-checkbox {
-            margin-right: 6px;
-            margin-top: 3px;
-        }
-
-        .entity-controls,
-        .selection-summary {
+        .iteration-header {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .iteration-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .iteration-counter {
             font-size: 12px;
+            color: #667eea;
+            font-weight: bold;
+            background: #e3f2fd;
+            padding: 3px 10px;
+            border-radius: 12px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 24px;
+            background: #f0f0f0;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .iteration-dots {
+            display: flex;
             gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
         }
 
-        .entity-controls button {
-            flex: 1;
-            padding: 6px;
-            font-size: 12px;
-            border: 1px solid #d1d5db;
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
+        .iteration-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
             transition: all 0.2s;
+            cursor: default;
         }
 
-        .entity-controls button:hover {
-            background: #f9fafb;
+        .iteration-dot.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px #e3f2fd;
         }
 
-        /* ============================================ */
-        /* APPROVAL GATE MODAL CSS (Phase 1B) */
-        /* ============================================ */
+        .iteration-dot.complete {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
 
+        .iteration-dot.checkpoint {
+            border-color: #ff9800;
+            border-width: 3px;
+        }
+
+        /* ==================== MODAL ==================== */
         .modal {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
         }
 
         .modal-content {
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
+            padding: 40px;
             max-width: 600px;
             max-height: 90vh;
             overflow-y: auto;
-            padding: 24px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease;
         }
 
-        .modal-content h2 {
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            font-size: 24px;
+            font-weight: 700;
             margin-bottom: 20px;
             color: #333;
         }
 
-        .approval-section {
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid #e5e7eb;
+        .modal-section {
+            margin-bottom: 25px;
         }
 
-        .approval-section h3 {
+        .modal-section h3 {
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 10px;
             color: #666;
+            margin-bottom: 12px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
-        .goal-box,
-        .info-box {
-            padding: 12px;
-            background: #f9fafb;
-            border-radius: 4px;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #333;
-            border-left: 3px solid #2563eb;
+        /* FIXED: Use unique IDs for modal controls */
+        #modal-max-iterations,
+        #modal-checkpoint-interval {
+            /* These now have unique IDs to avoid collision with sidebar */
         }
 
-        .approval-controls {
+        .modal-buttons {
             display: flex;
-            gap: 8px;
-            margin-top: 12px;
+            gap: 12px;
+            margin-top: 30px;
+            justify-content: flex-end;
         }
 
-        .btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .proposal-text {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* ==================== CHECKPOINT MODAL ==================== */
+        .checkpoint-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checkpoint-modal.active {
+            display: flex;
+        }
+
+        .checkpoint-content {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        .checkpoint-summary {
+            background: #f0f7ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .checkpoint-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+            justify-content: space-between;
         }
 
         .btn-approve {
-            background: #10b981;
+            background: #4caf50;
             color: white;
+            flex: 1;
         }
 
         .btn-approve:hover {
-            background: #059669;
+            background: #45a049;
         }
 
         .btn-reject {
-            background: #ef4444;
+            background: #ff6b6b;
             color: white;
+            flex: 1;
         }
 
         .btn-reject:hover {
-            background: #dc2626;
+            background: #ff5252;
         }
 
-        .btn-adjust {
-            background: #3b82f6;
-            color: white;
+        /* ==================== CHECKPOINT MODAL ENHANCEMENTS ==================== */
+        .phase-tab {
+            position: relative;
+            font-size: 13px;
+            padding: 12px 16px !important;
+            transition: all 0.2s !important;
         }
 
-        .btn-adjust:hover {
-            background: #2563eb;
+        .phase-tab:hover {
+            background: rgba(102, 126, 234, 0.05) !important;
         }
 
-        .btn-confirm {
-            background: #10b981;
-            color: white;
+        .phase-tab.active {
+            color: #667eea !important;
+            border-bottom-color: #667eea !important;
         }
 
-        .btn-cancel {
-            background: #999;
-            color: white;
+        .phase-panel {
+            animation: fadeIn 0.2s ease;
         }
 
-        #adjustment-text {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            resize: vertical;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
-        .btn-small {
-            padding: 6px 10px;
-            font-size: 11px;
-            border: 1px solid #d1d5db;
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .phase-content {
+            border-radius: 8px;
+        }
+
+        /* Metric Cards */
+        .metric-card {
             background: white;
-            border-radius: 4px;
-            cursor: pointer;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .btn-small:hover {
-            background: #f9fafb;
+        .metric-label {
+            font-weight: 500;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 6px;
+            background: #f0f0f0;
+        }
+
+        .metric-value.high {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .metric-value.medium {
+            background: #ffe0b2;
+            color: #e65100;
+        }
+
+        .metric-value.low {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        /* Framework Tags */
+        .framework-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 4px 4px 4px 0;
+            font-weight: 500;
+        }
+
+        /* Memory Segment Card */
+        .memory-segment {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .memory-segment-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .memory-segment-content {
+            font-size: 12px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        /* Checkpoint Summary Box */
+        .checkpoint-summary {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* ==================== METRIC PROGRESS BARS ==================== */
+        .metric-with-bar {
+            margin-bottom: 12px;
+        }
+
+        .metric-bar-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .metric-bar-name {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .metric-bar-percentage {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 13px;
+        }
+
+        .metric-progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+        }
+
+        .metric-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 6px;
+            min-width: 20px;
+        }
+
+        .metric-progress-fill.high {
+            background: linear-gradient(90deg, #4caf50, #45a049);
+        }
+
+        .metric-progress-fill.medium {
+            background: linear-gradient(90deg, #ff9800, #e68900);
+        }
+
+        .metric-progress-fill.low {
+            background: linear-gradient(90deg, #ff6b6b, #ff5252);
+        }
+
+        /* ==================== CHECKPOINT HEADER METADATA ==================== */
+        .checkpoint-header-info {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .checkpoint-meta-badge {
+            font-size: 11px;
+            background: #f0f0f0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            color: #666;
+            font-weight: 500;
+            border-left: 3px solid #667eea;
+        }
+
+        /* ==================== RESPONSIVE ==================== */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .sidebar,
+            .right-panel {
+                max-height: 300px;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar -->
+        <!-- ==================== SIDEBAR ==================== -->
         <div class="sidebar">
-            <h2>Mode</h2>
-            <div class="mode-selector">
-                <button class="mode-btn active" data-mode="chat">💬 Chat</button>
-                <button class="mode-btn" data-mode="plan">🎯 Plan</button>
+            <h2>Planning Setup</h2>
+
+            <!-- Entity Selection -->
+            <div class="section">
+                <h3>Memory Entities</h3>
+                <p style="font-size: 0.85em; color: #999; margin-bottom: 10px;">Select entities to use for memory retrieval during planning</p>
+                <div class="entity-list" id="entityList">
+                    <!-- Populated dynamically from /api/entities -->
+                </div>
+                <div class="entity-counter">Selected: <span id="entityCount">0</span></div>
             </div>
 
-            <div class="status-info" id="status-info">
-                <strong>System Status</strong>
-                <div id="status-content">Loading...</div>
-            </div>
-
-            <!-- Entity Selector (Phase 1B) -->
-            <div id="entity-selector-panel" class="sidebar-panel" style="display: none;">
-                <h3>📚 Select Memory Entities</h3>
-
-                <div class="search-box">
-                    <input type="text" id="entity-search" placeholder="Search entities..."
-                           onkeyup="filterEntities(this.value)">
-                </div>
-
-                <div id="entity-list" class="entity-list">
-                    <!-- Populated by JavaScript -->
-                </div>
-
-                <div class="entity-controls">
-                    <button class="btn-small" onclick="saveEntitySelection()">Save</button>
-                    <button class="btn-small" onclick="clearEntitySelection()">Clear</button>
-                </div>
-
-                <div class="selection-summary">
-                    <small id="selection-count">Selected: 0</small>
-                </div>
-            </div>
-
-            <!-- Agent Selector (Phase 1D) -->
-            <div id="agent-selector-panel" class="sidebar-panel" style="display: none;">
-                <h3>🔧 Select Planning Agents</h3>
-
-                <div id="agent-list" class="agent-list">
-                    <!-- Populated by JavaScript -->
-                </div>
-
-                <div class="entity-controls" style="margin-top: 10px;">
-                    <button class="btn-small" onclick="saveAgentSelection()">Save</button>
-                </div>
-
-                <div class="selection-summary">
-                    <small id="agent-selection-count">Selected: 0</small>
-                </div>
-            </div>
-
-            <h2>Planning Options</h2>
-            <div id="planning-options" style="display: none;">
-                <label style="display: block; margin-bottom: 10px; font-size: 13px;">
-                    Max Iterations:
-                    <input type="number" id="max-iterations" value="9" min="1" max="30" style="width: 100%; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 4px;">
-                </label>
-                <label style="display: block; font-size: 13px;">
-                    Checkpoint Interval:
-                    <input type="number" id="checkpoint-interval" value="3" min="1" max="10" style="width: 100%; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 4px;">
-                </label>
+            <!-- Status -->
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
             </div>
         </div>
 
-        <!-- Main Content -->
+        <!-- ==================== MAIN CONTENT ==================== -->
         <div class="main-content">
-            <!-- Header -->
-            <div class="header">
-                <div>
-                    <h1>Project Jupiter Planner <span class="current-mode" id="current-mode">Chat Mode</span></h1>
-                    <p>Memory-augmented autonomous planning system</p>
-                </div>
+            <!-- Input Section -->
+            <div class="input-section">
+                <input type="text" id="goalInput" placeholder="Describe your planning goal..." autofocus>
+                <button class="btn btn-primary" id="planBtn">Plan</button>
             </div>
 
-            <!-- Chat Area -->
-            <div id="chatbox">
-                <div class="empty-state">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    <p id="empty-message">Start a conversation with your memory agent</p>
-                </div>
-            </div>
-
-            <!-- Input Area -->
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <input
-                        type="text"
-                        id="message-input"
-                        placeholder="Ask me anything or describe your planning goal..."
-                        autocomplete="off"
-                    >
-                    <div class="btn-group">
-                        <button id="send-btn">Send</button>
-                        <button id="clear-btn" class="btn-secondary">Clear</button>
+            <!-- Chat Container -->
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot">
+                        <div class="message-content">
+                            Welcome to MemAgent! Describe what you'd like to plan, and I'll create a comprehensive strategy using memory and web research.
+                        </div>
                     </div>
+                </div>
+                <div class="chat-input-section">
+                    <input type="text" id="chatInput" placeholder="Type your message...">
+                    <button class="btn btn-send" id="sendBtn">Send</button>
                 </div>
             </div>
         </div>
 
-        <!-- Approval Gate Modal (Phase 1B) -->
-        <div id="approval-gate-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <h2>✨ Approve Planning Approach</h2>
+        <!-- ==================== RIGHT PANEL ==================== -->
+        <div class="right-panel">
+            <h2>Progress</h2>
 
-                <div class="approval-section">
-                    <h3>Goal</h3>
-                    <div id="approval-goal" class="goal-box"></div>
+            <!-- Iteration Tracker -->
+            <div class="iteration-tracker" id="iterationTracker" style="display: none;">
+                <div class="iteration-header">
+                    <div class="iteration-title">📊 Planning Progress</div>
+                    <div class="iteration-counter" id="iterationCounter">0/0</div>
                 </div>
-
-                <div class="approval-section">
-                    <h3>Memory Search</h3>
-                    <div id="approval-memory" class="info-box"></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;">0%</div>
                 </div>
+                <div class="iteration-dots" id="iterationDots"></div>
+            </div>
 
-                <div class="approval-section">
-                    <h3>Proposed Approach</h3>
-                    <div id="approval-approach" class="info-box"></div>
-                </div>
-
-                <div class="approval-section">
-                    <h3>⚙️ Planning Configuration</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 10px; background: #f9fafb; border-radius: 4px;">
-                        <div>
-                            <label for="max-iterations" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">
-                                Max Iterations
-                            </label>
-                            <input type="number" id="max-iterations" min="1" max="20" value="6"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                            <small style="display: block; margin-top: 3px; color: #666;">How many iteration cycles (1-20)</small>
-                        </div>
-                        <div>
-                            <label for="checkpoint-interval" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">
-                                Checkpoint Interval
-                            </label>
-                            <input type="number" id="checkpoint-interval" min="1" max="10" value="3"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                            <small style="display: block; margin-top: 3px; color: #666;">Show summary every N iterations (1-10)</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="approval-controls">
-                    <button class="btn btn-approve" onclick="approveApproach()">✓ APPROVE</button>
-                    <button class="btn btn-reject" onclick="rejectApproach()">✗ REJECT</button>
-                    <button class="btn btn-adjust" onclick="toggleAdjustmentForm()">? ADJUST</button>
-                </div>
-
-                <div id="adjustment-form" style="display: none;" class="approval-section">
-                    <h3>Describe Changes</h3>
-                    <textarea id="adjustment-text" placeholder="Describe what you'd like to change..."
-                              rows="3"></textarea>
-                    <div class="approval-controls">
-                        <button class="btn btn-confirm" onclick="submitAdjustment()">Send</button>
-                        <button class="btn btn-cancel" onclick="toggleAdjustmentForm()">Cancel</button>
-                    </div>
+            <!-- Status Items -->
+            <div id="progressItems">
+                <div class="progress-item">
+                    <div class="progress-label">System Status</div>
+                    <div class="progress-value">Ready</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // State management
-        let currentMode = 'chat';
-        let sessionId = localStorage.getItem('mem_agent_session_id');
-        const chatbox = document.getElementById('chatbox');
-        const input = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
-        const clearBtn = document.getElementById('clear-btn');
-        const modeButtons = document.querySelectorAll('.mode-btn');
-        const planningOptions = document.getElementById('planning-options');
-        const currentModeLabel = document.getElementById('current-mode');
-        const emptyMessage = document.getElementById('empty-message');
+    <!-- ==================== PROPOSAL MODAL ==================== -->
+    <div class="modal" id="proposalModal">
+        <div class="modal-content">
+            <div class="modal-header">Planning Proposal</div>
 
-        // Load system status
-        async function loadStatus() {
+            <div class="proposal-text" id="proposalText">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="modal-section">
+                <h3>Configuration</h3>
+                <!-- FIXED: Using unique IDs for modal controls -->
+                <div class="option-group">
+                    <label for="modal-max-iterations">Max Iterations:</label>
+                    <input type="number" id="modal-max-iterations" min="1" max="20" value="3">
+                </div>
+                <div class="option-group">
+                    <label for="modal-checkpoint-interval">Checkpoint Interval:</label>
+                    <input type="number" id="modal-checkpoint-interval" min="1" max="10" value="2">
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeProposalModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="approveProposal()">Approve & Execute</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== CHECKPOINT MODAL ==================== -->
+    <div class="checkpoint-modal" id="checkpointModal">
+        <div class="checkpoint-content">
+            <div class="modal-header">🎯 Checkpoint Review - Iteration <span id="checkpointNumber">1</span></div>
+
+            <!-- Checkpoint Metadata -->
+            <div class="checkpoint-header-info">
+                <div class="checkpoint-meta-badge">
+                    📋 Checkpoint: <span id="checkpointNumberMeta">1</span>
+                </div>
+                <div class="checkpoint-meta-badge">
+                    🔄 Iteration: <span id="checkpointIterationMeta">1</span>
+                </div>
+                <div class="checkpoint-meta-badge">
+                    🤖 Agent: <span id="checkpointAgentMeta">Planning</span>
+                </div>
+            </div>
+
+            <p style="color: #666; margin-bottom: 15px; margin-top: 15px;">Planning iteration <span id="checkpointIteration">1</span> completed. Review all 4 phases and approve to continue.</p>
+
+            <!-- Phase Tabs Navigation -->
+            <div style="display: flex; gap: 10px; border-bottom: 2px solid #eee; margin-bottom: 20px; overflow-x: auto;">
+                <button class="phase-tab active" onclick="switchPhaseTab(event, 'memory')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">📚 Memory</button>
+                <button class="phase-tab" onclick="switchPhaseTab(event, 'reasoning')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">🧠 Reasoning</button>
+                <button class="phase-tab" onclick="switchPhaseTab(event, 'verification')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">✅ Verification</button>
+                <button class="phase-tab" onclick="switchPhaseTab(event, 'learning')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">📊 Learning</button>
+            </div>
+
+            <!-- Phase Content Areas -->
+            <div class="phase-content" style="max-height: 400px; overflow-y: auto;">
+                <!-- Memory Phase -->
+                <div id="phase-memory" class="phase-panel" style="display: block;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">📚 Memory Segments</h3>
+                    <div id="memoryContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px; line-height: 1.6;">
+                        <p style="color: #999;">Loading memory segments...</p>
+                    </div>
+                </div>
+
+                <!-- Reasoning Phase -->
+                <div id="phase-reasoning" class="phase-panel" style="display: none;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">🧠 Reasoning Chain</h3>
+                    <div id="reasoningContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
+                        <p style="color: #999;">Loading reasoning chain...</p>
+                    </div>
+                </div>
+
+                <!-- Verification Phase -->
+                <div id="phase-verification" class="phase-panel" style="display: none;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">✅ Verification Results</h3>
+                    <div id="verificationContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
+                        <p style="color: #999;">Loading verification results...</p>
+                    </div>
+                </div>
+
+                <!-- Learning Phase -->
+                <div id="phase-learning" class="phase-panel" style="display: none;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">📊 Learning Metrics</h3>
+                    <div id="learningContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
+                        <p style="color: #999;">Loading learning metrics...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkpoint Summary (Original) -->
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">📝 Plan Summary</h3>
+                <div class="checkpoint-summary" id="checkpointSummary" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px; line-height: 1.6;">
+                    <!-- Populated with detailed analysis -->
+                </div>
+            </div>
+
+            <div class="checkpoint-buttons" style="margin-top: 20px;">
+                <button class="btn btn-reject" onclick="rejectCheckpoint()">❌ Reject</button>
+                <button class="btn btn-approve" onclick="approveCheckpoint()">✓ Approve</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PLAN SELECTION MODAL ==================== -->
+    <div class="modal" id="planSelectionModal">
+        <div class="modal-content">
+            <div class="modal-header">📚 Select Plans for Learning</div>
+
+            <p style="color: #666; margin-bottom: 20px;">
+                Which past plans should the system learn from?<br>
+                <small>(Select plans similar to your current goal to improve quality)</small>
+            </p>
+
+            <div id="planList" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="selectRecentPlans(3)" style="flex: 1; min-width: 120px;">Recent 3</button>
+                <button class="btn btn-secondary" onclick="selectRecentPlans(5)" style="flex: 1; min-width: 120px;">Recent 5</button>
+                <button class="btn btn-secondary" onclick="selectAllPlans()" style="flex: 1; min-width: 120px;">All Plans</button>
+                <button class="btn btn-secondary" onclick="clearAllPlans()" style="flex: 1; min-width: 120px;">Clear All</button>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="skipPlanSelection()">Skip Learning</button>
+                <button class="btn btn-primary" onclick="confirmPlanSelection()">Continue to Planning</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE ====================
+        let sessionId = localStorage.getItem('sessionId') || Date.now().toString();
+        localStorage.setItem('sessionId', sessionId);
+
+        let selectedEntities = [];
+        let selectedAgents = [];
+        let currentEventSource = null;
+        let currentCheckpointNumber = 0;
+
+        // ==================== INITIALIZATION ====================
+        async function initialize() {
+            // Check system status
             try {
                 const response = await fetch('/api/status');
                 const data = await response.json();
-                const statusContent = document.getElementById('status-content');
-                statusContent.innerHTML = `
-                    <strong>Backend:</strong> ${data.backend}<br>
-                    <strong>Agent:</strong> ${data.agent_available ? '✅' : '❌'}<br>
-                    <strong>Planning:</strong> ${data.orchestrator_available ? '✅' : '❌'}<br>
-                    <strong>Sessions:</strong> ${data.sessions_active}
-                `;
-            } catch (error) {
-                document.getElementById('status-content').textContent = 'Status unavailable';
+                updateStatus('Connected', true);
+            } catch (e) {
+                updateStatus('Disconnected', false);
             }
+
+            // Load entities
+            await loadEntities();
+            setupEventListeners();
         }
 
-        // Mode switching
-        modeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                modeButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentMode = btn.dataset.mode;
-
-                if (currentMode === 'chat') {
-                    planningOptions.style.display = 'none';
-                    input.placeholder = 'Ask me anything or describe your planning goal...';
-                    currentModeLabel.textContent = 'Chat Mode';
-                    emptyMessage.textContent = 'Start a conversation with your memory agent';
-                } else {
-                    planningOptions.style.display = 'block';
-                    input.placeholder = 'Describe your planning goal...';
-                    currentModeLabel.textContent = 'Planning Mode';
-                    emptyMessage.textContent = 'Start autonomous planning iterations';
-                }
-            });
-        });
-
-        // Parse mode prefix from message
-        function parseModePrefix(message) {
-            if (message.startsWith('/chat ')) {
-                return { mode: 'chat', clean: message.substring(6).trim() };
-            } else if (message.startsWith('/memory ')) {
-                return { mode: 'memory', clean: message.substring(8).trim() };
-            } else if (message.startsWith('/plan ')) {
-                return { mode: 'plan', clean: message.substring(6).trim() };
-            }
-            return { mode: null, clean: message };
-        }
-
-        // Send message
-        async function sendMessage() {
-            const userInput = input.value.trim();
-            if (!userInput) return;
-
-            input.value = '';
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = 'Thinking<span class="loading"></span>';
-
-            const emptyState = chatbox.querySelector('.empty-state');
-            if (emptyState) emptyState.remove();
-
-            // Check for approval commands when awaiting approval
-            if (window.awaitingApproval && userInput.toUpperCase() === 'APPROVE') {
-                addMessage(userInput, 'user');
-
-                try {
-                    // Send approval to continue execution
-                    const response = await fetch('/api/execute-plan', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            session_id: sessionId,
-                            approval_status: 'approved'
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    sessionId = data.session_id;
-                    localStorage.setItem('mem_agent_session_id', sessionId);
-
-                    // Handle the response (should be success status)
-                    if (data.status === 'success') {
-                        window.awaitingApproval = false;
-                        let planContent = `✅ Planning executed successfully!\n\n${data.plan_content || 'Plan completed.'}`;
-                        addMessage(planContent, 'agent');
-                    } else {
-                        addMessage(`Unexpected status: ${data.status}`, 'agent');
-                    }
-
-                } catch (error) {
-                    addMessage(`Error: ${error.message}`, 'agent');
-                } finally {
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                    input.focus();
-                }
-                return;
-            }
-
-            // Detect mode from prefix
-            const { mode: detectedMode, clean: cleanMessage } = parseModePrefix(userInput);
-            const effectiveMode = detectedMode || currentMode;
-
-            // Display message with original input (including prefix)
-            addMessage(userInput, effectiveMode === 'chat' ? 'user' : 'planning');
-
-            try {
-                if (effectiveMode === 'plan') {
-                    // Phase 1: Generate proposal first (without executing tools)
-                    console.log('Phase 1: Generating proposal...');
-                    addMessage('🔄 Analyzing goal and generating proposal...', 'agent');
-
-                    const proposalResponse = await fetch('/api/generate-proposal', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            goal: userInput,
-                            selected_entities: selectedEntities,
-                            selected_agents: selectedAgents,
-                            session_id: sessionId
-                        })
-                    });
-
-                    if (!proposalResponse.ok) {
-                        throw new Error(`Failed to generate proposal: HTTP ${proposalResponse.status}`);
-                    }
-
-                    const proposalData = await proposalResponse.json();
-
-                    if (proposalData.status === 'success') {
-                        // Show the proposal in the modal with all breakdown details
-                        showProposalModal(
-                            userInput,
-                            proposalData.proposal,
-                            {
-                                entity_count: proposalData.entity_count,
-                                entity_names: proposalData.entity_names,
-                                memory_coverage_percent: proposalData.memory_coverage_percent,
-                                research_coverage_percent: proposalData.research_coverage_percent,
-                                agents_to_use: proposalData.agents_to_use,
-                                max_iterations: proposalData.max_iterations,
-                                checkpoint_interval: proposalData.checkpoint_interval,
-                                session_id: proposalData.session_id
-                            }
-                        );
-
-                        // Store pending execution data
-                        window.pendingExecution = {
-                            goal: userInput,
-                            selected_entities: selectedEntities,
-                            selected_agents: selectedAgents,
-                            session_id: sessionId,
-                            proposal: proposalData.proposal
-                        };
-                    } else {
-                        addMessage(`❌ Failed to generate proposal: ${proposalData.error || 'Unknown error'}`, 'agent');
-                    }
-
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                    input.focus();
-                    return;
-                }
-
-                // Chat mode
-                const endpoint = '/api/chat';
-                const body = {
-                    message: userInput,
-                    session_id: sessionId
-                };
-
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data = await response.json();
-                sessionId = data.session_id;
-                localStorage.setItem('mem_agent_session_id', sessionId);
-
-                if (effectiveMode === 'chat') {
-                    addMessage(data.reply, 'agent');
-                } else {
-                    // PLANNING MODE - Handle different statuses from /api/execute-plan
-                    let planContent = '';
-
-                    if (data.status === 'awaiting_approval') {
-                        // Llama proposed an approach - show approval gate
-                        planContent = `
-🔍 APPROACH PROPOSAL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${data.proposal || 'No proposal details available'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-To proceed, type one of:
-  APPROVE - Execute the plan as proposed
-  ADJUST - Tell me what to change
-  REJECT - Cancel and start over
-                        `.trim();
-
-                        addMessage(planContent, 'agent');
-
-                        // Store that we're waiting for approval
-                        window.awaitingApproval = true;
-                        window.pendingApprovalSessionId = data.session_id;
-
-                    } else if (data.status === 'error') {
-                        planContent = `
-❌ Planning failed: ${data.message || 'Unknown error'}
-
-Error details:
-${data.error || 'No additional error information available'}
-                        `.trim();
-                        addMessage(planContent, 'agent');
-
-                    } else if (data.status === 'success') {
-                        // Full execution completed
-                        planContent = `
-✅ Planning completed successfully
-
-📊 Execution Summary:
-  • Goal: ${data.goal || 'Not specified'}
-  • Selected Entities: ${data.selected_entities ? data.selected_entities.join(', ') : 'None'}
-  • Tools Executed: ${data.tool_executions || 0}
-  • Iterations: ${data.iterations || 0}
-  • Status: ${data.status.toUpperCase()}
-                        `.trim();
-
-                        // Add the complete plan
-                        planContent += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 COMPLETE PLAN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-                        // Display the full plan content
-                        if (data.plan_content && data.plan_content.trim().length > 0) {
-                            planContent += `\n\n${data.plan_content}`;
-                        } else {
-                            planContent += `\n\n⚠️ No plan content generated.`;
-                        }
-
-                        // Add summary footer
-                        planContent += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📝 Session Information
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  • Session ID: ${data.session_id || 'Not available'}
-  • Memory-first approach: Search entities first, research fills gaps
-  • Plan grounded in: ${data.selected_entities && data.selected_entities.length > 0 ? data.selected_entities.join(', ') : 'General knowledge'}
-`;
-                        addMessage(planContent, 'agent');
-                        window.awaitingApproval = false;
-                    } else {
-                        // Unknown status
-                        planContent = `Unexpected response status: ${data.status}`;
-                        addMessage(planContent, 'agent');
-                    }
-                }
-
-            } catch (error) {
-                addMessage(`Error: ${error.message}`, 'agent');
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
-                input.focus();
-            }
-        }
-
-        // Add message to chat
-        function addMessage(text, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-
-            const label = document.createElement('div');
-            label.className = 'message-label';
-            label.textContent = sender === 'user' ? 'You' : sender === 'agent' ? 'Agent' : 'Planning';
-
-            const content = document.createElement('div');
-            content.className = 'message-content';
-            content.textContent = text;
-
-            messageDiv.appendChild(label);
-            messageDiv.appendChild(content);
-            chatbox.appendChild(messageDiv);
-            chatbox.scrollTop = chatbox.scrollHeight;
-        }
-
-        // Event listeners
-        sendBtn.addEventListener('click', sendMessage);
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        clearBtn.addEventListener('click', () => {
-            chatbox.innerHTML = `
-                <div class="empty-state">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    <p>${currentMode === 'chat' ? 'Start a conversation with your memory agent' : 'Start autonomous planning iterations'}</p>
-                </div>
-            `;
-        });
-
-        // ============================================
-        // ENTITY SELECTOR JAVASCRIPT (Phase 1B)
-        // ============================================
-
-        let selectedEntities = [];
-
-        async function initEntitySelector() {
-            // Load entity list from memory directory
+        async function loadEntities() {
             try {
                 const response = await fetch('/api/entities');
-                const entities = await response.json();
+                const data = await response.json();
+                const entities = data.entities || [];
 
-                // Load saved selection from localStorage
-                const savedSelection = localStorage.getItem('llama_selected_entities');
-                selectedEntities = savedSelection ? JSON.parse(savedSelection) : [];
+                const entityList = document.getElementById('entityList');
+                entityList.innerHTML = '';
 
-                // BUGFIX: Filter out deleted entities - only keep selections that still exist
-                const existingEntityNames = entities.map(e => e.name);
-                selectedEntities = selectedEntities.filter(name => existingEntityNames.includes(name));
+                if (entities.length === 0) {
+                    entityList.innerHTML = '<p style="color: #999; font-size: 0.9em;">No entities found in memory system</p>';
+                    return;
+                }
 
-                // Save corrected selection back to localStorage
-                localStorage.setItem('llama_selected_entities', JSON.stringify(selectedEntities));
+                entities.forEach(entity => {
+                    const label = document.createElement('label');
+                    label.className = 'entity-item';
+                    label.title = entity.description || '';
+                    label.innerHTML = `
+                        <input type="checkbox" value="${entity.name}" checked>
+                        <span>${entity.display_name || entity.name}</span>
+                        <span style="font-size: 0.8em; color: #999; margin-left: 5px;">${entity.references} ref</span>
+                    `;
+                    label.querySelector('input').addEventListener('change', updateEntitySelection);
+                    entityList.appendChild(label);
+                });
 
-                // Render entity list
-                renderEntityList(entities);
-
-                // Show entity selector when in planning mode
-                document.getElementById('entity-selector-panel').style.display = 'block';
+                updateEntitySelection();
             } catch (e) {
-                console.error('Failed to init entity selector:', e);
+                console.error('Error loading entities:', e);
+                document.getElementById('entityList').innerHTML = '<p style="color: red;">Error loading entities</p>';
             }
         }
 
-        function renderEntityList(entities) {
-            const list = document.getElementById('entity-list');
-            list.innerHTML = entities.map(entity => `
-                <div class="entity-item ${selectedEntities.includes(entity.name) ? 'selected' : ''}">
-                    <input type="checkbox" class="entity-checkbox"
-                           data-entity-name="${entity.name}"
-                           ${selectedEntities.includes(entity.name) ? 'checked' : ''}>
-                    <span onclick="toggleEntityBySpan('${entity.name}')">${entity.name}</span>
-                    <small style="display: block; margin-top: 4px; color: #999;">
-                        ${entity.description || 'No description'}
-                    </small>
-                </div>
-            `).join('');
+        function updateEntitySelection() {
+            const checkboxes = document.querySelectorAll('#entityList input[type="checkbox"]:checked');
+            selectedEntities = Array.from(checkboxes).map(cb => cb.value);
+            document.getElementById('entityCount').textContent = selectedEntities.length;
+        }
 
-            // Add event listeners to checkboxes
-            document.querySelectorAll('.entity-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    const entityName = checkbox.getAttribute('data-entity-name');
-                    toggleEntity(entityName);
+        function setupEventListeners() {
+            document.getElementById('planBtn').addEventListener('click', planGoal);
+            document.getElementById('sendBtn').addEventListener('click', sendChat);
+            document.getElementById('chatInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendChat();
+            });
+            document.getElementById('goalInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') planGoal();
+            });
+
+            // Agent selection
+            document.querySelectorAll('#agentList input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    selectedAgents = Array.from(
+                        document.querySelectorAll('#agentList input[type="checkbox"]:checked')
+                    ).map(cb => cb.value);
                 });
             });
 
-            updateSelectionSummary();
+            selectedAgents = Array.from(
+                document.querySelectorAll('#agentList input[type="checkbox"]:checked')
+            ).map(cb => cb.value);
         }
 
-        function toggleEntityBySpan(name) {
-            const checkbox = document.querySelector(`input[data-entity-name="${name}"]`);
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-                toggleEntity(name);
-            }
+        function updateStatus(text, connected) {
+            document.getElementById('statusDot').className = connected ? 'status-dot' : 'status-dot disconnected';
+            document.getElementById('statusText').textContent = text;
         }
 
-        function toggleEntity(name) {
-            if (selectedEntities.includes(name)) {
-                selectedEntities = selectedEntities.filter(e => e !== name);
-            } else {
-                selectedEntities.push(name);
-            }
-            saveEntitySelection();
-        }
+        // ==================== PLANNING ====================
+        async function planGoal() {
+            const goal = document.getElementById('goalInput').value;
+            if (!goal.trim()) return;
 
-        function saveEntitySelection() {
-            localStorage.setItem('llama_selected_entities', JSON.stringify(selectedEntities));
-            updateSelectionSummary();
-        }
+            // Show loading state
+            document.getElementById('planBtn').disabled = true;
 
-        function clearEntitySelection() {
-            selectedEntities = [];
-            saveEntitySelection();
-        }
-
-        function filterEntities(query) {
-            const items = document.querySelectorAll('.entity-item');
-            items.forEach(item => {
-                const name = item.textContent.toLowerCase();
-                item.style.display = name.includes(query.toLowerCase()) ? 'block' : 'none';
-            });
-        }
-
-        function updateSelectionSummary() {
-            document.getElementById('selection-count').textContent =
-                `Selected: ${selectedEntities.length}`;
-        }
-
-        // ============================================
-        // AGENT SELECTOR JAVASCRIPT (Phase 1D)
-        // ============================================
-
-        let selectedAgents = [];
-        const availableAgents = [
-            { name: 'planner', label: 'Planner', description: 'Strategic planning specialist' },
-            { name: 'verifier', label: 'Verifier', description: 'Plan validation expert' },
-            { name: 'executor', label: 'Executor', description: 'Implementation details' },
-            { name: 'generator', label: 'Generator', description: 'Results synthesis' }
-        ];
-
-        async function initAgentSelector() {
             try {
-                // Load saved selection from localStorage
-                const savedSelection = localStorage.getItem('llama_selected_agents');
-                selectedAgents = savedSelection ? JSON.parse(savedSelection) : ['planner'];
+                // Default values - user can adjust in proposal modal later
+                const maxIterations = 3;
+                const checkpointInterval = 2;
 
-                // Render agent list
-                renderAgentList();
+                // Generate proposal
+                const proposalResponse = await fetch('/api/generate-proposal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        goal: goal,
+                        selected_entities: selectedEntities,
+                        selected_agents: selectedAgents,
+                        max_iterations: maxIterations,
+                        checkpoint_interval: checkpointInterval,
+                        session_id: sessionId
+                    })
+                });
 
-                // Show agent selector
-                const agentPanel = document.getElementById('agent-selector-panel');
-                if (agentPanel) {
-                    agentPanel.style.display = 'block';
+                if (!proposalResponse.ok) {
+                    throw new Error('Failed to generate proposal');
                 }
+
+                const proposal = await proposalResponse.json();
+
+                // Show proposal modal
+                showProposalModal(proposal, maxIterations, checkpointInterval);
+
             } catch (e) {
-                console.error('Failed to init agent selector:', e);
+                addMessage('bot', `❌ Error: ${e.message}`);
+            } finally {
+                document.getElementById('planBtn').disabled = false;
             }
         }
 
-        function renderAgentList() {
-            const list = document.getElementById('agent-list');
-            if (!list) return;
+        function showProposalModal(proposal, maxIterations, checkpointInterval) {
+            const proposalText = document.getElementById('proposalText');
 
-            list.innerHTML = availableAgents.map(agent => `
-                <div class="agent-item ${selectedAgents.includes(agent.name) ? 'selected' : ''}">
-                    <input type="checkbox" class="agent-checkbox"
-                           data-agent-name="${agent.name}"
-                           ${selectedAgents.includes(agent.name) ? 'checked' : ''}>
-                    <div>
-                        <span onclick="toggleAgentBySpan('${agent.name}')">${agent.label}</span>
-                        <small style="display: block; margin-top: 4px; color: #999;">
-                            ${agent.description}
+            // Format proposal - display actual proposal content
+            let html = '';
+
+            // Display the full proposal text (if it exists)
+            if (proposal.proposal) {
+                // Convert markdown-style headings to HTML
+                let proposalContent = proposal.proposal
+                    .replace(/^# /gm, '<h3 style="color: #333; margin-top: 15px; margin-bottom: 10px;">')
+                    .replace(/\n(?=# )/gm, '</h3>\n')
+                    .replace(/\n(?=[^#])/gm, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+                html += `<div style="max-height: 400px; overflow-y: auto; padding: 10px; background: #f9f9f9; border-radius: 5px;">${proposalContent}</div>`;
+            } else if (proposal.goal) {
+                // Fallback if proposal.proposal is not available
+                html = `<h4 style="color: #333; margin-bottom: 10px;">${proposal.goal}</h4>`;
+            }
+
+            // Add coverage metrics
+            html += `<div style="margin-top: 15px; padding: 10px; background: #f0f8ff; border-radius: 5px;">`;
+            html += `<p><strong>Memory Coverage:</strong> ${(proposal.memory_percentage * 100).toFixed(0)}%</p>`;
+            html += `<p><strong>Research Coverage:</strong> ${(proposal.research_percentage * 100).toFixed(0)}%</p>`;
+            html += `</div>`;
+
+            if (proposal.entity_analysis) {
+                html += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">`;
+                html += `<p>${proposal.entity_analysis}</p>`;
+            }
+
+            proposalText.innerHTML = html;
+
+            // Set modal values from sidebar
+            document.getElementById('modal-max-iterations').value = maxIterations;
+            document.getElementById('modal-checkpoint-interval').value = checkpointInterval;
+
+            document.getElementById('proposalModal').classList.add('active');
+        }
+
+        function closeProposalModal() {
+            document.getElementById('proposalModal').classList.remove('active');
+        }
+
+        async function approveProposal() {
+            // Get values from MODAL (not sidebar)
+            const maxIterations = parseInt(document.getElementById('modal-max-iterations').value) || 3;
+            const checkpointInterval = parseInt(document.getElementById('modal-checkpoint-interval').value) || 2;
+            const goal = document.getElementById('goalInput').value;
+
+            // Store planning config for later use
+            window.planningConfig = { goal, maxIterations, checkpointInterval };
+
+            closeProposalModal();
+            addMessage('bot', 'Preparing planning with learning...');
+
+            // Show plan selection modal
+            showPlanSelectionModal();
+        }
+
+        // ==================== PLAN SELECTION GATE ====================
+
+        async function showPlanSelectionModal() {
+            try {
+                // Fetch available plans from backend
+                const response = await fetch('/api/get-available-plans');
+                const data = await response.json();
+
+                if (data.status === 'no_plans' || data.plans.length === 0) {
+                    // No plans available, skip selection and go directly to planning
+                    addMessage('bot', 'No completed plans available for learning. Starting fresh planning...');
+                    window.selectedPlans = [];
+                    setTimeout(() => confirmPlanSelection(), 500);
+                    return;
+                }
+
+                // Populate plan list
+                const planListDiv = document.getElementById('planList');
+                planListDiv.innerHTML = '';
+
+                data.plans.forEach((plan, index) => {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `plan-${index}`;
+                    checkbox.value = plan.file;
+                    checkbox.class = 'plan-checkbox';
+
+                    const label = document.createElement('label');
+                    label.htmlFor = `plan-${index}`;
+                    label.style.display = 'block';
+                    label.style.padding = '8px';
+                    label.style.marginBottom = '5px';
+                    label.style.cursor = 'pointer';
+                    label.style.backgroundColor = '#f5f5f5';
+                    label.style.borderRadius = '4px';
+                    label.innerHTML = `
+                        <input type="checkbox" id="plan-${index}" value="${plan.file}"
+                               style="margin-right: 10px; cursor: pointer;" class="plan-checkbox">
+                        <strong>${plan.goal.substring(0, 60)}...</strong><br>
+                        <small style="color: #999;">
+                            Quality: ${plan.quality.toFixed(1)}/10 |
+                            Created: ${plan.created} |
+                            Size: ${plan.size_kb.toFixed(1)}KB
                         </small>
-                    </div>
-                </div>
-            `).join('');
+                    `;
 
-            // Add event listeners to checkboxes
-            document.querySelectorAll('.agent-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    const agentName = checkbox.getAttribute('data-agent-name');
-                    toggleAgent(agentName);
-                });
-            });
-
-            updateAgentSummary();
-        }
-
-        function toggleAgentBySpan(name) {
-            const checkbox = document.querySelector(`input[data-agent-name="${name}"]`);
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-                toggleAgent(name);
-            }
-        }
-
-        function toggleAgent(name) {
-            if (selectedAgents.includes(name)) {
-                selectedAgents = selectedAgents.filter(a => a !== name);
-            } else {
-                selectedAgents.push(name);
-            }
-            saveAgentSelection();
-        }
-
-        function saveAgentSelection() {
-            localStorage.setItem('llama_selected_agents', JSON.stringify(selectedAgents));
-            updateAgentSummary();
-        }
-
-        function updateAgentSummary() {
-            const summary = document.getElementById('agent-selection-count');
-            if (summary) {
-                summary.textContent = `Selected: ${selectedAgents.length}`;
-            }
-        }
-
-        // ============================================
-        // PROPOSAL MODAL JAVASCRIPT (Phase 2)
-        // ============================================
-
-        let pendingExecution = null;
-
-        function showProposalModal(goal, proposal, breakdown) {
-            // Store execution data (including iteration parameters)
-            pendingExecution = {
-                goal: goal,
-                proposal: proposal,
-                breakdown: breakdown,
-                max_iterations: breakdown.max_iterations || 6,
-                checkpoint_interval: breakdown.checkpoint_interval || 3
-            };
-
-            // Populate modal with proposal content
-            document.getElementById('approval-goal').textContent = goal;
-
-            document.getElementById('approval-memory').innerHTML = `
-                <strong>📊 Analysis</strong>
-                <p><strong>Entities to search:</strong> ${breakdown.entity_names.join(', ')}</p>
-                <p><strong>Memory coverage:</strong> ${breakdown.memory_coverage_percent}%</p>
-                <p><strong>Research coverage:</strong> ${breakdown.research_coverage_percent}%</p>
-                <p><strong>Agents:</strong> ${breakdown.agents_to_use.join(', ')}</p>
-            `;
-
-            document.getElementById('approval-approach').innerHTML = `
-                <strong>📋 Proposal</strong>
-                <div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f9fafb; border-radius: 4px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">
-                    ${proposal}
-                </div>
-            `;
-
-            // Show modal
-            document.getElementById('approval-gate-modal').style.display = 'flex';
-        }
-
-        async function approveApproach() {
-            if (!pendingExecution) {
-                alert('No pending execution found');
-                return;
-            }
-
-            const sendBtn = document.getElementById('send-btn');
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Executing...';
-
-            try {
-                // Read custom iteration parameters from input fields
-                const maxIterations = parseInt(document.getElementById('max-iterations').value) || 6;
-                const checkpointInterval = parseInt(document.getElementById('checkpoint-interval').value) || 3;
-
-                // Validate inputs
-                if (maxIterations < 1 || maxIterations > 20) {
-                    alert('Max iterations must be between 1 and 20');
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                    return;
-                }
-                if (checkpointInterval < 1 || checkpointInterval > 10) {
-                    alert('Checkpoint interval must be between 1 and 10');
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                    return;
-                }
-                if (checkpointInterval > maxIterations) {
-                    alert('Checkpoint interval cannot be greater than max iterations');
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                    return;
-                }
-
-                console.log(`Phase 2: Executing with ${maxIterations} iterations, checkpoint every ${checkpointInterval}`);
-
-                // Hide modal IMMEDIATELY
-                document.getElementById('approval-gate-modal').style.display = 'none';
-
-                // Show that planning started
-                addMessage(`🚀 Starting planning with ${maxIterations} iterations (checkpoint every ${checkpointInterval})...`, 'agent');
-
-                // Phase 2: Execute the plan using Server-Sent Events (SSE)
-                const params = new URLSearchParams({
-                    goal: pendingExecution.goal,
-                    proposal: pendingExecution.proposal || '',
-                    max_iterations: maxIterations,
-                    checkpoint_interval: checkpointInterval,
-                    session_id: sessionId
+                    planListDiv.appendChild(label);
                 });
 
-                const eventSource = new EventSource('/api/execute-plan?' + params);
-                let currentCheckpoint = 0;
-
-                eventSource.addEventListener('message', (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        console.log('SSE Event:', data.type, data);
-
-                        if (data.type === 'planning_started') {
-                            addMessage(`📋 Planning proposal approved! Starting ${data.max_iterations} iterations...`, 'agent');
-                        }
-
-                        else if (data.type === 'iteration_started') {
-                            addMessage(`🔄 Starting iteration ${data.iteration} of ${data.max}...`, 'agent');
-                        }
-
-                        else if (data.type === 'checkpoint_reached') {
-                            currentCheckpoint = data.checkpoint_number;
-                            addMessage(`⏹️ CHECKPOINT REACHED (Iteration ${data.iteration})`, 'agent');
-
-                            // Show summary of progress so far
-                            let summary = `
-✅ Checkpoint ${currentCheckpoint} Summary:
-  • Frameworks applied: ${(data.frameworks_so_far || []).join(', ') || 'None yet'}
-  • Data points extracted: ${data.data_points_so_far || 0}
-  • Planning progress: Iteration ${data.iteration} of ${maxIterations}
-
-⏳ Waiting for your approval to continue...
-                            `.trim();
-                            addMessage(summary, 'agent');
-
-                            // Show checkpoint approval modal
-                            showCheckpointModal(currentCheckpoint, data);
-                        }
-
-                        else if (data.type === 'checkpoint_approved') {
-                            addMessage(`✅ Checkpoint approved! Continuing iterations...`, 'agent');
-                        }
-
-                        else if (data.type === 'final_plan') {
-                            eventSource.close();
-
-                            addMessage(`✅ Planning completed!`, 'agent');
-
-                            // Show final plan
-                            let finalContent = `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 FINAL COMPREHENSIVE PLAN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${data.plan || '⚠️ No plan content generated.'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 Final Metrics:
-  • Total Iterations: ${data.iterations || 'Unknown'}
-  • Checkpoints: ${data.checkpoints || 0}
-  • Frameworks Applied: ${(data.frameworks || []).join(', ') || 'None'}
-  • Data Points Extracted: ${data.data_points || 0}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                            `.trim();
-
-                            addMessage(finalContent, 'agent');
-
-                            // Phase 3: Save plan as entity in memory
-                            console.log('Phase 3: Saving plan as entity...');
-                            try {
-                                fetch('/api/save-entity', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        goal: pendingExecution.goal,
-                                        plan_content: data.plan || 'Plan executed',
-                                        session_id: sessionId
-                                    })
-                                }).then(r => r.json())
-                                  .then(saveData => {
-                                      if (saveData.status === 'success') {
-                                          addMessage(`💾 Plan saved to memory as entity: ${saveData.entity_name}`, 'agent');
-                                      }
-                                  });
-                            } catch (err) {
-                                console.warn('Error saving entity:', err);
-                            }
-
-                            // Reset state
-                            pendingExecution = null;
-                            window.awaitingApproval = false;
-                        }
-
-                        else if (data.type === 'error') {
-                            eventSource.close();
-                            addMessage(`❌ Planning error: ${data.error}`, 'agent');
-                        }
-
-                        else if (data.type === 'complete') {
-                            eventSource.close();
-                        }
-                    } catch (err) {
-                        console.error('Error parsing SSE event:', err);
-                    }
-                });
-
-                eventSource.onerror = (error) => {
-                    console.error('SSE Error:', error);
-                    eventSource.close();
-                    addMessage('❌ Connection error during planning. Please check the server.', 'agent');
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                };
+                // Show modal
+                document.getElementById('planSelectionModal').classList.add('active');
+                addMessage('bot', `Found ${data.plans.length} completed plans. Select which to learn from.`);
 
             } catch (error) {
-                addMessage(`Error during execution: ${error.message}`, 'agent');
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
+                console.error('Error fetching available plans:', error);
+                addMessage('bot', 'Could not fetch available plans. Proceeding without learning.');
+                window.selectedPlans = [];
+                setTimeout(() => confirmPlanSelection(), 500);
             }
         }
 
-        // Checkpoint modal handler
-        function showCheckpointModal(checkpointNumber, checkpointData) {
-            // Reuse the approval modal for checkpoint display
-            const modal = document.getElementById('approval-gate-modal');
-            const content = modal.querySelector('.modal-content');
+        function selectRecentPlans(count) {
+            const checkboxes = document.querySelectorAll('.plan-checkbox');
+            clearAllPlans();
+            // Select the first `count` plans (they're sorted by recent first)
+            for (let i = 0; i < Math.min(count, checkboxes.length); i++) {
+                checkboxes[i].checked = true;
+            }
+        }
 
-            // Update modal title
-            content.querySelector('h2').textContent = `✋ Checkpoint ${checkpointNumber} - Review Progress`;
+        function selectAllPlans() {
+            document.querySelectorAll('.plan-checkbox').forEach(cb => cb.checked = true);
+        }
 
-            // Update goal section
-            document.getElementById('approval-goal').textContent = `Iteration Progress: ${checkpointData.iteration || '?'}`;
+        function clearAllPlans() {
+            document.querySelectorAll('.plan-checkbox').forEach(cb => cb.checked = false);
+        }
 
-            // Get improvements data
-            const improvements = checkpointData.improvements || {};
-            const isFirstCheckpoint = improvements.is_first_checkpoint || false;
+        function skipPlanSelection() {
+            window.selectedPlans = [];
+            closePlanSelectionModal();
+            confirmPlanSelection();
+        }
 
-            // Build improvement analysis section
-            let improvementsHTML = '';
+        function closePlanSelectionModal() {
+            document.getElementById('planSelectionModal').classList.remove('active');
+        }
 
-            if (isFirstCheckpoint) {
-                improvementsHTML = `
-                    <div style="padding: 12px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px; margin-top: 10px;">
-                        <p style="color: #166534; margin: 0;">
-                            <strong>✓ First Checkpoint:</strong> Completed initial iteration cycle - ready for deeper analysis in next iteration
-                        </p>
-                    </div>
-                `;
-            } else if (improvements.improvements) {
-                const imp = improvements.improvements;
-                const comp = improvements.comparison || {};
+        function confirmPlanSelection() {
+            // Get selected plan files
+            const selectedCheckboxes = document.querySelectorAll('.plan-checkbox:checked');
+            window.selectedPlans = Array.from(selectedCheckboxes).map(cb => cb.value);
 
-                improvementsHTML = `
-                    <div style="margin-top: 15px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
-                        <p style="margin: 0 0 10px 0; font-weight: 600; color: #92400e;">🚀 How the System is Learning & Improving:</p>
+            if (window.selectedPlans.length > 0) {
+                addMessage('bot', `✓ Selected ${window.selectedPlans.length} plans for learning`);
+            } else {
+                addMessage('bot', 'No plans selected. Starting planning without learning from past iterations.');
+            }
 
-                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
-                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Research Improvements:</p>
-                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.research_improvements || 'Analyzing new research angles...'}</p>
+            closePlanSelectionModal();
+
+            // Execute plan with selected plans
+            const config = window.planningConfig;
+            executePlan(config.goal, config.maxIterations, config.checkpointInterval, window.selectedPlans);
+        }
+
+        // ==================== SSE EXECUTION ====================
+        function executePlan(goal, maxIterations, checkpointInterval, selectedPlans = []) {
+            // Stop previous event source if any
+            if (currentEventSource) {
+                currentEventSource.close();
+            }
+
+            // Initialize iteration tracker
+            initializeIterationTracker(maxIterations);
+
+            const params = new URLSearchParams({
+                goal: goal,
+                max_iterations: maxIterations,
+                checkpoint_interval: checkpointInterval,
+                session_id: sessionId,
+                selected_plans: selectedPlans.join(',')  // LEARNING LOOP: Pass selected plans
+            });
+
+            currentEventSource = new EventSource(`/api/execute-plan?${params}`);
+
+            currentEventSource.addEventListener('message', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case 'planning_started':
+                            addMessage('bot', `Starting planning for: "${goal}"`);
+                            updateProgress('Status', 'Planning...');
+                            break;
+
+                        case 'iteration_started':
+                            addMessage('bot', `Starting iteration ${data.iteration}/${data.max_iterations}...`);
+                            updateProgress(`Iteration ${data.iteration}`, 'Running');
+                            updateIterationProgress(data.iteration);
+                            break;
+
+                        case 'agent_progress':
+                            updateProgress(`Agent: ${data.agent}`, 'Running');
+                            break;
+
+                        case 'checkpoint_reached':
+                            currentCheckpointNumber = data.checkpoint_number;
+                            markCheckpointReached(data.checkpoint_number, data.iteration || 1);
+                            showCheckpointModal(data, data.checkpoint_number);
+                            break;
+
+                        case 'checkpoint_approved':
+                            addMessage('bot', 'Checkpoint approved. Continuing planning...');
+                            break;
+
+                        case 'final_plan':
+                            addMessage('bot', `✓ Planning complete!\n\n${data.plan}`);
+                            updateProgress('Completed', 'Done');
+                            if (currentEventSource) {
+                                currentEventSource.close();
+                            }
+                            break;
+
+                        case 'error':
+                            addMessage('bot', `❌ Error: ${data.error}`);
+                            updateProgress('Error', data.error);
+                            if (currentEventSource) {
+                                currentEventSource.close();
+                            }
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e);
+                }
+            });
+
+            currentEventSource.addEventListener('error', () => {
+                addMessage('bot', 'Connection lost');
+                updateProgress('Disconnected', 'Connection error');
+            });
+        }
+
+        // ==================== PHASE TAB SWITCHING ====================
+        function switchPhaseTab(event, phaseName) {
+            // Hide all phase panels
+            document.querySelectorAll('.phase-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+
+            // Show selected phase panel
+            const selectedPanel = document.getElementById(`phase-${phaseName}`);
+            if (selectedPanel) {
+                selectedPanel.style.display = 'block';
+            }
+
+            // Update tab styling
+            document.querySelectorAll('.phase-tab').forEach(tab => {
+                tab.style.color = '#666';
+                tab.style.borderBottomColor = 'transparent';
+            });
+
+            // Highlight active tab
+            event.target.style.color = '#667eea';
+            event.target.style.borderBottomColor = '#667eea';
+        }
+
+        // ==================== POPULATE PHASE DATA ====================
+        function populatePhaseData(checkpointData) {
+            // 1. MEMORY PHASE
+            if (checkpointData.memory_segments && Array.isArray(checkpointData.memory_segments)) {
+                let memoryHTML = '<div>';
+                checkpointData.memory_segments.forEach((segment, idx) => {
+                    memoryHTML += `
+                        <div class="memory-segment">
+                            <div class="memory-segment-title">📌 Segment ${idx + 1}</div>
+                            <div class="memory-segment-content">${escapeHtml(segment)}</div>
                         </div>
+                    `;
+                });
+                memoryHTML += '</div>';
+                document.getElementById('memoryContent').innerHTML = memoryHTML;
+            } else {
+                document.getElementById('memoryContent').innerHTML = '<p style="color: #999;">No memory segments available</p>';
+            }
 
-                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
-                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Frameworks Applied:</p>
-                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.frameworks_applied || 'Integrating new frameworks...'}</p>
+            // 2. REASONING PHASE
+            if (checkpointData.reasoning_chain && Array.isArray(checkpointData.reasoning_chain)) {
+                let reasoningHTML = '<div style="padding: 8px 0;">';
+                checkpointData.reasoning_chain.forEach((step, idx) => {
+                    reasoningHTML += `
+                        <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                            <div style="flex-shrink: 0; width: 28px; height: 28px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">${idx + 1}</div>
+                            <div style="flex: 1; padding-top: 4px; font-size: 13px; color: #555; line-height: 1.5;">${escapeHtml(step)}</div>
                         </div>
+                    `;
+                });
+                reasoningHTML += '</div>';
+                document.getElementById('reasoningContent').innerHTML = reasoningHTML;
+            } else if (checkpointData.improvements) {
+                document.getElementById('reasoningContent').innerHTML = `<p style="font-size: 13px; color: #555; line-height: 1.6;">${escapeHtml(checkpointData.improvements)}</p>`;
+            } else {
+                document.getElementById('reasoningContent').innerHTML = '<p style="color: #999;">No reasoning chain available</p>';
+            }
 
-                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
-                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Use Cases Found:</p>
-                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.use_cases_found || 'Discovering new applications...'}</p>
+            // 3. VERIFICATION PHASE
+            let verificationHTML = '<div>';
+            const flowMetrics = checkpointData.flow_score_metrics || {};
+
+            if (flowMetrics.verification_quality !== undefined) {
+                const verifyScore = (flowMetrics.verification_quality * 100).toFixed(1);
+                const verifyLevel = flowMetrics.verification_quality > 0.7 ? 'high' : flowMetrics.verification_quality > 0.5 ? 'medium' : 'low';
+                verificationHTML += `
+                    <div class="metric-with-bar">
+                        <div class="metric-bar-label">
+                            <span class="metric-bar-name">✅ Verification Quality</span>
+                            <span class="metric-bar-percentage">${verifyScore}%</span>
                         </div>
-
-                        <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 3px;">
-                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #333;">Analytical Improvements:</p>
-                            <p style="margin: 0; color: #555; font-size: 13px;">${imp.analytical_improvements || 'Developing new analytical approaches...'}</p>
-                        </div>
-
-                        <div style="padding: 8px; background: #dbeafe; border-radius: 3px;">
-                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #1e40af;">💡 Key Discovery:</p>
-                            <p style="margin: 0; color: #1e40af; font-size: 13px;">${imp.key_discovery || 'Critical insights emerging...'}</p>
-                        </div>
-
-                        <div style="margin-top: 10px; padding: 10px; background: #f3f4f6; border-radius: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center;">
-                            <div>
-                                <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; text-transform: uppercase;">New Frameworks</p>
-                                <p style="margin: 0; font-size: 20px; font-weight: 700; color: #2563eb;">+${comp.frameworks_added || 0}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; text-transform: uppercase;">Data Points Gained</p>
-                                <p style="margin: 0; font-size: 20px; font-weight: 700; color: #10b981;">+${comp.data_points_gained || 0}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0 0 3px 0; font-size: 11px; color: #666; text-transform: uppercase;">Depth Score</p>
-                                <p style="margin: 0; font-size: 20px; font-weight: 700; color: #f59e0b;">${comp.depth_score || 5}/10</p>
-                            </div>
+                        <div class="metric-progress-bar">
+                            <div class="metric-progress-fill ${verifyLevel}" style="width: ${verifyScore}%;"></div>
                         </div>
                     </div>
                 `;
             }
 
-            // Update approach section with summary + improvements
-            document.getElementById('approval-approach').innerHTML = `
-                <strong>📊 Progress & Learning Summary:</strong>
-                <div style="margin-top: 10px; padding: 10px; background: #f9fafb; border-radius: 4px;">
-                    <p><strong>Frameworks applied so far:</strong></p>
-                    <ul style="margin-left: 20px; margin-top: 5px;">
-                        ${(checkpointData.frameworks_so_far || []).map(f => `<li>${f}</li>`).join('')}
-                    </ul>
-                    <p style="margin-top: 10px;"><strong>Data points extracted:</strong> ${checkpointData.data_points_so_far || 0}</p>
-                </div>
+            if (flowMetrics.reasoning_quality !== undefined) {
+                const reasonScore = (flowMetrics.reasoning_quality * 100).toFixed(1);
+                const reasonLevel = flowMetrics.reasoning_quality > 0.7 ? 'high' : flowMetrics.reasoning_quality > 0.5 ? 'medium' : 'low';
+                verificationHTML += `
+                    <div class="metric-with-bar">
+                        <div class="metric-bar-label">
+                            <span class="metric-bar-name">🧠 Reasoning Quality</span>
+                            <span class="metric-bar-percentage">${reasonScore}%</span>
+                        </div>
+                        <div class="metric-progress-bar">
+                            <div class="metric-progress-fill ${reasonLevel}" style="width: ${reasonScore}%;"></div>
+                        </div>
+                    </div>
+                `;
+            }
 
-                ${improvementsHTML}
+            if (checkpointData.frameworks_so_far && Array.isArray(checkpointData.frameworks_so_far)) {
+                verificationHTML += `
+                    <div style="padding: 12px 0; border-top: 1px solid #eee; margin-top: 12px;">
+                        <strong style="display: block; margin-bottom: 10px; color: #333;">🎯 Frameworks Applied:</strong>
+                        <div>
+                            ${checkpointData.frameworks_so_far.map(f => `<span class="framework-tag">${escapeHtml(f)}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
 
-                <div style="margin-top: 15px; padding: 10px; background: #f3f4f6; border-radius: 4px;">
-                    <p style="margin: 0; font-size: 13px; color: #555;">
-                        <strong>Next step:</strong> Approve to continue to the next iteration for even deeper analysis
-                    </p>
-                </div>
-            `;
+            verificationHTML += '</div>';
+            document.getElementById('verificationContent').innerHTML = verificationHTML || '<p style="color: #999;">No verification results available</p>';
 
-            // Clear adjustment form
-            const adjustForm = document.getElementById('adjustment-form');
-            if (adjustForm) adjustForm.style.display = 'none';
+            // 4. LEARNING PHASE
+            let learningHTML = '<div>';
 
-            // Update button handlers
-            const approveBtn = content.querySelector('.btn-approve');
-            const rejectBtn = content.querySelector('.btn-reject');
-            const adjustBtn = content.querySelector('.btn-adjust');
+            if (flowMetrics.flow_score !== undefined) {
+                const flowScore = (flowMetrics.flow_score * 100).toFixed(1);
+                const flowLevel = flowMetrics.flow_score > 0.75 ? 'high' : flowMetrics.flow_score > 0.5 ? 'medium' : 'low';
+                const flowColor = flowMetrics.flow_score > 0.75 ? '#4caf50' : flowMetrics.flow_score > 0.5 ? '#ff9800' : '#f44336';
 
-            // Remove old listeners by cloning
-            const newApproveBtn = approveBtn.cloneNode(true);
-            approveBtn.parentNode.replaceChild(newApproveBtn, approveBtn);
+                // Flow Score with progress bar
+                learningHTML += `
+                    <div class="metric-with-bar" style="margin-bottom: 20px;">
+                        <div class="metric-bar-label">
+                            <span class="metric-bar-name">📊 Overall Flow Score</span>
+                            <span class="metric-bar-percentage">${flowScore}%</span>
+                        </div>
+                        <div class="metric-progress-bar">
+                            <div class="metric-progress-fill ${flowLevel}" style="width: ${flowScore}%;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 6px;">Combined metric: Verification × Approval × Reasoning</div>
+                    </div>
+                `;
 
-            newApproveBtn.onclick = () => {
-                approveCheckpoint(checkpointNumber);
-                modal.style.display = 'none';
-            };
+                // Sub-metrics breakdown
+                learningHTML += `
+                    <div style="background: #f9f9f9; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #666; margin-bottom: 8px;">Score Breakdown:</div>
+                `;
 
-            rejectBtn.onclick = () => {
-                modal.style.display = 'none';
-                addMessage('❌ Checkpoint rejected. Stopping planning.', 'agent');
-                location.reload(); // Simple approach - reload
-            };
+                if (flowMetrics.verification_quality !== undefined) {
+                    const verifyBreakdown = (flowMetrics.verification_quality * 0.4 * 100).toFixed(1);
+                    learningHTML += `
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #666;">
+                            <span>Verification (40%)</span>
+                            <span style="font-weight: 600; color: #667eea;">${verifyBreakdown}%</span>
+                        </div>
+                    `;
+                }
 
-            adjustBtn.style.display = 'none'; // Hide adjust for checkpoints
+                if (flowMetrics.reasoning_quality !== undefined) {
+                    const reasonBreakdown = (flowMetrics.reasoning_quality * 0.2 * 100).toFixed(1);
+                    learningHTML += `
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #666;">
+                            <span>Reasoning (20%)</span>
+                            <span style="font-weight: 600; color: #667eea;">${reasonBreakdown}%</span>
+                        </div>
+                    `;
+                }
+
+                learningHTML += `
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666;">
+                            <span>User Approval (40%)</span>
+                            <span style="font-weight: 600; color: #667eea;">Pending</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (checkpointData.data_points_so_far !== undefined) {
+                learningHTML += `
+                    <div class="metric-with-bar">
+                        <div class="metric-bar-label">
+                            <span class="metric-bar-name">📈 Data Points Collected</span>
+                            <span class="metric-bar-percentage">${checkpointData.data_points_so_far}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            learningHTML += '</div>';
+            document.getElementById('learningContent').innerHTML = learningHTML || '<p style="color: #999;">No learning metrics available</p>';
+        }
+
+        function showCheckpointModal(data, checkpointNumber) {
+            // Handle both old API (string summary) and new API (object with all data)
+            if (typeof data === 'string') {
+                // Old API: just summary string
+                document.getElementById('checkpointNumber').textContent = checkpointNumber || 1;
+                document.getElementById('checkpointNumberMeta').textContent = checkpointNumber || 1;
+                document.getElementById('checkpointIterationMeta').textContent = 1;
+                document.getElementById('checkpointAgentMeta').textContent = 'Planning';
+                document.getElementById('checkpointSummary').innerHTML = data || 'Analysis in progress...';
+                // Show empty placeholders for phases
+                document.getElementById('memoryContent').innerHTML = '<p style="color: #999;">Loading memory segments...</p>';
+                document.getElementById('reasoningContent').innerHTML = '<p style="color: #999;">Loading reasoning chain...</p>';
+                document.getElementById('verificationContent').innerHTML = '<p style="color: #999;">Loading verification results...</p>';
+                document.getElementById('learningContent').innerHTML = '<p style="color: #999;">Loading learning metrics...</p>';
+            } else {
+                // New API: object with all checkpoint data
+                const checkpoint = data.checkpoint_number || checkpointNumber || 1;
+                const iteration = data.iteration || 1;
+                const flowMetrics = data.flow_score_metrics || {};
+                const agentName = flowMetrics.agent_name || 'Planning';
+
+                // Update header metadata
+                document.getElementById('checkpointNumber').textContent = checkpoint;
+                document.getElementById('checkpointNumberMeta').textContent = checkpoint;
+                document.getElementById('checkpointIteration').textContent = iteration;
+                document.getElementById('checkpointIterationMeta').textContent = iteration;
+                document.getElementById('checkpointAgentMeta').textContent = agentName;
+
+                document.getElementById('checkpointSummary').innerHTML = data.summary || 'Analysis in progress...';
+
+                // Populate all 4 phases
+                populatePhaseData(data);
+            }
+
+            // Reset to Memory phase (first tab)
+            document.querySelectorAll('.phase-panel').forEach(panel => panel.style.display = 'none');
+            document.getElementById('phase-memory').style.display = 'block';
+            document.querySelectorAll('.phase-tab').forEach(tab => {
+                tab.style.color = '#666';
+                tab.style.borderBottomColor = 'transparent';
+            });
+            document.querySelector('.phase-tab.active').style.color = '#667eea';
+            document.querySelector('.phase-tab.active').style.borderBottomColor = '#667eea';
 
             // Show modal
-            modal.style.display = 'flex';
+            document.getElementById('checkpointModal').classList.add('active');
         }
 
-        // Send checkpoint approval to backend
-        async function approveCheckpoint(checkpointNumber) {
+        async function approveCheckpoint() {
+            document.getElementById('checkpointModal').classList.remove('active');
+
             try {
                 const response = await fetch('/api/checkpoint-approval', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         session_id: sessionId,
-                        checkpoint: checkpointNumber
+                        checkpoint: currentCheckpointNumber,
+                        decision: 'approve'
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error('Failed to approve checkpoint');
                 }
 
+                addMessage('bot', 'Checkpoint approved. Continuing...');
+            } catch (e) {
+                addMessage('bot', `Error approving checkpoint: ${e.message}`);
+            }
+        }
+
+        function rejectCheckpoint() {
+            document.getElementById('checkpointModal').classList.remove('active');
+            addMessage('bot', 'Planning stopped by user');
+            if (currentEventSource) {
+                currentEventSource.close();
+            }
+        }
+
+        // ==================== CHAT ====================
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            addMessage('user', message);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId
+                    })
+                });
+
                 const data = await response.json();
-                console.log('Checkpoint approved:', data);
-            } catch (error) {
-                console.error('Error approving checkpoint:', error);
-                addMessage(`Error approving checkpoint: ${error.message}`, 'agent');
+                addMessage('bot', data.reply || data.response || 'No response');
+            } catch (e) {
+                addMessage('bot', `Error: ${e.message}`);
             }
         }
 
-        function rejectApproach() {
-            // Close modal and reset
-            document.getElementById('approval-gate-modal').style.display = 'none';
-            pendingExecution = null;
-
-            // Show rejection message
-            addMessage('❌ Planning approach rejected. You can enter a new goal or adjust your entity/agent selection.', 'agent');
+        function addMessage(role, content) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${role}`;
+            messageEl.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function toggleAdjustmentForm() {
-            const form = document.getElementById('adjustment-form');
-            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        // ==================== ITERATION TRACKING ====================
+        let iterationState = {
+            current: 0,
+            max: 0,
+            checkpoints: new Set(),
+            lastCheckpointIteration: 0
+        };
+
+        function initializeIterationTracker(maxIterations) {
+            iterationState.current = 0;
+            iterationState.max = maxIterations;
+            iterationState.checkpoints.clear();
+            iterationState.lastCheckpointIteration = 0;
+
+            const tracker = document.getElementById('iterationTracker');
+            tracker.style.display = 'block';
+
+            updateIterationDots();
+            updateIterationCounter();
         }
 
-        function submitAdjustment() {
-            const adjustment = document.getElementById('adjustment-text').value;
-            if (!adjustment.trim()) {
-                alert('Please enter your adjustment request');
-                return;
+        function updateIterationProgress(currentIteration) {
+            iterationState.current = currentIteration;
+            updateIterationCounter();
+            updateIterationDots();
+            updateProgressBar();
+        }
+
+        function markCheckpointReached(checkpoint, iteration) {
+            iterationState.checkpoints.add(checkpoint);
+            iterationState.lastCheckpointIteration = iteration;
+            updateIterationDots();
+        }
+
+        function updateIterationCounter() {
+            document.getElementById('iterationCounter').textContent = `${iterationState.current}/${iterationState.max}`;
+        }
+
+        function updateProgressBar() {
+            const percentage = iterationState.max > 0 ? (iterationState.current / iterationState.max) * 100 : 0;
+            const progressFill = document.getElementById('progressBarFill');
+            progressFill.style.width = percentage + '%';
+            progressFill.textContent = Math.round(percentage) + '%';
+        }
+
+        function updateIterationDots() {
+            const dotsContainer = document.getElementById('iterationDots');
+            dotsContainer.innerHTML = '';
+
+            for (let i = 1; i <= iterationState.max; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'iteration-dot';
+                dot.textContent = i;
+                dot.title = `Iteration ${i}`;
+
+                // Mark as active if current iteration
+                if (i === iterationState.current) {
+                    dot.classList.add('active');
+                }
+
+                // Mark as complete if past current iteration
+                if (i < iterationState.current) {
+                    dot.classList.add('complete');
+                }
+
+                // Mark if this iteration had a checkpoint
+                // Calculate checkpoint iterations based on interval
+                // For now, we'll mark checkpoints that were actually reached
+                if (iterationState.checkpoints.size > 0 && i <= iterationState.lastCheckpointIteration) {
+                    dot.classList.add('checkpoint');
+                }
+
+                dotsContainer.appendChild(dot);
             }
 
-            // Close modal
-            document.getElementById('approval-gate-modal').style.display = 'none';
-
-            // Display adjustment request
-            addMessage(`🔄 Adjustment requested: ${adjustment}`, 'user');
-            addMessage('⚠️ Please modify your entity/agent selection and try again with a new goal.', 'agent');
-
-            // Reset
-            pendingExecution = null;
-            document.getElementById('adjustment-text').value = '';
-            toggleAdjustmentForm();
+            updateProgressBar();
         }
 
-        // Initialize
-        loadStatus();
-        setInterval(loadStatus, 5000);
-        input.focus();
-        initEntitySelector();
-        initAgentSelector();
+        function updateProgress(label, value) {
+            const progressDiv = document.getElementById('progressItems');
+            let item = progressDiv.querySelector(`[data-label="${label}"]`);
+            if (!item) {
+                item = document.createElement('div');
+                item.className = 'progress-item';
+                item.setAttribute('data-label', label);
+                item.innerHTML = `<div class="progress-label">${label}</div><div class="progress-value"></div>`;
+                progressDiv.appendChild(item);
+            }
+            item.querySelector('.progress-value').textContent = value;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ==================== STARTUP ====================
+        document.addEventListener('DOMContentLoaded', initialize);
     </script>
 </body>
 </html>

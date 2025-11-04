@@ -11,12 +11,17 @@ Manages:
 
 import asyncio
 import json
+from datetime import datetime
 from typing import Dict, Any, Optional, AsyncGenerator
 
 from approval_gates import SessionManager, PlanningSession
 from context_manager import generate_detailed_checkpoint_summary, analyze_iteration_improvements
 from llama_planner import LlamaPlanner
 from orchestrator.simple_orchestrator import SimpleOrchestrator
+# Phase 1: MemAgent integration
+from orchestrator.integration import IntegratedPlanningLoop
+from orchestrator.learning import FlowGRPOTrainer, AgentCoordination
+from orchestrator.reasoning import VerificationFeedback
 
 
 async def execute_planning_iterations(
@@ -69,10 +74,11 @@ async def execute_planning_iterations(
                 "max": 1
             }
 
-            # Initialize orchestrator
+            # Initialize orchestrator with memory enrichment (Phase 1.2)
             orchestrator = SimpleOrchestrator(
                 memory_path=memory_path,
-                max_iterations=1
+                max_iterations=1,
+                segmented_memory=session.memory_manager  # FIX #2 - Enrich context with memory
             )
 
             # Run single iteration
@@ -108,7 +114,8 @@ async def execute_planning_iterations(
             # ============= MULTI-ITERATION WITH CHECKPOINTS =============
             orchestrator = SimpleOrchestrator(
                 memory_path=memory_path,
-                max_iterations=max_iterations
+                max_iterations=max_iterations,
+                segmented_memory=session.memory_manager  # FIX #2 - Enrich context with memory
             )
 
             llama_planner = LlamaPlanner(agent, memory_path)
@@ -178,16 +185,169 @@ async def execute_planning_iterations(
                         if debug:
                             print(f"   ⏳ Waiting for checkpoint {checkpoint_count} approval...")
 
-                        session_manager.wait_for_checkpoint_approval(session.id)
+                        checkpoint_approved = session_manager.wait_for_checkpoint_approval(session.id)
 
-                        # User approved - emit confirmation
-                        yield {
-                            "type": "checkpoint_approved",
-                            "checkpoint": checkpoint_count
-                        }
+                        # Phase 1: Record flow score after user approval
+                        # Phase 7: Record deferred flow score now that user has approved
+                        if checkpoint_approved:
+                            flow_score_metrics = item.get('flow_score_metrics', {})
+                            if flow_score_metrics and hasattr(session, 'orchestrator'):
+                                try:
+                                    orchestrator = session.orchestrator
+                                    if hasattr(orchestrator, 'flow_grpo_trainer'):
+                                        orchestrator.flow_grpo_trainer.record_iteration_signal(
+                                            iteration=flow_score_metrics.get('iteration', 0),
+                                            agent_name=flow_score_metrics.get('agent_name', 'planner'),
+                                            verification_quality=flow_score_metrics.get('verification_quality', 0.75),
+                                            user_approved=True,  # Now we can record with actual approval
+                                            reasoning_quality=flow_score_metrics.get('reasoning_quality', 0.7)
+                                        )
+                                        # Update agent selection weights based on approved flow score
+                                        orchestrator.flow_grpo_trainer.update_agent_weights()
+                                        if debug:
+                                            print(f"   📊 Flow score recorded after user approval: {flow_score_metrics.get('flow_score', 0):.3f}")
+                                except Exception as e:
+                                    if debug:
+                                        print(f"   ⚠️  Could not record deferred flow score: {e}")
 
-                        # Reset for next checkpoint
-                        session_manager.reset_checkpoint_state(session.id)
+                        # Phase 1: Update memory on approval
+                        if checkpoint_approved:
+                            if debug:
+                                print(f"   ✅ Checkpoint {checkpoint_count} APPROVED - Updating memory...")
+
+                            # Add checkpoint summary to memory
+                            session.memory_manager.add_segment(
+                                content=detailed_summary,
+                                source=f"checkpoint_{checkpoint_count}_approved",
+                                importance_score=0.85,
+                                semantic_tags=["checkpoint", "approved", "iteration", str(current_iteration)]
+                            )
+
+                            # Phase 4: Store learned pattern effectiveness in memory
+                            # Extract pattern effectiveness information if available
+                            patterns_metadata = item.get('patterns_metadata', {})
+                            if patterns_metadata:
+                                try:
+                                    pattern_effectiveness_content = f"""# Learned Pattern Effectiveness - Iteration {current_iteration}
+
+**Timestamp:** {datetime.now().isoformat()}
+
+## Patterns Applied in This Iteration
+
+"""
+                                    for pattern_name, pattern_info in patterns_metadata.items():
+                                        effectiveness = pattern_info.get('effectiveness', 0.5)
+                                        flow_score = pattern_info.get('flow_score', 0.0)
+                                        pattern_effectiveness_content += f"\n### {pattern_name}\n"
+                                        pattern_effectiveness_content += f"- Effectiveness: {effectiveness:.2f}\n"
+                                        pattern_effectiveness_content += f"- Flow Score: {flow_score:.3f}\n"
+                                        pattern_effectiveness_content += f"- User Approved: ✅\n"
+
+                                    session.memory_manager.add_segment(
+                                        content=pattern_effectiveness_content,
+                                        source=f"pattern_effectiveness_iteration_{current_iteration}",
+                                        importance_score=0.8,
+                                        semantic_tags=["pattern", "effectiveness", "learning", str(current_iteration)]
+                                    )
+                                    if debug:
+                                        print(f"   📚 Stored pattern effectiveness data in memory")
+                                except Exception as e:
+                                    if debug:
+                                        print(f"   ⚠️  Could not store pattern effectiveness: {e}")
+
+                            # Train memory overwrite scores based on approval
+                            session.memory_manager.train_overwrite_scores(
+                                plan_result={
+                                    'user_approved': True,
+                                    'quality_score': item.get('quality_score', 0.75),
+                                    'iteration': current_iteration,
+                                    'frameworks_used': item.get('frameworks_used', []),
+                                    'patterns_applied': list(patterns_metadata.keys()) if patterns_metadata else []
+                                },
+                                user_approved=True
+                            )
+
+                            if debug:
+                                memory_summary = session.memory_manager.get_memory_summary()
+                                print(f"   📊 Memory: {memory_summary['segment_count']}/{memory_summary['max_segments']} segments")
+
+                        # Phase 3.A: FIX #2 - Add rejection learning path
+                        else:
+                            if debug:
+                                print(f"   ❌ Checkpoint {checkpoint_count} REJECTED - Recording negative learning signals...")
+
+                            # Record negative flow score for learning
+                            flow_score_metrics = item.get('flow_score_metrics', {})
+                            if flow_score_metrics and hasattr(session, 'orchestrator'):
+                                try:
+                                    orchestrator = session.orchestrator
+                                    if hasattr(orchestrator, 'flow_grpo_trainer'):
+                                        # Record with user_approved=False (negative signal)
+                                        orchestrator.flow_grpo_trainer.record_iteration_signal(
+                                            iteration=flow_score_metrics.get('iteration', 0),
+                                            agent_name=flow_score_metrics.get('agent_name', 'planner'),
+                                            verification_quality=flow_score_metrics.get('verification_quality', 0.75) * 0.3,  # Penalty
+                                            user_approved=False,  # CRITICAL: Negative signal
+                                            reasoning_quality=flow_score_metrics.get('reasoning_quality', 0.7) * 0.3  # Penalty
+                                        )
+                                        # Update agent selection weights with negative signals
+                                        orchestrator.flow_grpo_trainer.update_agent_weights()
+                                        if debug:
+                                            print(f"   📊 Negative flow score recorded: {flow_score_metrics.get('flow_score', 0) * 0.3:.3f}")
+                                            print(f"   🧠 Agent weights updated to discourage similar patterns")
+                                except Exception as e:
+                                    if debug:
+                                        print(f"   ⚠️  Could not record rejection signal: {e}")
+
+                            # Phase 3.A: FIX #3 - Log rejection to planning_errors entity
+                            try:
+                                errors_file = session.memory_manager.memory_path / "entities" / "planning_errors.md"
+                                rejection_entry = f"""
+## Rejected Checkpoint - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+**Checkpoint:** {checkpoint_count}
+**Iteration:** {current_iteration}
+**Goal:** {item.get('goal', 'Unknown')}
+**Reason:** User rejected during checkpoint approval gate
+
+**Rejected Content Summary:**
+{item.get('summary', '')[:500]}...
+
+**Patterns Applied (Now marked low-effectiveness):**
+{', '.join(list(item.get('patterns_metadata', {}).keys())) if item.get('patterns_metadata') else 'None'}
+
+**Impact:** System will learn to avoid similar approaches in future iterations
+
+---
+"""
+                                if errors_file.exists():
+                                    with open(errors_file, 'a') as f:
+                                        f.write(rejection_entry)
+                                    if debug:
+                                        print(f"   📚 Rejection logged to planning_errors entity")
+                            except Exception as e:
+                                if debug:
+                                    print(f"   ⚠️  Could not log rejection: {e}")
+
+                        # Phase 3.A: FIX #4 - Emit correct event and reset conditionally
+                        if checkpoint_approved:
+                            # User approved - emit confirmation and prepare for next checkpoint
+                            yield {
+                                "type": "checkpoint_approved",
+                                "checkpoint": checkpoint_count
+                            }
+                            # Reset for next checkpoint (only if continuing)
+                            session_manager.reset_checkpoint_state(session.id)
+                        else:
+                            # User rejected - emit rejection and stop planning
+                            yield {
+                                "type": "checkpoint_rejected",
+                                "checkpoint": checkpoint_count,
+                                "message": "Planning halted - user rejected checkpoint"
+                            }
+                            # Don't reset state on rejection - planning is stopped
+                            if debug:
+                                print(f"   🛑 Planning halted. Session state preserved for review.")
                         previous_iteration_result = item
 
                     # ===== FINAL PLAN =====

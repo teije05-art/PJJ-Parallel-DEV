@@ -11,6 +11,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict
+from dataclasses import asdict
 
 # Add repo root to path
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -19,6 +20,7 @@ if REPO_ROOT not in sys.path:
 
 from agent import Agent
 from .base_agent import BaseAgent, AgentResult
+from orchestrator.reasoning import VerificationFeedback, VerificationResult  # Phase 2: PDDL-INSTRUCT
 
 
 class VerifierAgent(BaseAgent):
@@ -47,7 +49,24 @@ class VerifierAgent(BaseAgent):
         print(f"\n✅ VERIFIER AGENT: Validating strategic plan...")
 
         try:
-            # Create verification prompt
+            # Phase 2.4: Initialize VerificationFeedback for PDDL-INSTRUCT verification
+            verifier = VerificationFeedback(domain=context.get('domain', 'general'))
+
+            # Define preconditions for strategic planning
+            preconditions = {
+                "market_research_done": True,
+                "requirements_defined": True,
+                "context_analyzed": True
+            }
+
+            # Define expected effects for the plan
+            expected_effects = {
+                "strategic_plan_created": True,
+                "success_metrics_defined": True,
+                "timeline_established": True
+            }
+
+            # Create verification prompt with PDDL structure
             verification_prompt = f"""
 You are the Verifier Agent in an advanced agentic system. Your role is to validate plans against project requirements and standards.
 
@@ -97,18 +116,48 @@ Provide detailed verification with:
             if context.get('iteration_mode'):
                 verification_prompt += f"\n- **Iteration Progress Assessment** (Iteration {context.get('iteration_number')}/{ context.get('max_iterations')}): Confirm plan is advancing\n"
 
+            # Send to model for verification
             response = self.agent.chat(verification_prompt)
             verification_text = response.reply or "Verification failed"
 
-            # Determine if plan is valid
-            is_valid = self._assess_validation(verification_text)
+            # Phase 2.4: Use VerificationFeedback to generate structured report
+            verification_report = verifier.generate_verification_report(
+                preconditions=preconditions,
+                expected_effects=expected_effects,
+                actual_outcome=verification_text,
+                reasoning_steps=plan.split('\n')[:5],  # First 5 lines as reasoning steps
+                context=context
+            )
+
+            # Determine if plan is valid based on verification report
+            is_valid = verification_report.overall_validity
+
+            # Serialize dataclass checks with enum handling
+            precondition_check_dicts = []
+            for check in verification_report.precondition_checks:
+                check_dict = asdict(check)
+                # Convert enum result to string
+                if hasattr(check_dict.get('result'), 'value'):
+                    check_dict['result'] = check_dict['result'].value
+                precondition_check_dicts.append(check_dict)
+
+            effect_check_dicts = []
+            for check in verification_report.effect_checks:
+                check_dict = asdict(check)
+                # Convert enum result to string
+                if hasattr(check_dict.get('result'), 'value'):
+                    check_dict['result'] = check_dict['result'].value
+                effect_check_dicts.append(check_dict)
 
             verification_metadata = {
                 "goal": goal,
                 "plan_length": len(plan),
                 "is_valid": is_valid,
                 "verification_length": len(verification_text),
-                "checks_performed": self._count_verification_checks(verification_text)
+                "checks_performed": self._count_verification_checks(verification_text),
+                "precondition_checks": precondition_check_dicts,  # Phase 2.4: Store checks
+                "effect_checks": effect_check_dicts,  # Phase 2.4: Store effects
+                "reasoning_quality": verification_report.reasoning_quality_score  # Phase 2.4: Store quality score
             }
 
             result = self._wrap_result(

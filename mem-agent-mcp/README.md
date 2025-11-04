@@ -1,6 +1,6 @@
-# mem-agent-mcp
+# Project Jupiter - Advanced Planning & Learning System
 
-This is an MCP server for our model [driaforall/mem-agent](https://huggingface.co/driaforall/mem-agent), which can be connected to apps like Claude Desktop or Lm Studio to interact with an obsidian-like memory system.
+Project Jupiter is a semi-autonomous planning system with intelligent memory management. This MCP server integrates with our specialized [driaforall/mem-agent](https://huggingface.co/driaforall/mem-agent) model, enabling connection to Claude Desktop, LM Studio, and other applications for obsidian-like memory operations with multi-iteration learning loops.
 
 ## Supported Platforms
 

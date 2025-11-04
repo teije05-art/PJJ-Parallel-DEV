@@ -172,6 +172,10 @@ class LlamaPlanner:
 
         This is what Llama calls FIRST, before anything else.
 
+        CRITICAL FIX (Nov 2, 2025):
+        If USER EXPLICITLY SELECTED an entity, it MUST be in entities_found.
+        Do NOT filter selected entities by keyword matching - user chose them!
+
         Args:
             entities: List of entity file names to search (without .md)
             queries: List of specific questions/search terms
@@ -183,6 +187,8 @@ class LlamaPlanner:
                 "entities_searched": int
                 "gaps": list - What's still missing
                 "sources": list - Entity names where content was found
+                "entities_found": list - Entities that WERE EXPLICITLY SELECTED and exist
+                "entities_missing": list - Entities that DON'T EXIST or can't be read
             }
         """
 
@@ -191,13 +197,17 @@ class LlamaPlanner:
             "coverage": 0.0,
             "entities_searched": 0,
             "gaps": queries.copy(),
-            "sources": []
+            "sources": [],
+            "entities_found": [],  # Track entities that exist and user selected
+            "entities_missing": []  # Track entities that don't exist
         }
 
         try:
             # Search each entity for the queries
             found_content = []
             entities_searched = 0
+            found_entities = []
+            missing_entities = []
 
             for entity in entities:
                 try:
@@ -207,32 +217,27 @@ class LlamaPlanner:
                         # Try without .md
                         entity_path = Path(self.memory_path) / "entities" / entity
                         if not entity_path.exists():
+                            missing_entities.append(entity)  # Entity doesn't exist
                             continue
 
                     with open(entity_path, 'r') as f:
                         content = f.read()
 
-                    # Check if any query terms match this entity
-                    found_relevant = False
-                    for query in queries:
-                        query_terms = set(query.lower().split())
-                        content_terms = set(content.lower().split())
-
-                        if any(term in content_terms for term in query_terms):
-                            found_relevant = True
-                            break
-
-                    if found_relevant:
-                        found_content.append(f"=== {entity}.md ===\n{content}\n")
-                        results["sources"].append(entity)
-
+                    # CRITICAL FIX: If user selected it, count it as found (regardless of query match)
+                    # Don't filter selected entities by keywords - user explicitly chose them!
+                    found_content.append(f"=== {entity}.md ===\n{content}\n")
+                    results["sources"].append(entity)
+                    found_entities.append(entity)  # User selected = automatically "found"
                     entities_searched += 1
 
                 except Exception as e:
-                    pass
+                    print(f"⚠️ Error reading entity '{entity}': {e}")
+                    missing_entities.append(entity)  # Error reading = treat as missing
 
             results["results"] = "\n".join(found_content)
             results["entities_searched"] = entities_searched
+            results["entities_found"] = found_entities  # NEW: Include in response
+            results["entities_missing"] = missing_entities  # NEW: Include in response
 
             # Estimate coverage
             if found_content:
@@ -249,11 +254,18 @@ class LlamaPlanner:
                     for term in q.lower().split()
                 )]
 
+            # NEW: Log summary if user selections had missing entities
+            if missing_entities:
+                print(f"   ℹ️ Memory: Found {len(found_entities)}/{len(entities)} selected entities")
+                if missing_entities:
+                    print(f"   ⚠️ Missing entities will use web research: {', '.join(missing_entities[:3])}")
+
             self.current_memory_results = results
             return results
 
         except Exception as e:
             results["error"] = str(e)
+            print(f"❌ Memory search failed: {str(e)}")  # NEW: Log error
             return results
 
     # ========================================
@@ -1093,6 +1105,81 @@ to recommend approaches for future planning tasks with similar characteristics.
         except Exception as e:
             print(f"⚠️  Warning: search_similar() failed: {e}")
             return []  # Return empty list, allows fallback to work
+
+    # ========== Phase 1: Memory Delta Extraction ==========
+
+    def extract_memory_delta(self,
+                            iteration_num: int,
+                            plan_content: str,
+                            agent_results: Dict[str, AgentResult]) -> Dict[str, Any]:
+        """Extract what changed in memory during this iteration.
+
+        Used by SegmentedMemory to track what to remember.
+
+        Args:
+            iteration_num: Which iteration this is
+            plan_content: The final plan content
+            agent_results: Results from all agents
+
+        Returns:
+            Dictionary with memory delta (changes, insights, key findings)
+        """
+        delta = {
+            'iteration': iteration_num,
+            'timestamp': datetime.now().isoformat(),
+            'key_findings': [],
+            'frameworks_discovered': [],
+            'entities_mentioned': [],
+            'research_angles_used': [],
+        }
+
+        # Extract key insights from plan
+        sentences = plan_content.split('.')
+        for sentence in sentences[:5]:  # First 5 sentences are usually key
+            if len(sentence.strip()) > 20:
+                delta['key_findings'].append(sentence.strip())
+
+        # Extract agent-specific insights
+        for agent_name, result in agent_results.items():
+            if result and result.metadata:
+                if 'frameworks' in result.metadata:
+                    delta['frameworks_discovered'].extend(result.metadata['frameworks'])
+
+                if 'entities' in result.metadata:
+                    delta['entities_mentioned'].extend(result.metadata['entities'])
+
+        return delta
+
+    def estimate_segment_importance(self,
+                                   segment_content: str,
+                                   plan_result: Dict[str, Any]) -> float:
+        """Estimate importance of a memory segment based on plan outcome.
+
+        Used by SegmentedMemory to score segments for retention/compression.
+
+        Args:
+            segment_content: The segment to evaluate
+            plan_result: Result of planning iteration
+
+        Returns:
+            Importance score (0-1)
+        """
+        importance = 0.5  # Default middle score
+
+        # Boost if segment content appears in plan
+        if segment_content.lower() in plan_result.get('content', '').lower():
+            importance += 0.2
+
+        # Boost if user approved (positive signal)
+        if plan_result.get('user_approved', False):
+            importance += 0.1
+
+        # Boost if plan quality is high
+        quality_score = plan_result.get('quality_score', 0.5)
+        importance += (quality_score - 0.5) * 0.1
+
+        # Clamp to [0, 1]
+        return min(1.0, max(0.0, importance))
 
 
 if __name__ == "__main__":

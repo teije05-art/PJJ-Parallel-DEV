@@ -27,6 +27,7 @@ class AgentResult:
     output: str
     metadata: Dict[str, Any]
     timestamp: str
+    error: str = ""  # FIXED (Oct 31, 2025): Added explicit error field for better error handling
 
 
 class BaseAgent:
@@ -102,6 +103,8 @@ class BaseAgent:
     def _handle_error(self, action: str, error: Exception) -> AgentResult:
         """Handle errors consistently across all agents
 
+        FIXED (Oct 31, 2025): Now populates both error field and metadata for consistency
+
         Args:
             action: Name of the action that failed
             error: The exception that was raised
@@ -111,15 +114,21 @@ class BaseAgent:
         """
         import traceback
         error_details = traceback.format_exc()
-        error_msg = f"{action} failed: {str(error)}\n\nDetails:\n{error_details}"
+        error_msg = f"{action} failed: {str(error)}"
+
+        # Print for terminal debugging
+        print(f"   ❌ {error_msg}")
+        print(f"   Error type: {type(error).__name__}")
 
         error_result = AgentResult(
             success=False,
             output=error_msg,
+            error=str(error),  # FIXED: Now set in error field
             metadata={
                 "error": str(error),
                 "error_type": type(error).__name__,
-                "full_traceback": error_details
+                "full_traceback": error_details,
+                "action": action
             },
             timestamp=datetime.now().isoformat()
         )

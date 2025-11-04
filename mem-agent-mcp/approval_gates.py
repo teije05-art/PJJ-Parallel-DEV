@@ -11,12 +11,14 @@ Manages:
 """
 
 import threading
+import queue  # FIXED (Oct 31, 2025): Import queue for race-condition-free approval handling
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, List
 import json
 
 from agent.agent import Agent
+from orchestrator.memory.memagent_memory import SegmentedMemory  # Phase 1: MemAgent integration
 
 
 class PlanningSession:
@@ -28,8 +30,22 @@ class PlanningSession:
         self.created_at = datetime.now().isoformat()
         self.memory_path = memory_path
 
-        # Core agent
-        self.agent = Agent(memory_path=memory_path)
+        # Core agent - Use Fireworks on macOS
+        import sys
+        use_fireworks = sys.platform == "darwin"  # Mac uses Fireworks API
+        use_vllm = sys.platform == "linux"        # Linux uses vLLM
+
+        backend_name = "Fireworks (API)" if use_fireworks else ("vLLM" if use_vllm else "Unknown")
+        print(f"   🔧 Creating Agent with backend: {backend_name}")
+
+        self.agent = Agent(memory_path=memory_path, use_fireworks=use_fireworks, use_vllm=use_vllm)
+
+        # Phase 1: MemAgent-based Segmented Memory (fixed-length, bounded growth)
+        self.memory_manager = SegmentedMemory(
+            max_segments=12,
+            max_tokens_per_segment=2000,
+            memagent_client=self.agent  # Use MemAgent client for semantic search
+        )
 
         # Orchestrator for multi-iteration planning
         self.orchestrator = None
@@ -69,12 +85,19 @@ class PlanningSession:
         }
 
         # Checkpoint approval system
+        # FIXED (Oct 31, 2025): Use queue instead of Event to prevent race conditions
+        # Queue guarantees that if approval is sent before wait() is called, it won't be lost
         self.pending_approvals = {}
         self.checkpoint_approved = False
+        self.checkpoint_approval_queue = queue.Queue(maxsize=1)  # Only one approval at a time
+        # Keep Event for backward compatibility (can remove after full migration)
         self.checkpoint_approval_event = threading.Event()
 
         # Track what agents have done at each iteration
         self.iteration_progress = {}  # iteration -> {agents_run, findings, status}
+
+        # FIX #4: Track selected plans for learning from past planning
+        self.selected_plans_for_learning = []  # list of plan filenames selected by user
 
     def __getitem__(self, key: str) -> Any:
         """Support dictionary-style access for backward compatibility with old code."""
@@ -90,6 +113,8 @@ class PlanningSession:
             return self.checkpoint_approved
         elif key == "checkpoint_approval_event":
             return self.checkpoint_approval_event
+        elif key == "selected_plans_for_learning":
+            return self.selected_plans_for_learning
         elif key == "execution_state":
             return {}  # Backward compat with old dict-based sessions
         raise KeyError(f"Session has no key '{key}'")
@@ -106,6 +131,8 @@ class PlanningSession:
             self.checkpoint_approved = value
         elif key == "checkpoint_approval_event":
             self.checkpoint_approval_event = value
+        elif key == "selected_plans_for_learning":
+            self.selected_plans_for_learning = value
         else:
             raise KeyError(f"Cannot set session key '{key}'")
 
@@ -122,17 +149,20 @@ class SessionManager:
         session_id: Optional[str] = None,
         memory_path: str = ""
     ) -> Tuple[str, PlanningSession]:
-        """Get existing session or create new one."""
-        # Return existing session if valid
+        """Get existing session or create new one.
+
+        CRITICAL: If session_id is provided, ALWAYS use it (don't generate random ID)
+        """
+        # Return existing session if it exists
         if session_id and session_id in self.sessions:
             return session_id, self.sessions[session_id]
 
-        # Create new session
-        new_id = str(uuid.uuid4())[:12]
-        session = PlanningSession(new_id, memory_path)
-        self.sessions[new_id] = session
+        # FIX (Nov 2, 2025): Use provided session_id or generate new one
+        session_id_to_use = session_id if session_id else str(uuid.uuid4())[:12]
+        session = PlanningSession(session_id_to_use, memory_path)
+        self.sessions[session_id_to_use] = session
 
-        return new_id, session
+        return session_id_to_use, session
 
     def get(self, session_id: str) -> Optional[PlanningSession]:
         """Get session by ID."""
@@ -328,14 +358,33 @@ class SessionManager:
             return session.iteration_progress.get(iteration)
         return None
 
-    def set_checkpoint_approved(self, session_id: str, checkpoint_num: int) -> bool:
-        """Mark checkpoint as approved by user."""
+    def set_checkpoint_approved(self, session_id: str, checkpoint_num: int, approved: bool = True) -> bool:
+        """Mark checkpoint as approved/rejected by user.
+
+        FIXED (Oct 31, 2025): Uses queue instead of Event to prevent race conditions.
+        This ensures that if approval is sent before wait() is called, it won't be lost.
+        """
         session = self.get(session_id)
-        if session:
-            session.checkpoint_approved = True
+        if not session:
+            print(f"❌ DEBUG: set_checkpoint_approved - Session {session_id} NOT FOUND")
+            return False
+
+        try:
+            print(f"📤 DEBUG: set_checkpoint_approved - Putting {approved} in queue for session {session_id}, checkpoint {checkpoint_num}")
+            # Put approval decision in queue (non-blocking)
+            session.checkpoint_approval_queue.put(approved, block=False)
+            print(f"✅ DEBUG: set_checkpoint_approved - Message successfully queued for session {session_id}")
+            # Also update the old flag for backward compatibility
+            session.checkpoint_approved = approved
+            # And set the event for backward compatibility
             session.checkpoint_approval_event.set()
             return True
-        return False
+        except queue.Full:
+            print(f"⚠️ Approval message queue FULL for session {session_id}, checkpoint {checkpoint_num}")
+            return False
+        except Exception as e:
+            print(f"❌ DEBUG: set_checkpoint_approved - Exception: {type(e).__name__}: {e}")
+            return False
 
     def wait_for_checkpoint_approval(
         self,
@@ -345,20 +394,32 @@ class SessionManager:
         """
         Wait for user to approve checkpoint (blocks until approved).
 
+        FIXED (Oct 31, 2025): Uses queue instead of Event to prevent race conditions.
+        - If approval is sent BEFORE this is called, it's safely stored in queue
+        - If approval is sent AFTER this starts waiting, it's received correctly
+        - No race condition where approval gets lost
+
         Times out after 1 hour by default.
         """
         session = self.get(session_id)
         if not session:
+            print(f"❌ DEBUG: wait_for_checkpoint_approval - Session {session_id} NOT FOUND")
             return False
 
-        # Reset event for next checkpoint
-        session.checkpoint_approval_event.clear()
-        session.checkpoint_approved = False
+        try:
+            print(f"⏳ DEBUG: wait_for_checkpoint_approval - Starting to wait for approval (session {session_id}, timeout {timeout}s)...")
+            # Wait for approval message in queue (blocks here, not susceptible to race conditions)
+            approval_received = session.checkpoint_approval_queue.get(timeout=timeout)
+            print(f"📥 DEBUG: wait_for_checkpoint_approval - Received approval response: {approval_received} (session {session_id})")
+            return approval_received  # True = approved, False = rejected
 
-        # Wait for approval (blocks here)
-        session.checkpoint_approval_event.wait(timeout=timeout)
-
-        return session.checkpoint_approved
+        except queue.Empty:
+            # Timeout occurred - user never approved
+            print(f"⚠️ Checkpoint approval TIMEOUT ({timeout}s) for session {session_id}")
+            return False
+        except Exception as e:
+            print(f"❌ DEBUG: wait_for_checkpoint_approval - Exception: {type(e).__name__}: {e}")
+            return False
 
     def reset_checkpoint_state(self, session_id: str) -> bool:
         """Reset checkpoint state for next checkpoint."""

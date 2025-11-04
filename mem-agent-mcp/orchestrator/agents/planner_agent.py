@@ -11,7 +11,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional
 
 # Add repo root to path
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -22,6 +22,8 @@ from agent import Agent
 from .base_agent import BaseAgent, AgentResult
 from orchestrator.goal_analyzer import GoalAnalyzer
 from orchestrator.templates import TemplateSelector
+from orchestrator.reasoning import LogicalPlanningPrompt, ReasoningLevel  # Phase 2: PDDL-INSTRUCT
+from orchestrator.pattern_recommender import PatternRecommender  # LEARNING LOOP INTEGRATION
 
 
 class PlannerAgent(BaseAgent):
@@ -44,13 +46,16 @@ class PlannerAgent(BaseAgent):
         super().__init__(agent, memory_path)
         self.goal_analyzer = GoalAnalyzer()
         self.domain_templates = TemplateSelector()
+        self.pattern_recommender = None  # Will be initialized with trainer when context is available
 
-    def generate_strategic_plan(self, goal: str, context: Dict[str, str]) -> AgentResult:
+    def generate_strategic_plan(self, goal: str, context: Dict[str, str],
+                                selected_plans: Optional[List[str]] = None) -> AgentResult:
         """Generate a strategic plan using MemAgent context and learned patterns
 
         Args:
             goal: The planning goal/objective
             context: Context data from context manager
+            selected_plans: Optional list of plan filenames user selected for learning
 
         Returns:
             AgentResult with strategic plan or error details
@@ -59,9 +64,51 @@ class PlannerAgent(BaseAgent):
         print(f"\n🧭 PLANNER AGENT: Generating strategic plan...")
 
         try:
+            # Phase 4.1: Initialize PatternRecommender with Flow-GRPO trainer from context
+            flow_grpo_trainer = context.get('flow_grpo_trainer')
+
+            # Initialize pattern_recommender on first use with trainer from context
+            if self.pattern_recommender is None:
+                self.pattern_recommender = PatternRecommender(self.memory_path, flow_grpo_trainer=flow_grpo_trainer)
+                if flow_grpo_trainer:
+                    print(f"   ✓ Pattern recommender initialized with Flow-GRPO trainer for effectiveness scoring")
+                else:
+                    print(f"   ℹ️ Pattern recommender initialized without trainer (will use existing patterns)")
+            elif flow_grpo_trainer and not self.pattern_recommender.flow_grpo_trainer:
+                # Update trainer if we didn't have it before
+                self.pattern_recommender.flow_grpo_trainer = flow_grpo_trainer
+                print(f"   ✓ Pattern recommender updated with Flow-GRPO trainer for effectiveness scoring")
+
             # Analyze the goal to determine domain and context requirements
             goal_analysis = self.goal_analyzer.analyze_goal(goal)
             print(f"   → Goal Analysis: Domain={goal_analysis.domain}, Industry={goal_analysis.industry}")
+
+            # Phase 2.3: Initialize LogicalPlanningPrompt for PDDL-INSTRUCT reasoning
+            logical_prompt = LogicalPlanningPrompt(goal=goal, domain=goal_analysis.domain)
+
+            # Add domain-appropriate preconditions
+            logical_prompt.add_precondition(
+                name="context_analyzed",
+                description="Market and business context has been analyzed",
+                how_to_verify="Check for market analysis and competitive positioning"
+            )
+            logical_prompt.add_precondition(
+                name="requirements_defined",
+                description="Project requirements and success criteria are defined",
+                how_to_verify="Check for clear objectives and KPIs"
+            )
+
+            # Add domain-appropriate expected effects
+            logical_prompt.add_expected_effect(
+                name="strategic_plan_created",
+                description="Comprehensive strategic plan has been created",
+                how_to_verify="Check for documented strategy with timeline and tactics"
+            )
+            logical_prompt.add_expected_effect(
+                name="success_metrics_defined",
+                description="Success metrics and KPIs have been defined",
+                how_to_verify="Check for measurable outcomes"
+            )
 
             # Retrieve comprehensive context from MemAgent using dynamic selection
             project_context = self._retrieve_project_context(goal)
@@ -70,6 +117,19 @@ class PlannerAgent(BaseAgent):
             current_state = self._retrieve_current_state()
 
             print(f"   → Context retrieved: project={len(project_context)} chars, patterns={len(successful_patterns)} chars")
+
+            # LEARNING LOOP INTEGRATION: Get learned patterns from previous planning
+            print(f"   → Checking for learned patterns...")
+            pattern_context = self.pattern_recommender.get_pattern_context(goal, selected_plans=selected_plans)
+            learned_patterns_info = pattern_context.get('context', '')
+
+            if pattern_context.get('has_learned_patterns'):
+                plans_analyzed = pattern_context.get('selected_plans_analyzed', 0)
+                print(f"   ✅ Found {pattern_context.get('pattern_count', 0)} relevant learned patterns to apply")
+                if plans_analyzed > 0:
+                    print(f"   📌 Analyzed {plans_analyzed} user-selected plans for learning")
+            else:
+                print(f"   ℹ️ No learned patterns yet (system will learn from this iteration)")
 
             # Prepare context data for template
             web_search_results = context.get('web_search_results', 'No web search results available')
@@ -82,7 +142,8 @@ class PlannerAgent(BaseAgent):
                 'error_patterns': error_patterns,
                 'execution_history': current_state,
                 'current_status': context.get('current_status', 'No previous context'),
-                'web_search_results': web_search_results
+                'web_search_results': web_search_results,
+                'learned_patterns': learned_patterns_info  # LEARNING LOOP: Add learned patterns to context
             }
 
             # ITERATION MODE: Add MemAgent-guided iteration context if in multi-iteration planning
@@ -114,9 +175,33 @@ class PlannerAgent(BaseAgent):
                 print(f"   ❌ {error_msg}")
                 raise
 
-            print(f"   → Sending prompt to model ({len(planning_prompt)} chars)...")
+            # Phase 2.3: Enhance prompt with PDDL-INSTRUCT reasoning chain request
+            precondition_checks = logical_prompt.generate_precondition_checks(context_data)
+            pddl_prompt_enhancement = f"""
+{precondition_checks}
+
+REASONING_CHAIN_REQUEST:
+As you develop the strategic plan, please structure your reasoning as follows:
+
+1. **ANALYZE_CONTEXT**: What information from the provided context is most relevant?
+2. **IDENTIFY_GAPS**: What are the key gaps or challenges to address?
+3. **DEVELOP_STRATEGY**: What strategic approach will address these gaps?
+4. **DEFINE_TACTICS**: What specific tactical actions will execute this strategy?
+5. **ESTABLISH_METRICS**: How will we measure success?
+
+For each step, explain your reasoning clearly so the plan is transparent and verifiable.
+
+MAIN_PLANNING_TASK:
+{planning_prompt}
+
+Expected Effects: The plan should clearly define the strategic approach, specific actions, timeline, and success metrics.
+"""
+            pddl_enhanced_prompt = pddl_prompt_enhancement
+
+            print(f"   → Enhanced with PDDL-INSTRUCT reasoning chain request ({len(pddl_enhanced_prompt)} chars)...")
+            print(f"   → Sending to model...")
             try:
-                response = self.agent.chat(planning_prompt)
+                response = self.agent.chat(pddl_enhanced_prompt)
                 plan_text = response.reply or ""
 
                 if not plan_text or plan_text.strip() == "":
@@ -125,6 +210,12 @@ class PlannerAgent(BaseAgent):
                     raise ValueError(error_msg)
 
                 print(f"   → Model responded with {len(plan_text)} chars")
+
+                # Phase 2.3: Extract reasoning chain from response
+                reasoning_chain = logical_prompt.extract_reasoning_chain(plan_text)
+                reasoning_chain_quality = logical_prompt.score_reasoning_quality(reasoning_chain) if reasoning_chain else 0.0
+
+                print(f"   → Extracted {len(reasoning_chain)} reasoning steps (quality: {reasoning_chain_quality:.2f})")
 
                 # Parse and validate the plan
                 plan_metadata = {
@@ -138,7 +229,9 @@ class PlannerAgent(BaseAgent):
                     "project_context_retrieved": len(project_context),
                     "patterns_applied": len(successful_patterns),
                     "errors_avoided": len(error_patterns),
-                    "plan_length": len(plan_text)
+                    "plan_length": len(plan_text),
+                    "reasoning_chain": [step.dict() if hasattr(step, 'dict') else step for step in reasoning_chain],  # Phase 2.3: Store reasoning chain
+                    "reasoning_quality": reasoning_chain_quality  # Phase 2.3: Store quality score
                 }
 
                 result = self._wrap_result(
@@ -146,6 +239,16 @@ class PlannerAgent(BaseAgent):
                     output=plan_text,
                     metadata=plan_metadata
                 )
+
+                # LEARNING LOOP INTEGRATION: Log pattern usage
+                if pattern_context.get('has_learned_patterns'):
+                    patterns_used = pattern_context.get('patterns', [])
+                    self.pattern_recommender.log_pattern_usage(
+                        goal=goal,
+                        patterns_recommended=patterns_used,
+                        feedback="Plan generated - will gather feedback on usefulness"
+                    )
+                    print(f"   📊 Logged pattern usage for learning feedback")
 
                 # Log the planning action
                 self._log_agent_action("generate_strategic_plan", result)

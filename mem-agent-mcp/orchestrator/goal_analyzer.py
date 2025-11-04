@@ -529,29 +529,27 @@ Be precise. Return ONLY the key-value pairs, no explanation."""
         return objectives if objectives else ['strategic planning']
     
     def _determine_context_entities(self, domain: str, industry: str, market: str) -> List[str]:
-        """Determine which entities to retrieve based on domain, industry, and market"""
-        entities = []
-        
-        # Domain-specific entities
-        if domain == 'healthcare':
-            entities.extend(['healthcare_regulations', 'medical_market_analysis', 'clinical_protocols'])
-        elif domain == 'technology':
-            entities.extend(['tech_market_analysis', 'startup_ecosystem', 'digital_transformation'])
-        elif domain == 'manufacturing':
-            entities.extend(['manufacturing_processes', 'supply_chain_analysis', 'industrial_standards'])
-        elif domain == 'qsr':
-            entities.extend(['KPMG_strategyteam_project'])  # Maintain backward compatibility
-        
-        # Market-specific entities
-        if market == 'vietnam':
-            entities.extend(['vietnam_market_analysis', 'vietnamese_regulations'])
-        elif market == 'southeast_asia':
-            entities.extend(['sea_market_analysis', 'asean_regulations'])
-        
-        # Always include learning entities
-        entities.extend(['successful_patterns', 'planning_errors', 'execution_log'])
-        
-        return entities
+        """Return only learning entities - user selections handled by context_manager.
+
+        ISSUE FIXED (Oct 31, 2025):
+        Previously returned hardcoded entity names like 'tech_market_analysis', 'startup_ecosystem'
+        that often didn't exist in the user's memory, overriding user selections completely.
+
+        Solution: Return only learning entities that are always relevant. User-specific entities
+        are selected separately via the frontend proposal flow. The context_manager receives
+        the user's actual selections and handles retrieval accordingly.
+
+        Args:
+            domain: Detected domain (for context, not entity selection)
+            industry: Detected industry (for context, not entity selection)
+            market: Detected market (for context, not entity selection)
+
+        Returns:
+            List of learning entity names for system improvement tracking
+        """
+        # Return only learning entities - these track system improvements across planning cycles
+        # User-specific entities are selected by the frontend and passed to context_manager
+        return ['successful_patterns', 'planning_errors', 'execution_log', 'agent_performance']
     
     def _determine_methodologies(self, domain: str, industry: str) -> List[str]:
         """Determine appropriate methodologies based on domain and industry"""

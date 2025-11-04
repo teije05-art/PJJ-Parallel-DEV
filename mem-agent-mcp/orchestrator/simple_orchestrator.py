@@ -36,6 +36,14 @@ from .approval_handler import ApprovalHandler
 from .memory_manager import MemoryManager
 from .learning_manager import LearningManager
 from .iteration_manager import IterationManager, IterationResult
+from .learning import FlowGRPOTrainer, IterationSignal  # Phase 3: Flow-GRPO integration
+from .learning.agent_coordination import AgentCoordination  # Phase 3: Agent coordination learning
+
+# ==================== CONFIGURATION ====================
+
+DEBUG = True
+
+# ==================== ORCHESTRATOR ====================
 
 
 class SimpleOrchestrator:
@@ -46,7 +54,8 @@ class SimpleOrchestrator:
     is in the modules. This makes the system maintainable and testable.
     """
 
-    def __init__(self, memory_path: str, max_iterations: int = 15, strict_validation: bool = False):
+    def __init__(self, memory_path: str, max_iterations: int = 15, strict_validation: bool = False,
+                 selected_plans: list = None, segmented_memory=None):
         """
         Initialize the simple modular orchestrator
 
@@ -54,11 +63,15 @@ class SimpleOrchestrator:
             memory_path: Path to MemAgent memory directory
             max_iterations: Maximum number of learning iterations
             strict_validation: If True, use strict validation
+            selected_plans: Optional list of plan filenames to learn from
+            segmented_memory: Optional SegmentedMemory instance from PlanningSession (Phase 1)
         """
         self.memory_path = Path(memory_path)
         self.max_iterations = max_iterations
         self.current_iteration = 0
         self.strict_validation = strict_validation
+        self.selected_plans = selected_plans or []
+        self.segmented_memory = segmented_memory  # Phase 1: MemAgent integration
 
         # Initialize ONE memagent instance (shared across all modules)
         use_fireworks = sys.platform == "darwin"  # Mac uses Fireworks
@@ -78,6 +91,10 @@ class SimpleOrchestrator:
         self.memory_manager = MemoryManager(self.agent, self.memory_path)
         self.learning_manager = LearningManager(self.agent, self.memory_path)
 
+        # Phase 3.1: Initialize Flow-GRPO training components
+        self.flow_grpo_trainer = FlowGRPOTrainer(learning_rate=0.05, baseline_score=0.5)
+        self.agent_coordination = AgentCoordination()
+
         # CRITICAL: Expose agent_coordinator for autonomous mode compatibility
         # The MCP server's autonomous planning expects orchestrator.agent_coordinator
         self.agent_coordinator = self.workflow_coordinator.agent_coordinator
@@ -89,8 +106,9 @@ class SimpleOrchestrator:
         print(f"   Backend: {'Fireworks (Mac)' if use_fireworks else 'vLLM (H100)'}")
         print(f"   Memory: {memory_path}")
         print(f"   Max iterations: {max_iterations}")
-        print(f"   Modules: ✅ Context, Workflow, Approval, Memory, Learning")
+        print(f"   Modules: ✅ Context, Workflow, Approval, Memory, Learning, Flow-GRPO")
         print(f"   Web Search: ✅ Enabled for better plan quality")
+        print(f"   Training: ✅ Flow-GRPO (agent weights, pattern effectiveness) initialized")
 
     def _initialize_memory_entities(self):
         """Create memory entity files if they don't exist"""
@@ -126,10 +144,15 @@ class SimpleOrchestrator:
 
     def run_enhanced_learning_loop(self, goal: str):
         """
-        Main learning loop - simple sequential execution
+        Main learning loop - simple sequential execution with SSE support
 
         This is intentionally simple - just calls modules in order.
         All the complexity is in the modules themselves.
+
+        UPDATED (Nov 3): Now yields final_plan event for SSE streaming to frontend
+        - For single iteration: Auto-approves and yields plan immediately
+        - Extracts full plan content from generator agent
+        - Preserves all memory and learning logic
         """
         print(f"\n🎯 STARTING MODULAR LEARNING LOOP")
         print(f"Goal: {goal}")
@@ -148,31 +171,62 @@ class SimpleOrchestrator:
                 # Step 2: Run workflow (4 agents work together)
                 agent_results = self.workflow_coordinator.run_workflow(goal, context)
 
-                # Step 3: Get human approval
-                decision = self.approval_handler.get_approval(agent_results, goal)
+                # Step 3: For single iteration, auto-approve; otherwise get approval
+                if self.max_iterations == 1:
+                    # Single iteration: auto-approve without user input
+                    decision_approved = True
+                    print(f"   ✅ Single-iteration mode: Auto-approving plan")
+                else:
+                    # Multi-iteration: get human approval
+                    decision = self.approval_handler.get_approval(agent_results, goal)
+                    decision_approved = decision.approved
 
-                if decision.approved:
-                    # Step 4: Store results (writes to memory)
+                if decision_approved:
+                    # Step 4: Extract plan content from generator agent
+                    generator_result = agent_results.get("generator")
+                    if not generator_result:
+                        print(f"   ❌ ERROR: No generator result available")
+                        yield {
+                            "type": "error",
+                            "message": "Plan generation failed: No output from generator agent"
+                        }
+                        continue
+
+                    # Extract full plan content and metadata
+                    plan_content = generator_result.output
+                    metadata = generator_result.metadata or {}
+                    unique_frameworks = metadata.get("unique_frameworks", [])
+                    total_data_points = metadata.get("total_data_points", 0)
+
+                    # Step 5: Store results (writes to memory)
                     self.memory_manager.store_results(goal, agent_results, success=True)
 
-                    # Step 5: Apply learning (Flow-GRPO training)
-                    self.learning_manager.apply_learning(agent_results, decision.feedback, success=True)
+                    # Step 6: Apply learning (Flow-GRPO training)
+                    self.learning_manager.apply_learning(agent_results, "", success=True)
 
                     print(f"\n🎉 SUCCESS! Workflow approved and executed.")
                     print(f"Learning iteration {iteration} completed successfully.")
                     print(f"Flow-GRPO training applied to improve future iterations.")
-                    return True
 
-                elif decision.action == "rejected":
-                    # Store as failure for learning
+                    # CRITICAL: Yield final plan event with FULL content for SSE streaming
+                    yield {
+                        "type": "final_plan",
+                        "plan": plan_content,
+                        "unique_frameworks": unique_frameworks,
+                        "total_data_points": total_data_points
+                    }
+                    return
+
+                elif not self.max_iterations == 1 and decision.action == "rejected":
+                    # Store as failure for learning (multi-iteration only)
                     self.memory_manager.store_results(goal, agent_results, success=False)
                     self.learning_manager.apply_learning(agent_results, decision.feedback, success=False)
 
                     print(f"\n📚 Learning from rejection: {decision.feedback}")
                     print(f"Flow-GRPO training applied with negative signal.")
 
-                elif decision.action == "edited":
-                    # Learn from feedback
+                elif not self.max_iterations == 1 and decision.action == "edited":
+                    # Learn from feedback (multi-iteration only)
                     self.learning_manager.apply_learning(agent_results, decision.feedback, success=False)
 
                     print(f"\n📝 Learning from feedback: {decision.feedback}")
@@ -180,16 +234,27 @@ class SimpleOrchestrator:
 
             except KeyboardInterrupt:
                 print(f"\n🛑 Learning loop interrupted by user.")
-                return False
+                yield {
+                    "type": "error",
+                    "message": "Planning interrupted by user"
+                }
+                return
             except Exception as e:
                 print(f"\n❌ Error in iteration {iteration}: {e}")
                 import traceback
                 traceback.print_exc()
+                yield {
+                    "type": "error",
+                    "message": f"Planning error: {str(e)}"
+                }
                 continue
 
         print(f"\n⚠️ Learning loop completed without approval.")
         print(f"Consider refining the goal or providing more specific feedback.")
-        return False
+        yield {
+            "type": "error",
+            "message": "Planning completed without producing approved plan"
+        }
 
     # ==================== MULTI-ITERATION PLANNING ====================
 
@@ -260,8 +325,45 @@ class SimpleOrchestrator:
                 # Step 1: Get base context
                 context = self.context_manager.retrieve_context(goal)
 
+                # Step 1.5: FIX #2 - Enrich context with memory segments from SegmentedMemory (Phase 1)
+                if self.segmented_memory is not None:
+                    try:
+                        memory_segments = self.segmented_memory.get_relevant_segments(goal, top_k=3)
+                        # Validate memory_segments is not None and is a list
+                        if memory_segments is None:
+                            memory_segments = []
+                        context['memory_segments'] = memory_segments
+
+                        # Phase 8: Log when memory segments are empty (helpful for debugging)
+                        if len(memory_segments) == 0:
+                            if DEBUG:
+                                print(f"   ℹ️  No memory segments found for goal (first iteration or no semantic matches)")
+                        else:
+                            if DEBUG:
+                                print(f"   📚 Added {len(memory_segments)} memory segments to context")
+                    except Exception as e:
+                        if DEBUG:
+                            print(f"   ⚠️  Could not enrich context with memory: {e}")
+                        # Ensure memory_segments is always present (even if empty)
+                        context['memory_segments'] = []
+                else:
+                    # If no segmented memory available, ensure the key exists
+                    context['memory_segments'] = []
+                    if DEBUG:
+                        print(f"   ℹ️  No segmented memory available (use approval_gates.py to enable)")
+
                 # Step 2: Enhance context with iteration-specific guidance (MemAgent-driven)
                 context = iteration_mgr.get_iteration_context(context)
+
+                # Step 2.5: Add selected plans for learning to context (LEARNING LOOP)
+                if self.selected_plans:
+                    context['selected_plans_for_learning'] = self.selected_plans
+                    if DEBUG:
+                        print(f"   📌 Added {len(self.selected_plans)} selected plans to context for learning")
+
+                # Phase 4.1: Add Flow-GRPO trainer to context for pattern effectiveness scoring
+                context['flow_grpo_trainer'] = self.flow_grpo_trainer
+                context['agent_coordination'] = self.agent_coordination
 
                 # Step 3: Run the 4-agent pipeline with iteration guidance
                 print(f"Running 4-agent workflow with MemAgent guidance...")
@@ -285,6 +387,41 @@ class SimpleOrchestrator:
                 print(f"✅ Iteration {iteration_num} complete")
                 print(f"   Frameworks used: {len(iteration_result.frameworks_used)}")
                 print(f"   Data points: {iteration_result.data_points_count}")
+
+                # Phase 3.2: Calculate flow score metrics (but defer recording until after user approval)
+                flow_score_metrics = {}
+                try:
+                    # Extract quality metrics from agent results
+                    verification_quality = agent_results.get('verification_quality', 0.75)  # Default if not present
+                    reasoning_quality = agent_results.get('reasoning_quality', 0.7)  # From planner's reasoning chain
+
+                    # Calculate preliminary flow score (pending user approval)
+                    flow_score_signal = IterationSignal(
+                        iteration=iteration_num,
+                        agent_name='planner',  # Primary agent in this phase
+                        verification_quality=verification_quality,
+                        user_approved=True,  # Preliminary - will be finalized after checkpoint approval
+                        reasoning_quality=reasoning_quality
+                    )
+
+                    flow_score = flow_score_signal.calculate_flow_score()
+
+                    # Store flow score metrics for checkpoint (to be recorded after user approval)
+                    flow_score_metrics = {
+                        'flow_score': flow_score,
+                        'verification_quality': verification_quality,
+                        'reasoning_quality': reasoning_quality,
+                        'iteration': iteration_num,
+                        'agent_name': 'planner'
+                    }
+
+                    if DEBUG:
+                        print(f"   📊 Preliminary Flow Score: {flow_score:.3f} (verification: {verification_quality:.2f}, reasoning: {reasoning_quality:.2f})")
+                        print(f"   ⏳ Awaiting user approval to finalize flow score recording...")
+
+                except Exception as e:
+                    if DEBUG:
+                        print(f"   ⚠️  Could not calculate flow score: {e}")
 
                 # Step 6: Check if we should checkpoint
                 # Detailed logging to diagnose checkpoint issues
@@ -314,6 +451,7 @@ class SimpleOrchestrator:
                         'summary': checkpoint_summary,
                         'progress': iteration_mgr.get_iteration_summary(),
                         'metrics': iteration_mgr.get_cumulative_metrics(),
+                        'flow_score_metrics': flow_score_metrics,  # Phase 3.2: Include for deferred recording
                         'action_required': 'user_approval'
                     }
 
@@ -526,10 +664,12 @@ class SimpleOrchestrator:
         entity_section = self._build_entity_insights_section(current_results)
         sections.append(entity_section)
 
-        # Combine all sections
+        # Combine all sections with proper spacing
+        sections_text = "\n\n".join([s.strip() for s in sections if s.strip()])
+
         summary = f"""# CHECKPOINT SUMMARY — Iteration {iterations_completed}/{total_iterations}
 
-{chr(10).join(sections)}
+{sections_text}
 
 ---
 
@@ -558,7 +698,8 @@ If approved, iterations {iterations_completed + 1}-{total_iterations} will conti
 **Frameworks evolved:** {frameworks} unique frameworks applied {framework_change}
 **Data points discovered:** {data_points} key metrics and figures {data_change}
 **Analysis depth:** Progressing from broad scope to strategic specifics
-**Evidence density:** Increasing iteration-by-iteration"""
+**Evidence density:** Increasing iteration-by-iteration
+"""
 
     def _build_key_insights_section(self, insights: list) -> str:
         """Build the top 5 insights section."""

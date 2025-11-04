@@ -32,15 +32,25 @@ def create_fireworks_client() -> LLM:
     """Create a new Fireworks AI client instance."""
     if not FIREWORKS_AVAILABLE:
         raise ImportError("Fireworks AI package not installed. Run: pip install --upgrade fireworks-ai")
-    
+
     if not FIREWORKS_API_KEY:
-        raise ValueError("FIREWORKS_API_KEY environment variable not set")
-    
-    return LLM(
-        model=FIREWORKS_MODEL,
-        deployment_type="serverless",
-        api_key=FIREWORKS_API_KEY
-    )
+        raise ValueError(
+            "FIREWORKS_API_KEY environment variable not set. "
+            "Set it via: export FIREWORKS_API_KEY='your_key_here' or in .env file"
+        )
+
+    try:
+        client = LLM(
+            model=FIREWORKS_MODEL,
+            deployment_type="serverless",
+            api_key=FIREWORKS_API_KEY
+        )
+        return client
+    except Exception as e:
+        raise ValueError(
+            f"Failed to initialize Fireworks client: {str(e)}. "
+            f"Check that FIREWORKS_API_KEY is valid and Fireworks service is accessible."
+        )
 
 
 def _as_dict(msg: Union[ChatMessage, dict]) -> dict:

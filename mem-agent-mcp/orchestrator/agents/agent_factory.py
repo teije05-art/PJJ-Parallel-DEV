@@ -132,12 +132,39 @@ This file tracks the performance metrics of each specialized agent.
             results['planner'] = planner_result
 
             if not planner_result.success:
-                print(f"❌ Planning failed, stopping workflow")
+                # FIXED (Oct 31, 2025): Now includes error details for debugging
+                error_detail = planner_result.error or "Unknown error"
+                print(f"❌ Planning failed: {error_detail}")
+
+                # Include metadata if available
+                if hasattr(planner_result, 'metadata') and planner_result.metadata:
+                    print(f"   Context keys available: {list(planner_result.metadata.keys())}")
+                    if 'context_keys' in planner_result.metadata:
+                        print(f"   Context: {planner_result.metadata['context_keys']}")
+
+                # Log to learning system for future improvement
+                try:
+                    training_entry = f"""
+## Planning Failure - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+**Goal:** {goal}
+**Error:** {error_detail}
+**Context Keys:** {list(context.keys()) if context else 'None'}
+
+---
+"""
+                    training_file = self.memory_path / "entities" / "planner_training_log.md"
+                    if training_file.exists():
+                        with open(training_file, 'a') as f:
+                            f.write(training_entry)
+                except Exception as log_error:
+                    print(f"   ⚠️ Could not log failure: {log_error}")
+
                 return results
 
             # Step 2: Verifier Agent validates the plan
             print(f"\n🔄 STEP 2: Plan Validation")
-            verifier_result = self.verifier.verify_plan(planner_result.output, goal)
+            verifier_result = self.verifier.verify_plan(planner_result.output, goal, context)
             results['verifier'] = verifier_result
 
             if not verifier_result.metadata.get('is_valid', False):
@@ -145,7 +172,7 @@ This file tracks the performance metrics of each specialized agent.
 
             # Step 3: Executor Agent executes the plan
             print(f"\n🔄 STEP 3: Plan Execution")
-            executor_result = self.executor.execute_plan(planner_result.output, goal)
+            executor_result = self.executor.execute_plan(planner_result.output, goal, context)
             results['executor'] = executor_result
 
             # Step 4: Verifier Agent validates execution
@@ -158,13 +185,13 @@ This file tracks the performance metrics of each specialized agent.
             # Step 5: Generator Agent synthesizes final results
             print(f"\n🔄 STEP 5: Result Synthesis")
             generator_result = self.generator.synthesize_results(
-                planner_result, executor_result, verifier_result, goal
+                planner_result, executor_result, verifier_result, goal, context
             )
             results['generator'] = generator_result
 
             # Step 6: Flow-GRPO optimization
             print(f"\n🔄 STEP 6: Flow-GRPO Training")
-            self._apply_flow_grpo_training(results, goal)
+            self._apply_flow_grpo_training(results, goal, context)
 
             # Step 7: Store results and populate entities
             print(f"\n🔄 STEP 7: Storing Results and Populating Entities")
@@ -174,21 +201,86 @@ This file tracks the performance metrics of each specialized agent.
             return results
 
         except Exception as e:
-            print(f"\n❌ Workflow coordination failed: {e}")
+            # FIXED (Oct 31, 2025): Now includes full error traceback for debugging
+            print(f"\n❌ Workflow coordination failed: {str(e)}")
+            import traceback
+            traceback.print_exc()  # Log full traceback
+
+            results['error'] = {
+                'error_type': type(e).__name__,
+                'error_message': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Log critical failures
+            try:
+                training_file = self.memory_path / "entities" / "planner_training_log.md"
+                if training_file.exists():
+                    training_entry = f"""
+## Critical Workflow Failure - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+**Error Type:** {type(e).__name__}
+**Error Message:** {str(e)}
+**Goal:** {goal}
+
+---
+"""
+                    with open(training_file, 'a') as f:
+                        f.write(training_entry)
+            except:
+                pass  # Don't break on logging failure
+
             return results
 
-    def _apply_flow_grpo_training(self, results: Dict[str, AgentResult], goal: str):
+    def _apply_flow_grpo_training(self, results: Dict[str, AgentResult], goal: str, context: Dict = None):
         """Apply Flow-GRPO training to improve Planner Agent
 
         Args:
             results: Dictionary of agent results
             goal: The planning goal
+            context: Context dict that may include agent_coordination for pair performance tracking
         """
 
+        context = context or {}
         print(f"\n🧠 FLOW-GRPO: Applying in-the-flow training...")
 
         # Determine overall success
         overall_success = self._assess_overall_success(results)
+
+        # Phase 3: Record agent pair performance for learning
+        agent_coordination = context.get('agent_coordination')
+        if agent_coordination:
+            try:
+                # Calculate flow score based on results
+                flow_score = 0.75  # Default baseline
+                if results.get('verifier') and results.get('verifier').success:
+                    flow_score += 0.15  # Bonus for successful verification
+                if results.get('generator') and results.get('generator').success:
+                    flow_score += 0.1  # Bonus for successful synthesis
+
+                # Record agent pair performances
+                agent_pairs = [
+                    ('planner', 'verifier'),
+                    ('verifier', 'executor'),
+                    ('executor', 'verifier'),
+                    ('verifier', 'generator'),
+                ]
+
+                for agent1, agent2 in agent_pairs:
+                    try:
+                        agent_coordination.record_pair_performance(
+                            agent1=agent1,
+                            agent2=agent2,
+                            flow_score=flow_score,
+                            success=overall_success
+                        )
+                    except Exception as e:
+                        if DEBUG:
+                            print(f"   ⚠️  Could not record pair performance ({agent1} → {agent2}): {e}")
+
+                print(f"   ✅ Agent pair performance recorded for learning")
+            except Exception as e:
+                print(f"   ⚠️  Could not apply agent coordination: {e}")
 
         # Create training record
         training_entry = f"""
