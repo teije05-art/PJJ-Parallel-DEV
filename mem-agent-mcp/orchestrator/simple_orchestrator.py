@@ -74,8 +74,8 @@ class SimpleOrchestrator:
         self.segmented_memory = segmented_memory  # Phase 1: MemAgent integration
 
         # Initialize ONE memagent instance (shared across all modules)
-        use_fireworks = sys.platform == "darwin"  # Mac uses Fireworks
-        use_vllm = sys.platform == "linux"        # H100 uses vLLM
+        use_fireworks = sys.platform in ["darwin", "win32"]  # Mac and Windows use Fireworks API
+        use_vllm = sys.platform == "linux"                    # H100 uses vLLM
 
         self.agent = Agent(
             use_fireworks=use_fireworks,
