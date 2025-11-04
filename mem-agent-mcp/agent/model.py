@@ -1,12 +1,11 @@
-from openai import OpenAI
 from pydantic import BaseModel
 
 from typing import Optional, Union
 
-from agent.settings import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_STRONG_MODEL, FIREWORKS_API_KEY, FIREWORKS_BASE_URL, FIREWORKS_MODEL
+from agent.settings import FIREWORKS_API_KEY, FIREWORKS_BASE_URL, FIREWORKS_MODEL
 from agent.schemas import ChatMessage, Role
 
-# Import Fireworks AI
+# Import Fireworks AI (Consolidated backend - Fireworks only)
 try:
     from fireworks import LLM
     FIREWORKS_AVAILABLE = True
@@ -14,29 +13,16 @@ except ImportError:
     FIREWORKS_AVAILABLE = False
     LLM = None
 
-def create_openai_client() -> OpenAI:
-    """Create a new OpenAI client instance."""
-    return OpenAI(
-        api_key=OPENROUTER_API_KEY,
-        base_url=OPENROUTER_BASE_URL,
-    )
-
-def create_vllm_client(host: str = "0.0.0.0", port: int = 8000) -> OpenAI:
-    """Create a new vLLM client instance (OpenAI-compatible)."""
-    return OpenAI(
-        base_url=f"http://{host}:{port}/v1",
-        api_key="EMPTY",
-    )
 
 def create_fireworks_client() -> LLM:
-    """Create a new Fireworks AI client instance."""
+    """Create a new Fireworks AI client instance (primary backend)."""
     if not FIREWORKS_AVAILABLE:
         raise ImportError("Fireworks AI package not installed. Run: pip install --upgrade fireworks-ai")
 
     if not FIREWORKS_API_KEY:
         raise ValueError(
-            "FIREWORKS_API_KEY environment variable not set. "
-            "Set it via: export FIREWORKS_API_KEY='your_key_here' or in .env file"
+            "FIREWORKS_API_KEY is not set. This is required for the system to function. "
+            "Set it via environment variable or check agent/settings.py for hardcoded key."
         )
 
     try:
@@ -69,38 +55,26 @@ def get_model_response(
         messages: Optional[list[ChatMessage]] = None,
         message: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        model: str = OPENROUTER_STRONG_MODEL,
-        client: Optional[Union[OpenAI, LLM]] = None,
-        use_vllm: bool = False,
-        use_fireworks: bool = False,
-) -> Union[str, BaseModel]:
+        client: Optional[LLM] = None,
+) -> str:
     """
-    Get a response from a model using OpenRouter, vLLM, or Fireworks AI, with optional schema for structured output.
+    Get a response from Fireworks AI model with streaming enabled for large outputs.
 
     Args:
         messages: A list of ChatMessage objects (optional).
         message: A single message string (optional).
         system_prompt: A system prompt for the model (optional).
-        model: The model to use.
-        schema: A Pydantic BaseModel for structured output (optional).
-        client: Optional client to use. If None, uses the global client.
-        use_vllm: Whether to use vLLM backend instead of OpenRouter.
-        use_fireworks: Whether to use Fireworks AI backend.
+        client: Optional Fireworks LLM client. If None, creates a new one.
 
     Returns:
-        A string response from the model if schema is None, otherwise a BaseModel object.
+        A string response from the model.
     """
     if messages is None and message is None:
         raise ValueError("Either 'messages' or 'message' must be provided.")
 
-    # Use provided clients or fall back to global ones
+    # Use provided client or create a new Fireworks client
     if client is None:
-        if use_fireworks:
-            client = create_fireworks_client()
-        elif use_vllm:
-            client = create_vllm_client()
-        else:
-            client = create_openai_client()
+        client = create_fireworks_client()
 
     # Build message history
     if messages is None:
@@ -111,48 +85,39 @@ def get_model_response(
     else:
         messages = [_as_dict(m) for m in messages]
 
-    if use_fireworks:
-        # Fireworks AI client with streaming enabled for large outputs
-        stream = client.chat.completions.create(
-            messages=messages,
-            max_tokens=120000,
-            temperature=0.6,
-            top_p=1,
-            top_k=40,
-            presence_penalty=0,
-            frequency_penalty=0,
-            stream=True,
-        )
-        parts: list[str] = []
-        try:
-            for chunk in stream:
-                # OpenAI-compatible streaming: choices[0].delta.content
-                try:
-                    delta = chunk.choices[0].delta  # type: ignore[attr-defined]
-                    if getattr(delta, "content", None):
-                        parts.append(delta.content)
-                        continue
-                except Exception:
-                    pass
+    # Call Fireworks AI with streaming enabled for large outputs
+    stream = client.chat.completions.create(
+        messages=messages,
+        max_tokens=120000,
+        temperature=0.6,
+        top_p=1,
+        top_k=40,
+        presence_penalty=0,
+        frequency_penalty=0,
+        stream=True,
+    )
+    parts: list[str] = []
+    try:
+        for chunk in stream:
+            # OpenAI-compatible streaming: choices[0].delta.content
+            try:
+                delta = chunk.choices[0].delta  # type: ignore[attr-defined]
+                if getattr(delta, "content", None):
+                    parts.append(delta.content)
+                    continue
+            except Exception:
+                pass
 
-                # Fallback: sometimes message.content is used
-                try:
-                    message_obj = chunk.choices[0].message
-                    if getattr(message_obj, "content", None):
-                        parts.append(message_obj.content)
-                        continue
-                except Exception:
-                    pass
-        except Exception:
-            # If streaming fails mid-way, fall back to best-effort join of parts
-            pass
+            # Fallback: sometimes message.content is used
+            try:
+                message_obj = chunk.choices[0].message
+                if getattr(message_obj, "content", None):
+                    parts.append(message_obj.content)
+                    continue
+            except Exception:
+                pass
+    except Exception:
+        # If streaming fails mid-way, fall back to best-effort join of parts
+        pass
 
-        return "".join(parts)
-    else:
-        # Both vLLM and default (OpenRouter) use identical OpenAI-compatible API
-        completion = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            #stop=["</reply>", "</python>"]
-        )
-        return completion.choices[0].message.content
+    return "".join(parts)

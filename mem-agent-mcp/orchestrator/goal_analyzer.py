@@ -262,14 +262,11 @@ Be precise. Return ONLY the key-value pairs, no explanation."""
                 response = get_model_response(
                     messages=messages,
                     client=client,
-                    use_fireworks=True
                 )
-            except:
-                # Fallback to OpenRouter if Fireworks fails
-                response = get_model_response(
-                    messages=messages,
-                    use_fireworks=False
-                )
+            except Exception as e:
+                # No fallback available - Fireworks API is the only backend
+                print(f"   ⚠️ Fireworks API unavailable: {type(e).__name__}: {str(e)}")
+                raise
 
             # Parse the LLM response
             return self._parse_llm_analysis(response)

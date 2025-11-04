@@ -1,6 +1,5 @@
-import sys
 from agent.engine import execute_sandboxed_code
-from agent.model import get_model_response, create_openai_client, create_vllm_client, create_fireworks_client
+from agent.model import get_model_response, create_fireworks_client
 from agent.utils import (
     load_system_prompt,
     create_memory_if_not_exists,
@@ -13,9 +12,7 @@ from agent.settings import (
     MEMORY_PATH,
     SAVE_CONVERSATION_PATH,
     MAX_TOOL_TURNS,
-    VLLM_HOST,
-    VLLM_PORT,
-    OPENROUTER_STRONG_MODEL,
+    FIREWORKS_MODEL,
 )
 from agent.schemas import ChatMessage, Role, AgentResponse
 
@@ -31,10 +28,9 @@ class Agent:
         self,
         max_tool_turns: int = MAX_TOOL_TURNS,
         memory_path: str = None,
-        use_vllm: bool = False,
-        use_fireworks: bool = False,
         model: str = None,
         predetermined_memory_path: bool = False,
+        **kwargs  # Accept and ignore legacy use_vllm/use_fireworks parameters for backward compatibility
     ):
         # Load the system prompt and add it to the conversation history
         self.system_prompt = load_system_prompt()
@@ -42,24 +38,14 @@ class Agent:
             ChatMessage(role=Role.SYSTEM, content=self.system_prompt)
         ]
 
-        # Set the maximum number of tool turns and backend flags
+        # Set the maximum number of tool turns
         self.max_tool_turns = max_tool_turns
-        self.use_vllm = use_vllm
-        self.use_fireworks = use_fireworks
 
-        # Set model: use provided model, or fallback to OPENROUTER_STRONG_MODEL
-        if model:
-            self.model = model
-        else:
-            self.model = OPENROUTER_STRONG_MODEL
+        # Set model: use provided model or default to Fireworks model
+        self.model = model or FIREWORKS_MODEL
 
-        # Each Agent instance gets its own clients to avoid bottlenecks
-        if use_fireworks:
-            self._client = create_fireworks_client()
-        elif use_vllm:
-            self._client = create_vllm_client(host=VLLM_HOST, port=VLLM_PORT)
-        else:
-            self._client = create_openai_client()
+        # Initialize Fireworks client (primary backend for all requests)
+        self._client = create_fireworks_client()
 
         # Set memory_path: use provided path or fall back to default MEMORY_PATH
         if memory_path is not None:
@@ -113,13 +99,10 @@ class Agent:
         # Add the user message to the conversation history
         self._add_message(ChatMessage(role=Role.USER, content=message))
 
-        # Get the response from the agent using this instance's clients
+        # Get the response from the agent using Fireworks client
         response = get_model_response(
             messages=self.messages,
-            model=self.model,  # Pass the model if specified
             client=self._client,
-            use_vllm=self.use_vllm,
-            use_fireworks=self.use_fireworks,
         )
 
         # Extract the thoughts, reply and python code from the response
@@ -145,10 +128,7 @@ class Agent:
             )
             response = get_model_response(
                 messages=self.messages,
-                model=self.model,  # Pass the model if specified
                 client=self._client,
-                use_vllm=self.use_vllm,
-                use_fireworks=self.use_fireworks,
             )
 
             # Extract the thoughts, reply and python code from the response

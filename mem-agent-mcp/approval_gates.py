@@ -30,15 +30,10 @@ class PlanningSession:
         self.created_at = datetime.now().isoformat()
         self.memory_path = memory_path
 
-        # Core agent - Use Fireworks on macOS
-        import sys
-        use_fireworks = sys.platform == "darwin"  # Mac uses Fireworks API
-        use_vllm = sys.platform == "linux"        # Linux uses vLLM
+        # Core agent - Uses Fireworks API (consolidated backend)
+        print(f"   🔧 Creating Agent with backend: Fireworks (API)")
 
-        backend_name = "Fireworks (API)" if use_fireworks else ("vLLM" if use_vllm else "Unknown")
-        print(f"   🔧 Creating Agent with backend: {backend_name}")
-
-        self.agent = Agent(memory_path=memory_path, use_fireworks=use_fireworks, use_vllm=use_vllm)
+        self.agent = Agent(memory_path=memory_path)
 
         # Phase 1: MemAgent-based Segmented Memory (fixed-length, bounded growth)
         self.memory_manager = SegmentedMemory(

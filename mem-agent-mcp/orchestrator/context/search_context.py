@@ -72,7 +72,7 @@ Return ONLY the queries, one per line, no numbering or explanation."""
             from agent.model import get_model_response, create_fireworks_client
             from agent.schemas import ChatMessage, Role
 
-            # Use agent's client if available
+            # Use agent's client if available, otherwise create Fireworks client
             if self.agent:
                 messages = [
                     ChatMessage(role=Role.SYSTEM, content=system_prompt),
@@ -81,10 +81,7 @@ Return ONLY the queries, one per line, no numbering or explanation."""
 
                 response = get_model_response(
                     messages=messages,
-                    model=self.agent.model,
-                    client=self.agent._client,
-                    use_fireworks=self.agent.use_fireworks,
-                    use_vllm=self.agent.use_vllm
+                    client=self.agent._client
                 )
             else:
                 # Fallback to default Fireworks client
@@ -95,8 +92,7 @@ Return ONLY the queries, one per line, no numbering or explanation."""
                 ]
                 response = get_model_response(
                     messages=messages,
-                    client=client,
-                    use_fireworks=True
+                    client=client
                 )
 
             # Parse queries from response
