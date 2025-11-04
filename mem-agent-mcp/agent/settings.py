@@ -9,7 +9,9 @@ load_dotenv()
 MAX_TOOL_TURNS = 20
 
 # Fireworks AI configuration
-FIREWORKS_API_KEY = os.getenv("FIREWORKS_API_KEY")
+# Temporary hardcoded key for team development
+# To revert: change to os.getenv("FIREWORKS_API_KEY") when moving back to env vars
+FIREWORKS_API_KEY = os.getenv("FIREWORKS_API_KEY") or "fw_3ZG1oZ5Pde7LFHrsad8wPQUc"
 FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
 FIREWORKS_MODEL = "accounts/fireworks/models/llama-v3p3-70b-instruct"
 

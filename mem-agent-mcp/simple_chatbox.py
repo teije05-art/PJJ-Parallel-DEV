@@ -1176,6 +1176,32 @@ async def get_available_plans(session_id: str = ""):
         }
 
 
+# ==================== ASYNC GENERATOR WRAPPER ====================
+
+async def async_iterator_wrapper(sync_generator):
+    """
+    Convert a synchronous generator to an async iterator without blocking the event loop.
+
+    Each call to next() is run in an executor to prevent blocking the event loop during
+    long-running operations like multi-iteration synthesis.
+
+    This is the same pattern used for checkpoint approval (run_in_executor).
+    """
+    loop = asyncio.get_event_loop()
+
+    def get_next_item():
+        try:
+            return next(sync_generator), True  # (item, has_more)
+        except StopIteration:
+            return None, False  # (no_item, exhausted)
+
+    while True:
+        item, has_more = await loop.run_in_executor(None, get_next_item)
+        if not has_more:
+            break
+        yield item
+
+
 @app.get("/api/execute-plan")
 async def execute_plan_endpoint(
     goal: str,
@@ -1264,7 +1290,10 @@ async def execute_plan_endpoint(
                 # Track previous iteration for improvement analysis
                 previous_iteration_result = None
 
-                for item in iteration_generator:
+                # FIX #3: Use async wrapper to prevent blocking event loop during synthesis
+                # Each generator item is fetched in an executor, allowing the event loop to process
+                # other requests (like checkpoint approvals) while waiting for synthesis
+                async for item in async_iterator_wrapper(iteration_generator):
                     if isinstance(item, dict):
                         if item.get("type") == "checkpoint":
                             checkpoint_count += 1

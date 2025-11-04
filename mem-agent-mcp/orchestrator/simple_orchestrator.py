@@ -310,17 +310,13 @@ class SimpleOrchestrator:
             print(f"{'─'*80}")
 
             try:
-                # CRITICAL: Create fresh Agent instance for this iteration
-                # This prevents chat history accumulation across iterations
-                # Each iteration starts with clean context (only system prompt)
-                from agent import Agent
-                iteration_agent = Agent(memory_path=str(self.memory_path))
+                # Use shared agent instance for all iterations
+                # MemAgent handles intelligent context filtering across iterations
+                # No need for fresh agents - avoids HTTP session state issues and API timeouts
+                iteration_workflow = WorkflowCoordinator(self.agent, self.memory_path)
 
-                # Create fresh workflow coordinator with the iteration-specific agent
-                from orchestrator.workflow_coordinator import WorkflowCoordinator
-                iteration_workflow = WorkflowCoordinator(iteration_agent, self.memory_path)
-
-                print(f"   ℹ️  Using fresh Agent instance for iteration {iteration_num} (prevents chat history accumulation)")
+                if DEBUG:
+                    print(f"   ℹ️  Using shared agent instance for iteration {iteration_num} (MemAgent filters context)")
 
                 # Step 1: Get base context
                 context = self.context_manager.retrieve_context(goal)
@@ -370,10 +366,15 @@ class SimpleOrchestrator:
                 agent_results = iteration_workflow.run_workflow(goal, context)
 
                 # Step 4: Extract metadata from agent results
-                # This is a simplification - you may need to adjust based on actual agent output format
+                # FIX #4: Extract plan from generator agent (same as single-iteration, line 186-196)
+                # agent_results is Dict[str, AgentResult] with keys: 'planner', 'verifier', 'executor', 'generator'
+                # The generator agent's output contains the actual synthesized plan text
+                generator_result = agent_results.get('generator')
+                plan_content = generator_result.output if generator_result else ""
+
                 iteration_result = IterationResult(
                     iteration_num=iteration_num,
-                    plan=agent_results.get('plan', agent_results.get('content', str(agent_results))),
+                    plan=plan_content,
                     key_insights=self._extract_key_insights(agent_results),
                     frameworks_used=self._extract_frameworks_used(agent_results),
                     data_points_count=self._extract_data_point_count(agent_results),
@@ -891,7 +892,9 @@ each building on the insights of previous iterations through MemAgent-guided ref
 ## Iteration Evolution
 """
         for i, result in enumerate(all_results, 1):
-            synthesis += f"\n### Iteration {i}\n{result.plan[:500]}...\n"
+            # FIX #5: Include FULL plan text, not truncated [:500] slice
+            # This ensures the browser displays the complete synthesized plan
+            synthesis += f"\n### Iteration {i}\n{result.plan}\n"
 
         return synthesis
 
