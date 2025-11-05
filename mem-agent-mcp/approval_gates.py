@@ -94,6 +94,9 @@ class PlanningSession:
         # FIX #4: Track selected plans for learning from past planning
         self.selected_plans_for_learning = []  # list of plan filenames selected by user
 
+        # PHASE 4: Track selected entities for context
+        self.selected_entities = []  # list of entity names selected by user
+
     def __getitem__(self, key: str) -> Any:
         """Support dictionary-style access for backward compatibility with old code."""
         if key == "id":
@@ -110,6 +113,8 @@ class PlanningSession:
             return self.checkpoint_approval_event
         elif key == "selected_plans_for_learning":
             return self.selected_plans_for_learning
+        elif key == "selected_entities":
+            return self.selected_entities
         elif key == "execution_state":
             return {}  # Backward compat with old dict-based sessions
         raise KeyError(f"Session has no key '{key}'")
@@ -128,6 +133,8 @@ class PlanningSession:
             self.checkpoint_approval_event = value
         elif key == "selected_plans_for_learning":
             self.selected_plans_for_learning = value
+        elif key == "selected_entities":
+            self.selected_entities = value
         else:
             raise KeyError(f"Cannot set session key '{key}'")
 

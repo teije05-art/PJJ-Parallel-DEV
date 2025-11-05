@@ -1151,6 +1151,64 @@
             document.getElementById('entityCount').textContent = selectedEntities.length;
         }
 
+        // PHASE 4: Load entities in the proposal modal
+        async function loadEntitiesInModal() {
+            try {
+                const response = await fetch('/api/entities');
+                const data = response.json ? await response.json() : JSON.parse(await response.text());
+                const entities = data.entities || [];
+
+                const entityList = document.getElementById('proposalEntityList');
+                entityList.innerHTML = '';
+
+                if (entities.length === 0) {
+                    entityList.innerHTML = '<p style="color: #999; font-size: 0.9em;">No entities found in memory system</p>';
+                    return;
+                }
+
+                entities.forEach(entity => {
+                    const label = document.createElement('label');
+                    label.className = 'entity-item';
+                    label.style.cssText = 'display: flex; align-items: center; padding: 6px 0; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
+                    label.title = entity.description || '';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = entity.name;
+                    checkbox.checked = true;  // Default: all entities selected in modal
+                    checkbox.style.cssText = 'margin-right: 8px; cursor: pointer;';
+                    checkbox.addEventListener('change', updateEntitySelectionFromModal);
+
+                    const span = document.createElement('span');
+                    span.textContent = entity.display_name || entity.name;
+
+                    const refSpan = document.createElement('span');
+                    refSpan.textContent = `${entity.references} ref`;
+                    refSpan.style.cssText = 'font-size: 0.8em; color: #999; margin-left: auto;';
+
+                    label.appendChild(checkbox);
+                    label.appendChild(span);
+                    label.appendChild(refSpan);
+                    entityList.appendChild(label);
+                });
+
+                updateEntitySelectionFromModal();
+            } catch (e) {
+                console.error('Error loading entities in modal:', e);
+                const entityList = document.getElementById('proposalEntityList');
+                if (entityList) {
+                    entityList.innerHTML = '<p style="color: red;">Error loading entities</p>';
+                }
+            }
+        }
+
+        // PHASE 4: Update selectedEntities from modal checkboxes
+        function updateEntitySelectionFromModal() {
+            const checkboxes = document.querySelectorAll('#proposalEntityList input[type="checkbox"]:checked');
+            selectedEntities = Array.from(checkboxes).map(cb => cb.value);
+            document.getElementById('entityCount').textContent = selectedEntities.length;
+        }
+
         function setupEventListeners() {
             document.getElementById('planBtn').addEventListener('click', planGoal);
             document.getElementById('sendBtn').addEventListener('click', sendChat);
@@ -1250,6 +1308,14 @@
             html += `<p><strong>Research Coverage:</strong> ${(proposal.research_percentage * 100).toFixed(0)}%</p>`;
             html += `</div>`;
 
+            // PHASE 4: Add entity selection section to proposal modal
+            html += `<div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; border: 1px solid #ddd;">`;
+            html += `<p style="margin: 0 0 10px 0;"><strong>Select Context Entities:</strong></p>`;
+            html += `<div id="proposalEntityList" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 3px; padding: 8px; background: white;">`;
+            html += `<p style="color: #999; font-size: 0.9em; margin: 0;">Loading entities...</p>`;
+            html += `</div>`;
+            html += `</div>`;
+
             if (proposal.entity_analysis) {
                 html += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">`;
                 html += `<p>${proposal.entity_analysis}</p>`;
@@ -1262,6 +1328,9 @@
             document.getElementById('modal-checkpoint-interval').value = checkpointInterval;
 
             document.getElementById('proposalModal').classList.add('active');
+
+            // PHASE 4: Load entities in the proposal modal
+            loadEntitiesInModal();
         }
 
         function closeProposalModal() {
@@ -1275,7 +1344,7 @@
             const goal = document.getElementById('goalInput').value;
 
             // Store planning config for later use
-            window.planningConfig = { goal, maxIterations, checkpointInterval };
+            window.planningConfig = { goal, maxIterations, checkpointInterval, selectedEntities };
 
             closeProposalModal();
             addMessage('bot', 'Preparing planning with learning...');
@@ -1387,11 +1456,11 @@
 
             // Execute plan with selected plans
             const config = window.planningConfig;
-            executePlan(config.goal, config.maxIterations, config.checkpointInterval, window.selectedPlans);
+            executePlan(config.goal, config.maxIterations, config.checkpointInterval, window.selectedPlans, config.selectedEntities);
         }
 
         // ==================== SSE EXECUTION ====================
-        function executePlan(goal, maxIterations, checkpointInterval, selectedPlans = []) {
+        function executePlan(goal, maxIterations, checkpointInterval, selectedPlans = [], selectedEntities = []) {
             // Stop previous event source if any
             if (currentEventSource) {
                 currentEventSource.close();
@@ -1405,7 +1474,8 @@
                 max_iterations: maxIterations,
                 checkpoint_interval: checkpointInterval,
                 session_id: sessionId,
-                selected_plans: selectedPlans.join(',')  // LEARNING LOOP: Pass selected plans
+                selected_plans: selectedPlans.join(','),  // LEARNING LOOP: Pass selected plans
+                selected_entities: selectedEntities.join(',')  // PHASE 4: Pass selected entities for context
             });
 
             currentEventSource = new EventSource(`/api/execute-plan?${params}`);

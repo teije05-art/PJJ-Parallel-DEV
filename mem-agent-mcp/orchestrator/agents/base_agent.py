@@ -22,12 +22,16 @@ from agent import Agent
 
 @dataclass
 class AgentResult:
-    """Standard result format for all agent operations"""
+    """Standard result format for all agent operations
+
+    PHASE 1 (Nov 5, 2025): Added deliverables field for executor to return Deliverable objects
+    """
     success: bool
-    output: str
+    output: Any  # Changed from str to Any to support both text and Deliverable lists (Phase 1)
     metadata: Dict[str, Any]
     timestamp: str
     error: str = ""  # FIXED (Oct 31, 2025): Added explicit error field for better error handling
+    deliverables: Any = None  # PHASE 1 (Nov 5): For executor to pass Deliverable objects to generator
 
 
 class BaseAgent:

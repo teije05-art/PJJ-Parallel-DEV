@@ -1209,7 +1209,8 @@ async def execute_plan_endpoint(
     max_iterations: int = 1,
     checkpoint_interval: int = 2,
     session_id: str = "",
-    selected_plans: str = ""
+    selected_plans: str = "",
+    selected_entities: str = ""
 ):
     """
     Execute plan endpoint using Server-Sent Events (SSE).
@@ -1226,7 +1227,8 @@ async def execute_plan_endpoint(
         max_iterations: Number of planning iterations
         checkpoint_interval: When to show checkpoints
         session_id: Session identifier
-        selected_plans: Comma-separated list of plan filenames to learn from (e.g., "plan_1.md,plan_2.md")
+        selected_plans: Comma-separated list of plan filenames to learn from (e.g., "plan_20251105_130424_....md")
+        selected_entities: Comma-separated list of entity names to use for context (e.g., "market_analysis,competitor_analysis")
     """
     session_id, session = session_manager.get_or_create(session_id)
 
@@ -1235,8 +1237,14 @@ async def execute_plan_endpoint(
     if selected_plans_list and DEBUG:
         print(f"📌 User selected {len(selected_plans_list)} plans for learning: {selected_plans_list}")
 
-    # Store selected plans in session for planner to access
+    # Parse selected entities from comma-separated string
+    selected_entities_list = [e.strip() for e in selected_entities.split(",") if e.strip()] if selected_entities else []
+    if selected_entities_list and DEBUG:
+        print(f"📌 User selected {len(selected_entities_list)} entities for context: {selected_entities_list}")
+
+    # Store selected plans and entities in session for agents to access
     session["selected_plans_for_learning"] = selected_plans_list
+    session["selected_entities"] = selected_entities_list
 
     # Create generator for SSE streaming
     async def event_stream():
@@ -1262,7 +1270,8 @@ async def execute_plan_endpoint(
                     session["orchestrator"] = SimpleOrchestrator(
                         memory_path=memory_path,
                         max_iterations=max_iterations,
-                        selected_plans=selected_plans_list  # LEARNING LOOP: Pass user-selected plans
+                        selected_plans=selected_plans_list,  # LEARNING LOOP: Pass user-selected plans
+                        selected_entities=selected_entities_list  # PHASE 4: Pass user-selected entities for context
                     )
 
                 orchestrator = session["orchestrator"]

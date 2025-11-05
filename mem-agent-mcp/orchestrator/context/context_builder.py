@@ -41,7 +41,7 @@ class ContextBuilder:
         self.memory_provider = MemoryContextProvider()
         self.search_provider = SearchContextProvider(agent=agent)
 
-    def retrieve_context(self, goal: str) -> Dict[str, str]:
+    def retrieve_context(self, goal: str, session=None, selected_entities: list = None) -> Dict[str, str]:
         """
         Main entry point - retrieves all context needed for planning.
 
@@ -51,9 +51,13 @@ class ContextBuilder:
         - Successful patterns and error patterns
         - Execution history and performance
         - Real-world web search data
+        - Memory segments (Phase 3: SegmentedMemory integration)
+        - Selected entities content (Phase 4: User-selected context)
 
         Args:
             goal: The planning goal
+            session: Optional PlanningSession or SegmentedMemory instance (Phase 3)
+            selected_entities: Optional list of entity names to include in context (Phase 4)
 
         Returns:
             Dictionary with all context data:
@@ -64,6 +68,9 @@ class ContextBuilder:
             - execution_history: Past execution outcomes
             - agent_performance: Agent performance metrics
             - web_search_results: Current real-world data
+            - memory_segments: Previous iteration insights (Phase 3, if available)
+            - selected_entities: User-selected entity names (Phase 4)
+            - entities_context: Content from selected entity files (Phase 4)
         """
         print("\n📚 CONTEXT BUILDER: Retrieving context from all providers...")
 
@@ -82,7 +89,51 @@ class ContextBuilder:
         # 3. Web search for real current data
         web_search_results = self.search_provider.retrieve_web_search_results(goal, goal_analysis)
 
-        # 4. Compile all context
+        # 4. PHASE 3: Retrieve memory segments from SegmentedMemory (if available)
+        memory_segments = []
+        if session and hasattr(session, 'get_relevant_segments'):
+            # session is a SegmentedMemory instance
+            try:
+                memory_segments = session.get_relevant_segments(query=goal, top_k=3)
+                print(f"   ✓ Memory segments retrieved: {len(memory_segments)} segments")
+            except Exception as e:
+                print(f"   ⚠️ Memory segment retrieval failed: {str(e)}")
+                memory_segments = []
+        elif session and hasattr(session, 'memory_manager'):
+            # session is a PlanningSession instance with memory_manager
+            try:
+                memory_segments = session.memory_manager.get_relevant_segments(query=goal, top_k=3)
+                print(f"   ✓ Memory segments retrieved: {len(memory_segments)} segments")
+            except Exception as e:
+                print(f"   ⚠️ Memory segment retrieval failed: {str(e)}")
+                memory_segments = []
+        else:
+            if session:
+                print(f"   ℹ️ Session provided but no memory_manager found (iteration 1?)")
+            else:
+                print(f"   ℹ️ No session provided, memory_segments unavailable")
+
+        # 4.5. PHASE 4: Read selected entity files from local-memory/entities/entities/
+        entities_context = ""
+        selected_entities_list = selected_entities or []
+        if selected_entities_list:
+            print(f"   🔍 Reading {len(selected_entities_list)} selected entities from local-memory...")
+            for entity_name in selected_entities_list:
+                entity_path = self.memory_path / "entities" / f"{entity_name}.md"
+                try:
+                    if entity_path.exists():
+                        with open(entity_path, 'r', encoding='utf-8') as f:
+                            entity_content = f.read()
+                            entities_context += f"\n\n### {entity_name}\n{entity_content}"
+                        print(f"      ✓ Read entity: {entity_name} ({len(entity_content)} chars)")
+                    else:
+                        print(f"      ⚠️ Entity file not found: {entity_path}")
+                except Exception as e:
+                    print(f"      ⚠️ Error reading entity {entity_name}: {str(e)}")
+        else:
+            print(f"   ℹ️ No selected entities provided, using default context")
+
+        # 5. Compile all context
         context = {
             "goal_analysis": goal_analysis,
             "current_status": current_status,
@@ -90,7 +141,10 @@ class ContextBuilder:
             "error_patterns": error_patterns,
             "execution_history": execution_history,
             "agent_performance": agent_performance,
-            "web_search_results": web_search_results
+            "web_search_results": web_search_results,
+            "memory_segments": memory_segments,  # PHASE 3: Add memory segments
+            "selected_entities": selected_entities_list,  # PHASE 4: Add selected entity names
+            "entities_context": entities_context  # PHASE 4: Add selected entity content
         }
 
         print(f"   ✓ Current status retrieved")
@@ -99,5 +153,7 @@ class ContextBuilder:
         print(f"   ✓ Execution history: {len(execution_history)} chars")
         print(f"   ✓ Agent performance: {len(agent_performance)} chars")
         print(f"   ✓ Web search results: {len(web_search_results)} chars")
+        print(f"   ✓ Memory segments: {len(memory_segments)} segments")
+        print(f"   ✓ Selected entities: {len(selected_entities_list)} entities ({len(entities_context)} chars)")
 
         return context

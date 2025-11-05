@@ -55,7 +55,7 @@ class SimpleOrchestrator:
     """
 
     def __init__(self, memory_path: str, max_iterations: int = 15, strict_validation: bool = False,
-                 selected_plans: list = None, segmented_memory=None):
+                 selected_plans: list = None, selected_entities: list = None, segmented_memory=None):
         """
         Initialize the simple modular orchestrator
 
@@ -64,6 +64,7 @@ class SimpleOrchestrator:
             max_iterations: Maximum number of learning iterations
             strict_validation: If True, use strict validation
             selected_plans: Optional list of plan filenames to learn from
+            selected_entities: Optional list of entity names to use for context (Phase 4)
             segmented_memory: Optional SegmentedMemory instance from PlanningSession (Phase 1)
         """
         self.memory_path = Path(memory_path)
@@ -71,6 +72,7 @@ class SimpleOrchestrator:
         self.current_iteration = 0
         self.strict_validation = strict_validation
         self.selected_plans = selected_plans or []
+        self.selected_entities = selected_entities or []  # PHASE 4: Store selected entities
         self.segmented_memory = segmented_memory  # Phase 1: MemAgent integration
 
         # Initialize ONE memagent instance (shared across all modules)
@@ -161,8 +163,12 @@ class SimpleOrchestrator:
             print("-" * 60)
 
             try:
-                # Step 1: Get context (includes web search for real data!)
-                context = self.context_manager.retrieve_context(goal)
+                # Step 1: Get context (includes web search for real data + memory segments + selected entities!)
+                context = self.context_manager.retrieve_context(
+                    goal,
+                    session=self.segmented_memory,
+                    selected_entities=self.selected_entities
+                )
 
                 # Step 2: Run workflow (4 agents work together)
                 agent_results = self.workflow_coordinator.run_workflow(goal, context)
@@ -314,35 +320,12 @@ class SimpleOrchestrator:
                 if DEBUG:
                     print(f"   ℹ️  Using shared agent instance for iteration {iteration_num} (MemAgent filters context)")
 
-                # Step 1: Get base context
-                context = self.context_manager.retrieve_context(goal)
-
-                # Step 1.5: FIX #2 - Enrich context with memory segments from SegmentedMemory (Phase 1)
-                if self.segmented_memory is not None:
-                    try:
-                        memory_segments = self.segmented_memory.get_relevant_segments(goal, top_k=3)
-                        # Validate memory_segments is not None and is a list
-                        if memory_segments is None:
-                            memory_segments = []
-                        context['memory_segments'] = memory_segments
-
-                        # Phase 8: Log when memory segments are empty (helpful for debugging)
-                        if len(memory_segments) == 0:
-                            if DEBUG:
-                                print(f"   ℹ️  No memory segments found for goal (first iteration or no semantic matches)")
-                        else:
-                            if DEBUG:
-                                print(f"   📚 Added {len(memory_segments)} memory segments to context")
-                    except Exception as e:
-                        if DEBUG:
-                            print(f"   ⚠️  Could not enrich context with memory: {e}")
-                        # Ensure memory_segments is always present (even if empty)
-                        context['memory_segments'] = []
-                else:
-                    # If no segmented memory available, ensure the key exists
-                    context['memory_segments'] = []
-                    if DEBUG:
-                        print(f"   ℹ️  No segmented memory available (use approval_gates.py to enable)")
+                # Step 1: Get base context (includes memory segments + selected entities!)
+                context = self.context_manager.retrieve_context(
+                    goal,
+                    session=self.segmented_memory,
+                    selected_entities=self.selected_entities
+                )
 
                 # Step 2: Enhance context with iteration-specific guidance (MemAgent-driven)
                 context = iteration_mgr.get_iteration_context(context)
@@ -352,6 +335,12 @@ class SimpleOrchestrator:
                     context['selected_plans_for_learning'] = self.selected_plans
                     if DEBUG:
                         print(f"   📌 Added {len(self.selected_plans)} selected plans to context for learning")
+
+                # Step 2.6: Add selected entities for context to context (PHASE 4)
+                if self.selected_entities:
+                    context['selected_entities'] = self.selected_entities
+                    if DEBUG:
+                        print(f"   📌 Added {len(self.selected_entities)} selected entities to context for context")
 
                 # Phase 4.1: Add Flow-GRPO trainer to context for pattern effectiveness scoring
                 context['flow_grpo_trainer'] = self.flow_grpo_trainer
@@ -903,8 +892,12 @@ each building on the insights of previous iterations through MemAgent-guided ref
         We still need to retrieve patterns and history for learning!
         """
         if goal:
-            # Full context with goal analysis and web search
-            return self.context_manager.retrieve_context(goal)
+            # Full context with goal analysis and web search (includes memory segments + selected entities!)
+            return self.context_manager.retrieve_context(
+                goal,
+                session=self.segmented_memory,
+                selected_entities=self.selected_entities
+            )
         else:
             # Generic context without goal-specific analysis
             # Still retrieve patterns and history for autonomous learning!

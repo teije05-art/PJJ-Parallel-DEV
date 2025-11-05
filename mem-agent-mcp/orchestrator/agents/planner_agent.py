@@ -49,13 +49,15 @@ class PlannerAgent(BaseAgent):
         self.pattern_recommender = None  # Will be initialized with trainer when context is available
 
     def generate_strategic_plan(self, goal: str, context: Dict[str, str],
-                                selected_plans: Optional[List[str]] = None) -> AgentResult:
+                                selected_plans: Optional[List[str]] = None,
+                                selected_entities: Optional[List[str]] = None) -> AgentResult:
         """Generate a strategic plan using MemAgent context and learned patterns
 
         Args:
             goal: The planning goal/objective
             context: Context data from context manager
             selected_plans: Optional list of plan filenames user selected for learning
+            selected_entities: Optional list of entity names user selected for context
 
         Returns:
             AgentResult with strategic plan or error details
@@ -135,6 +137,14 @@ class PlannerAgent(BaseAgent):
             web_search_results = context.get('web_search_results', 'No web search results available')
             print(f"   → Web search data: {len(web_search_results)} chars")
 
+            # PHASE 4: Add selected entities context (user-provided context entities)
+            entities_context = context.get('entities_context', '')
+            selected_entities_list = selected_entities or []
+            if selected_entities_list:
+                print(f"   → Selected entities available: {len(selected_entities_list)} ({len(entities_context)} chars of content)")
+            else:
+                print(f"   ℹ️ No selected entities provided")
+
             context_data = {
                 'goal': goal,
                 'project_context': project_context,
@@ -143,7 +153,9 @@ class PlannerAgent(BaseAgent):
                 'execution_history': current_state,
                 'current_status': context.get('current_status', 'No previous context'),
                 'web_search_results': web_search_results,
-                'learned_patterns': learned_patterns_info  # LEARNING LOOP: Add learned patterns to context
+                'learned_patterns': learned_patterns_info,  # LEARNING LOOP: Add learned patterns to context
+                'selected_entities': selected_entities_list,  # PHASE 4: Add selected entity names
+                'entities_context': entities_context  # PHASE 4: Add selected entity content for context
             }
 
             # ITERATION MODE: Add MemAgent-guided iteration context if in multi-iteration planning
@@ -177,8 +189,23 @@ class PlannerAgent(BaseAgent):
 
             # Phase 2.3: Enhance prompt with PDDL-INSTRUCT reasoning chain request
             precondition_checks = logical_prompt.generate_precondition_checks(context_data)
+
+            # PHASE 4: Add selected entities instruction if available
+            selected_entities_instruction = ""
+            if selected_entities_list and entities_context:
+                selected_entities_instruction = f"""
+SELECTED_CONTEXT_ENTITIES:
+The following context entities have been selected by the user and should inform your planning:
+- Selected: {', '.join(selected_entities_list)}
+
+SELECTED_ENTITIES_CONTENT:
+{entities_context}
+
+INSTRUCTION: Leverage insights from these selected entities to ground your strategic approach. Reference specific insights from them where relevant to demonstrate integration of user-provided context.
+"""
+
             pddl_prompt_enhancement = f"""
-{precondition_checks}
+{precondition_checks}{selected_entities_instruction}
 
 REASONING_CHAIN_REQUEST:
 As you develop the strategic plan, please structure your reasoning as follows:

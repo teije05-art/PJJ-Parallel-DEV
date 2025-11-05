@@ -128,7 +128,15 @@ This file tracks the performance metrics of each specialized agent.
         try:
             # Step 1: Planner Agent generates strategic plan
             print(f"\n🔄 STEP 1: Strategic Planning")
-            planner_result = self.planner.generate_strategic_plan(goal, context)
+            # Extract selections from context (Phase 4)
+            selected_plans = context.get('selected_plans_for_learning', [])
+            selected_entities = context.get('selected_entities', [])
+            planner_result = self.planner.generate_strategic_plan(
+                goal,
+                context,
+                selected_plans=selected_plans,
+                selected_entities=selected_entities
+            )
             results['planner'] = planner_result
 
             if not planner_result.success:
