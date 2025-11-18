@@ -112,11 +112,11 @@ class PlannerAgent(BaseAgent):
                 how_to_verify="Check for measurable outcomes"
             )
 
-            # Retrieve comprehensive context from MemAgent using dynamic selection
-            project_context = self._retrieve_project_context(goal)
-            successful_patterns = self._retrieve_successful_patterns()
-            error_patterns = self._retrieve_error_patterns()
-            current_state = self._retrieve_current_state()
+            # Retrieve comprehensive context from MemAgent using USER-SELECTED constraints
+            project_context = self._retrieve_project_context(goal, selected_entities=selected_entities)
+            successful_patterns = self._retrieve_successful_patterns(selected_plans=selected_plans)
+            error_patterns = self._retrieve_error_patterns(selected_plans=selected_plans)
+            current_state = self._retrieve_current_state(selected_plans=selected_plans)
 
             print(f"   → Context retrieved: project={len(project_context)} chars, patterns={len(successful_patterns)} chars")
 
@@ -295,28 +295,38 @@ Expected Effects: The plan should clearly define the strategic approach, specifi
         except Exception as e:
             return self._handle_error("Planning", e)
 
-    def _retrieve_project_context(self, goal: str) -> str:
-        """Retrieve project context dynamically based on goal analysis
+    def _retrieve_project_context(self, goal: str, selected_entities: Optional[List[str]] = None) -> str:
+        """Retrieve project context from user-selected entities (constrained search)
+
+        CONSTRAINT: Only retrieves context from entities explicitly selected by user.
+        Does NOT autonomously search all entities or fall back to unbounded searches.
 
         Args:
             goal: The planning goal
+            selected_entities: User-selected entity names to search within (REQUIRED for constraint enforcement)
 
         Returns:
-            Formatted project context string
+            Formatted project context string from selected entities only, or empty string if no selections
         """
         try:
-            # Analyze the goal to determine relevant context
-            goal_analysis = self.goal_analyzer.analyze_goal(goal)
+            # CONSTRAINT ENFORCEMENT: If user didn't select entities, return empty
+            if not selected_entities:
+                return ""
 
-            # Retrieve context from multiple relevant entities
+            # Retrieve context from ONLY user-selected entities (constrained)
+            entities_list = ', '.join(selected_entities)
             context_parts = []
 
-            for entity in goal_analysis.context_entities:
+            for entity in selected_entities:
                 try:
                     response = self.agent.chat(f"""
                         OPERATION: RETRIEVE
                         ENTITY: {entity}
-                        CONTEXT: Comprehensive project context for strategic planning
+                        CONSTRAINT: Analyze ONLY WITHIN this user-selected entity.
+                        This entity was explicitly selected by the user for context retrieval.
+                        Do NOT search for other entities.
+
+                        For the entity: {entity}
 
                         Provide detailed information about:
                         - Current project status and requirements
@@ -331,12 +341,13 @@ Expected Effects: The plan should clearly define the strategic approach, specifi
                 except:
                     continue
 
+            # Return what we found within constraints (no fallback to unbounded search)
             if context_parts:
                 combined_context = "\n\n".join(context_parts)
                 return combined_context
             else:
-                # Fallback to generic context if no specific entities found
-                return self._retrieve_generic_context(goal_analysis)
+                # STRICT CONSTRAINT: No fallback to generic/unbounded context
+                return ""
 
         except Exception as e:
             return f"Context retrieval failed: {str(e)}"
@@ -367,62 +378,111 @@ Expected Effects: The plan should clearly define the strategic approach, specifi
         except:
             return "Generic context retrieval failed"
 
-    def _retrieve_successful_patterns(self) -> str:
-        """Retrieve successful planning patterns from MemAgent
+    def _retrieve_successful_patterns(self, selected_plans=None) -> str:
+        """Retrieve successful planning patterns from user-selected plans (constrained search)
+
+        CONSTRAINT: If selected_plans provided, ONLY analyzes those plans.
+        Does NOT perform unbounded searches when no plans selected.
+
+        Args:
+            selected_plans: Optional list of plan names - if provided, ONLY searches these plans
 
         Returns:
-            Successful patterns string
+            Successful patterns string from selected plans, or empty string if no selections
         """
-        try:
-            response = self.agent.chat("""
-                OPERATION: RETRIEVE
-                ENTITY: successful_patterns
-                CONTEXT: Proven planning approaches
+        # CONSTRAINT ENFORCEMENT: If no plans selected, return empty (don't search broadly)
+        if not selected_plans:
+            return ""
 
-                What planning patterns have worked well?
-                What specific approaches led to successful outcomes?
-                What methodologies proved effective?
-            """)
-            return response.reply or "No successful patterns available"
+        try:
+            # Query ONLY within user-selected plans (constrained)
+            plans_list = ', '.join(selected_plans)
+            query = f"""
+            OPERATION: RETRIEVE
+            ENTITY: successful_patterns
+            CONSTRAINT: Analyze ONLY within these {len(selected_plans)} user-selected plans:
+            {plans_list}
+
+            Do NOT search beyond these specified plans.
+
+            From ONLY these user-selected plans, what patterns have worked well?
+            What specific approaches led to successful outcomes?
+            What methodologies proved effective?
+            """
+
+            response = self.agent.chat(query)
+            return response.reply or ""
         except:
-            return "Pattern retrieval failed"
+            return ""
 
-    def _retrieve_error_patterns(self) -> str:
-        """Retrieve error patterns to avoid from MemAgent
+    def _retrieve_error_patterns(self, selected_plans=None) -> str:
+        """Retrieve error patterns to avoid from user-selected plans (constrained search)
+
+        CONSTRAINT: If selected_plans provided, ONLY analyzes those plans.
+        Does NOT perform unbounded searches when no plans selected.
+
+        Args:
+            selected_plans: Optional list of plan names - if provided, ONLY searches these plans
 
         Returns:
-            Error patterns string
+            Error patterns string from selected plans, or empty string if no selections
         """
-        try:
-            response = self.agent.chat("""
-                OPERATION: RETRIEVE
-                ENTITY: planning_errors
-                CONTEXT: Planning mistakes to avoid
+        # CONSTRAINT ENFORCEMENT: If no plans selected, return empty (don't search broadly)
+        if not selected_plans:
+            return ""
 
-                What planning approaches have been rejected?
-                What common mistakes should be avoided?
-                What patterns led to failures?
-            """)
-            return response.reply or "No error patterns available"
+        try:
+            # Query ONLY within user-selected plans (constrained)
+            plans_list = ', '.join(selected_plans)
+            query = f"""
+            OPERATION: RETRIEVE
+            ENTITY: planning_errors
+            CONSTRAINT: Analyze ONLY within these {len(selected_plans)} user-selected plans:
+            {plans_list}
+
+            Do NOT search beyond these specified plans.
+
+            From ONLY these user-selected plans, what approaches have been rejected?
+            What common mistakes should be avoided?
+            What patterns led to failures?
+            """
+
+            response = self.agent.chat(query)
+            return response.reply or ""
         except:
-            return "Error pattern retrieval failed"
+            return ""
 
-    def _retrieve_current_state(self) -> str:
-        """Retrieve current project state from MemAgent
+    def _retrieve_current_state(self, selected_plans: Optional[List[str]] = None) -> str:
+        """Retrieve current project state from user-selected plans (constrained search)
+
+        CONSTRAINT: Only retrieves state from plans explicitly selected by user.
+        Does NOT autonomously search all plans or fall back to unbounded searches.
+
+        Args:
+            selected_plans: User-selected plan names to search within
 
         Returns:
-            Current state string
+            Current state string from selected plans only, or empty string if no selections
         """
         try:
-            response = self.agent.chat("""
+            # CONSTRAINT ENFORCEMENT: If user didn't select plans, return empty
+            if not selected_plans:
+                return ""
+
+            # Query ONLY within user-selected plans (constrained)
+            plans_list = ', '.join(selected_plans)
+            response = self.agent.chat(f"""
                 OPERATION: RETRIEVE
                 ENTITY: execution_log
-                CONTEXT: Current project state
+                CONSTRAINT: Analyze ONLY WITHIN these {len(selected_plans)} user-selected plans:
+                {plans_list}
 
-                What is the current state of the project?
-                What has been completed?
+                Do NOT search beyond these specified plans.
+
+                From ONLY these user-selected plans, what is the current state?
+                What has been completed in these plans?
                 What is the next priority?
             """)
-            return response.reply or "No current state available"
+            return response.reply or ""
         except:
-            return "Current state retrieval failed"
+            return ""

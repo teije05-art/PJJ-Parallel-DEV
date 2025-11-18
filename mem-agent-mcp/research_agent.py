@@ -13,9 +13,11 @@ Key Feature: Focuses on finding KEY DATA and NUMBERS, not generic information
 """
 
 import json
+import os
+import requests
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
-from duckduckgo_search import DDGS
+from fireworks.client import Fireworks
 import re
 
 
@@ -29,6 +31,119 @@ class ResearchResult:
     coverage: float  # 0.0-1.0 estimated completeness
     gaps_filled: List[str]
     gaps_remaining: List[str]
+
+
+# Goal Type Mapping - defines required data categories for different goal types
+GOAL_TYPE_DATA_CATEGORIES = {
+    # Market & Expansion
+    "market_expansion": [
+        "market_size", "market_growth_rate", "competitor_landscape",
+        "regulatory_environment", "target_demographics", "distribution_channels",
+        "pricing_trends", "customer_pain_points", "market_entry_barriers"
+    ],
+    "market_analysis": [
+        "total_addressable_market", "competitive_positioning", "market_segments",
+        "customer_preferences", "industry_trends", "supply_chain_dynamics"
+    ],
+    "competitive_analysis": [
+        "competitor_strengths", "competitor_weaknesses", "market_share_distribution",
+        "competitive_advantages", "pricing_strategy_comparison", "feature_comparison"
+    ],
+
+    # Product & Development
+    "product_development": [
+        "market_need_validation", "technology_requirements", "competitive_features",
+        "development_timeline", "resource_requirements", "customer_feedback",
+        "market_adoption_rates", "technology_maturity"
+    ],
+    "product_improvement": [
+        "user_feedback", "feature_requests", "usage_metrics", "pain_points",
+        "competitor_feature_analysis", "industry_best_practices"
+    ],
+    "product_launch": [
+        "market_readiness", "go_to_market_strategy", "pricing_models",
+        "customer_acquisition_costs", "distribution_partnerships", "regulatory_approvals"
+    ],
+
+    # Cost & Operations
+    "cost_optimization": [
+        "cost_drivers", "industry_benchmarks", "process_improvement_opportunities",
+        "vendor_alternatives", "automation_possibilities", "economies_of_scale",
+        "supply_chain_efficiency", "labor_market_trends"
+    ],
+    "operational_improvement": [
+        "process_efficiency_metrics", "industry_standards", "technology_solutions",
+        "best_practices", "risk_management_strategies", "quality_metrics"
+    ],
+    "supply_chain_optimization": [
+        "supplier_options", "logistics_costs", "inventory_management_strategies",
+        "supplier_reliability", "regional_sourcing_opportunities", "sustainability_options"
+    ],
+
+    # Strategy & Planning
+    "business_strategy": [
+        "market_trends", "emerging_opportunities", "strategic_threats",
+        "stakeholder_interests", "regulatory_landscape", "competitive_positioning",
+        "financial_metrics", "growth_opportunities"
+    ],
+    "diversification": [
+        "adjacent_markets", "customer_overlap", "technology_transferability",
+        "new_market_regulations", "competitive_intensity", "profitability_potential"
+    ],
+    "partnership_strategy": [
+        "potential_partners", "partnership_benefits", "market_dynamics",
+        "partner_track_records", "integration_complexity", "revenue_sharing_models"
+    ],
+
+    # Financial & Risk
+    "financial_analysis": [
+        "revenue_models", "profitability_metrics", "cost_structures",
+        "financial_benchmarks", "funding_landscape", "valuation_trends"
+    ],
+    "risk_management": [
+        "industry_risks", "competitive_threats", "regulatory_risks",
+        "market_volatility", "operational_vulnerabilities", "mitigation_strategies"
+    ],
+    "investment_evaluation": [
+        "market_potential", "competitive_landscape", "management_track_record",
+        "financial_projections", "exit_opportunities", "industry_growth_rates"
+    ],
+
+    # Organization & People
+    "organizational_restructuring": [
+        "role_requirements", "talent_market_availability", "industry_salary_benchmarks",
+        "organizational_best_practices", "change_management_strategies", "skill_gaps"
+    ],
+    "talent_acquisition": [
+        "talent_availability", "skill_requirements", "compensation_benchmarks",
+        "recruitment_strategies", "industry_talent_distribution", "competitor_compensation"
+    ],
+    "training_development": [
+        "skill_gaps", "training_methodologies", "industry_best_practices",
+        "technology_platforms", "learning_outcomes_data", "cost_comparisons"
+    ],
+
+    # Technology & Digital
+    "technology_implementation": [
+        "technology_options", "implementation_requirements", "vendor_reputation",
+        "deployment_timelines", "integration_complexity", "total_cost_of_ownership",
+        "industry_benchmarks", "success_rates"
+    ],
+    "digital_transformation": [
+        "market_capabilities", "technology_trends", "implementation_roadmaps",
+        "change_management_approaches", "roi_benchmarks", "industry_case_studies"
+    ],
+    "cybersecurity_strategy": [
+        "threat_landscape", "industry_compliance_requirements", "security_solutions",
+        "risk_assessment_frameworks", "incident_response_best_practices"
+    ],
+
+    # Default/Fallback
+    "general_research": [
+        "market_data", "competitive_information", "industry_trends",
+        "regulatory_information", "financial_metrics", "best_practices"
+    ]
+}
 
 
 class ResearchAgent:
@@ -47,19 +162,43 @@ class ResearchAgent:
         )
     """
 
-    def __init__(self, verbose: bool = False):
-        self.ddgs = DDGS()
+    def __init__(self, verbose: bool = False, goal: str = None, goal_analysis: dict = None):
         self.verbose = verbose
+        self.goal = goal
+        self.goal_analysis = goal_analysis or {}
         self.search_history: List[Dict] = []
+
+        # Validate JINA_API_KEY exists
+        self.jina_api_key = os.getenv('JINA_API_KEY')
+        if not self.jina_api_key:
+            raise ValueError(
+                "JINA_API_KEY environment variable not set. "
+                "Get a free key at https://jina.ai (no credit card needed). "
+                "Set it as: export JINA_API_KEY=sk_..."
+            )
+
+        # Initialize Fireworks client for LLM operations
+        try:
+            self.fireworks_client = Fireworks()
+        except Exception as e:
+            if self.verbose:
+                print(f"Warning: Fireworks client initialization failed: {e}")
+            self.fireworks_client = None
 
     def research(
         self,
-        gaps: List[str],
+        goal: str = None,
+        gaps: List[str] = None,
         max_iterations: int = 10,  # INCREASED from 3 to 10 for extensive research
-        results_per_search: int = 8  # INCREASED from 5 to 8 for more results per search
+        results_per_search: int = 8,  # INCREASED from 5 to 8 for more results per search
+        goal_analysis: dict = None
     ) -> ResearchResult:
         """
-        Perform EXTENSIVE iterative research to fill identified gaps.
+        Perform EXTENSIVE iterative research to fill identified gaps or achieve a goal.
+
+        Supports two modes:
+        1. Goal-aware mode: Research guided by goal type and required data categories
+        2. Gap-based mode: Traditional mode targeting specific knowledge gaps (backward compatible)
 
         Searches from multiple angles:
         1. Market size and growth trends
@@ -72,13 +211,19 @@ class ResearchAgent:
         8. Forward-looking forecasts
 
         Args:
-            gaps: List of specific gaps/questions to research
+            goal: The planning goal/objective (activates goal-aware research)
+            gaps: List of specific gaps/questions to research (backward compatible)
             max_iterations: Maximum number of search iterations (default 10 for extensive coverage)
             results_per_search: Number of results per search query
+            goal_analysis: Optional analysis of the goal (domain, industry, market info)
 
         Returns:
             ResearchResult with summary, sources, and key data points
         """
+        # Use provided parameters or fall back to instance attributes
+        goal = goal or self.goal
+        goal_analysis = goal_analysis or self.goal_analysis
+        gaps = gaps or []
 
         if self.verbose:
             print(f"\n🔍 ResearchAgent Starting (EXTENSIVE MODE)")
@@ -203,6 +348,72 @@ class ResearchAgent:
             gaps_remaining=list(remaining_gaps)
         )
 
+    def _classify_goal_type(self) -> str:
+        """
+        Use LLM to classify the goal into one of the predefined goal types.
+        Prevents hallucination by constraining to known categories.
+
+        Returns:
+            Goal type string from GOAL_TYPE_DATA_CATEGORIES keys, or "general_research"
+        """
+        if not self.goal or not self.fireworks_client:
+            return "general_research"
+
+        try:
+            goal_types_list = ", ".join(GOAL_TYPE_DATA_CATEGORIES.keys())
+
+            prompt = f"""
+Classify this planning goal into ONE of these goal types:
+{goal_types_list}
+
+Goal: {self.goal}
+
+Additional context: {self.goal_analysis}
+
+Respond with ONLY the goal type name (no explanation, no markdown).
+If none fit exactly, choose the closest match.
+If unsure, respond with: general_research
+"""
+
+            response = self.fireworks_client.chat.completions.create(
+                model="accounts/fireworks/models/llama-v3p3-70b-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=50
+            )
+
+            classified_type = response.choices[0].message.content.strip().lower()
+
+            # Validate the response is in our known types
+            if classified_type in GOAL_TYPE_DATA_CATEGORIES:
+                if self.verbose:
+                    print(f"   Goal classified as: {classified_type}")
+                return classified_type
+            else:
+                if self.verbose:
+                    print(f"   Classification '{classified_type}' not recognized, using general_research")
+                return "general_research"
+
+        except Exception as e:
+            if self.verbose:
+                print(f"   Goal classification failed: {e}, using general_research")
+            return "general_research"
+
+    def _get_required_data_categories(self, goal_type: str) -> List[str]:
+        """
+        Get the required data categories for a specific goal type.
+
+        Supports mixed approach: hardcoded defaults + configuration-driven overrides
+
+        Args:
+            goal_type: One of the keys in GOAL_TYPE_DATA_CATEGORIES
+
+        Returns:
+            List of required data categories for this goal type
+        """
+        # Return hardcoded list for goal type, or general_research as fallback
+        return GOAL_TYPE_DATA_CATEGORIES.get(goal_type, GOAL_TYPE_DATA_CATEGORIES["general_research"])
+
     def _generate_comprehensive_queries(self, gaps: List[str]) -> List[str]:
         """
         Generate COMPREHENSIVE multi-angle queries from gaps.
@@ -282,13 +493,62 @@ class ResearchAgent:
 
         return queries
 
+    def _search_jina(self, query: str, max_results: int = 5) -> List[Dict]:
+        """
+        Search using Jina.ai/Reader endpoint - semantic search with AI-extracted content.
+
+        Endpoint: https://s.jina.ai/
+        Returns: List of results with title, url, and cleaned content
+
+        Args:
+            query: Search query string
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of dicts with title, url, content, source
+        """
+        endpoint = "https://s.jina.ai/"
+
+        headers = {
+            "Authorization": f"Bearer {self.jina_api_key}",
+            "Accept": "application/json"
+        }
+
+        params = {
+            "q": query,
+            "limit": max_results
+        }
+
+        try:
+            response = requests.post(endpoint, headers=headers, json=params, timeout=30)
+            response.raise_for_status()
+
+            results = []
+            response_data = response.json()
+
+            # Parse Jina response structure
+            for item in response_data.get("results", []):
+                results.append({
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "content": item.get("content", ""),  # AI-extracted clean text from Jina
+                    "source": item.get("source", "unknown")
+                })
+
+            return results
+
+        except requests.exceptions.RequestException as e:
+            if self.verbose:
+                print(f"   Jina API error for query '{query}': {e}")
+            return []
+
     def _search_and_extract(
         self,
         query: str,
         num_results: int = 5
     ) -> Dict:
         """
-        Perform web search and extract key data/numbers.
+        Perform web search using Jina and extract key data/numbers.
 
         Returns dict with:
             - sources: list of URLs
@@ -297,21 +557,22 @@ class ResearchAgent:
         """
 
         try:
-            # Perform search
-            results = list(self.ddgs.text(query, max_results=num_results))
+            # Perform search using Jina
+            results = self._search_jina(query, max_results=num_results)
 
             sources = []
             data_points = []
 
             for result in results:
-                url = result.get("href", "")
+                url = result.get("url", "")
                 title = result.get("title", "")
-                body = result.get("body", "")
+                content = result.get("content", "")  # Jina returns extracted content
 
-                sources.append(url)
+                if url:
+                    sources.append(url)
 
                 # Extract data points (numbers, percentages, stats)
-                extracted = self._extract_data_points(title, body)
+                extracted = self._extract_data_points(title, content)
                 data_points.extend(extracted)
 
             return {
@@ -321,6 +582,8 @@ class ResearchAgent:
             }
 
         except Exception as e:
+            if self.verbose:
+                print(f"   Search and extract error: {e}")
             return {
                 "sources": [],
                 "data_points": [],
@@ -425,6 +688,107 @@ class ResearchAgent:
                 cleaned_points.append(point.strip())
 
         return list(set(cleaned_points))  # Deduplicate
+
+    def _extract_with_llm(self, content: str, goal_type: str, required_categories: List[str]) -> Dict:
+        """
+        Use LLM to semantically extract relevant information based on goal type.
+        Complements regex extraction with context-aware data.
+
+        Args:
+            content: The text content to extract from
+            goal_type: The classified goal type
+            required_categories: List of data categories to focus on
+
+        Returns:
+            Dict with extracted_data
+        """
+        if not self.fireworks_client or not content:
+            return {}
+
+        try:
+            # Limit content to avoid token overrun
+            content_preview = content[:2000]
+
+            prompt = f"""
+Extract relevant information from this content for a {goal_type} goal.
+
+Focus on these data categories:
+{', '.join(required_categories)}
+
+Content:
+{content_preview}
+
+Return valid JSON only (no markdown, no explanation):
+{{"extracted_data": {{"category1": "value", "category2": "value"}}}}
+
+Only include data you can directly extract. Leave categories empty if not found.
+Use specific numbers, percentages, and metrics when available.
+"""
+
+            response = self.fireworks_client.chat.completions.create(
+                model="accounts/fireworks/models/llama-v3p3-70b-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=500
+            )
+
+            try:
+                parsed = json.loads(response.choices[0].message.content)
+                return parsed.get("extracted_data", {})
+            except json.JSONDecodeError:
+                return {}
+
+        except Exception as e:
+            if self.verbose:
+                print(f"   LLM extraction error: {e}")
+            return {}
+
+    def _combine_extractions(self, regex_results: Dict, llm_results: Dict) -> Dict:
+        """
+        Combine regex and LLM extraction results.
+
+        Regex results take precedence (more reliable), LLM adds semantic context.
+
+        Args:
+            regex_results: Results from regex pattern matching
+            llm_results: Results from LLM semantic extraction
+
+        Returns:
+            Combined extraction results
+        """
+        combined = dict(regex_results)
+
+        # Add LLM results where regex didn't find data
+        for key, value in llm_results.items():
+            if key not in combined:
+                combined[key] = value
+
+        return combined
+
+    def _validate_extraction_coverage(self, extracted_data: Dict, required_categories: List[str]) -> bool:
+        """
+        Check if extracted data covers required categories.
+
+        If missing critical categories, return False to trigger additional research.
+
+        Args:
+            extracted_data: The extracted data dictionary
+            required_categories: Required data categories for this goal
+
+        Returns:
+            True if coverage is sufficient, False if more research needed
+        """
+        if not extracted_data or not required_categories:
+            return False
+
+        # Check what % of required categories we found
+        found_categories = set(extracted_data.keys())
+        required_set = set(required_categories)
+
+        coverage_ratio = len(found_categories.intersection(required_set)) / len(required_set)
+
+        # Require at least 50% coverage to consider research sufficient
+        return coverage_ratio >= 0.5
 
     def _analyze_findings(
         self,

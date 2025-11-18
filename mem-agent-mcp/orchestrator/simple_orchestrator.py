@@ -164,10 +164,14 @@ class SimpleOrchestrator:
 
             try:
                 # Step 1: Get context (includes web search for real data + memory segments + selected entities!)
+                # USER-DEFINED CONSTRAINT BOUNDARIES:
+                # Pass selected_plans so ALL MemAgent searches respect user's choices
+                # No autonomous memory scouring - only search what user explicitly selected
                 context = self.context_manager.retrieve_context(
                     goal,
                     session=self.segmented_memory,
-                    selected_entities=self.selected_entities
+                    selected_entities=self.selected_entities,
+                    selected_plans=self.selected_plans  # Constrain all memory searches to selected plans
                 )
 
                 # Step 2: Run workflow (4 agents work together)
@@ -320,11 +324,12 @@ class SimpleOrchestrator:
                 if DEBUG:
                     print(f"   ℹ️  Using shared agent instance for iteration {iteration_num} (MemAgent filters context)")
 
-                # Step 1: Get base context (includes memory segments + selected entities!)
+                # Step 1: Get base context (includes memory segments + selected entities + selected plans!)
                 context = self.context_manager.retrieve_context(
                     goal,
                     session=self.segmented_memory,
-                    selected_entities=self.selected_entities
+                    selected_entities=self.selected_entities,
+                    selected_plans=self.selected_plans  # CRITICAL: Constrain memory searches to user-selected plans
                 )
 
                 # Step 2: Enhance context with iteration-specific guidance (MemAgent-driven)

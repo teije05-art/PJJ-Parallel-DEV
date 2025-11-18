@@ -410,3 +410,1125 @@ Used for in-context learning and Flow-GRPO optimization.
 **Last Used:** 2025-11-05T14:48:22.050685
 
 ---
+
+## Learning Update - 2025-11-11 23:20:02
+
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:20:02.461844
+
+---
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:20:02.470441
+
+---
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:20:02.477076
+
+---
+
+## Learning Update - 2025-11-11 23:33:13
+
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, regulatory framework, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:33:13.463903
+
+---
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:33:13.472985
+
+---
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:33:13.479950
+
+---
+
+## Learning Update - 2025-11-11 23:48:29
+
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:48:29.523429
+
+---
+
+## general + vietnam + market_entry - 2025-11-11
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, regulatory framework, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-11T23:48:29.531078
+
+---
+
+## Learning Update - 2025-11-12 00:04:06
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T00:04:06.949624
+
+---
+
+## Learning Update - 2025-11-12 00:12:28
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T00:12:28.886638
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T00:12:28.896716
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T00:12:28.903751
+
+---
+
+## Learning Update - 2025-11-12 00:20:00
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T00:20:00.182831
+
+---
+
+## Learning Update - 2025-11-12 08:09:21
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, regulatory framework, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:09:21.204033
+
+---
+
+## Learning Update - 2025-11-12 08:23:01
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:23:01.929813
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, regulatory framework, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:23:01.939142
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:23:01.946612
+
+---
+
+## Learning Update - 2025-11-12 08:40:46
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, success metrics
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:40:46.158381
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:40:46.163283
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, regulatory framework, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T08:40:46.167629
+
+---
+
+## Learning Update - 2025-11-12 09:03:33
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, success metrics
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T09:03:33.989535
+
+---
+
+## Learning Update - 2025-11-12 10:02:38
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, success metrics
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T10:02:38.984505
+
+---
+
+## Learning Update - 2025-11-12 10:04:43
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, success metrics
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T10:04:43.500494
+
+---
+
+## Learning Update - 2025-11-12 11:49:27
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** RISK ASSESSMENT, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T11:49:27.482906
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** RISK ASSESSMENT, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T11:49:27.490539
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, success metrics
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T11:49:27.496938
+
+---
+
+## Learning Update - 2025-11-12 11:53:21
+
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** RISK ASSESSMENT, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T11:53:21.349452
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** RISK ASSESSMENT, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T11:53:21.358369
+
+---
+
+## general + vietnam + market_entry - 2025-11-12
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, success metrics
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-12T11:53:21.366036
+
+---
+
+## Learning Update - 2025-11-13 15:14:34
+
+
+## general + vietnam + market_entry - 2025-11-13
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-13T15:14:34.085503
+
+---
+
+## general + vietnam + market_entry - 2025-11-13
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-13T15:14:34.094715
+
+---
+
+## general + vietnam + market_entry - 2025-11-13
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** RISK ASSESSMENT, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-13T15:14:34.102494
+
+---
+
+## Learning Update - 2025-11-13 15:17:14
+
+
+## general + vietnam + market_entry - 2025-11-13
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-13T15:17:14.470157
+
+---
+
+## general + vietnam + market_entry - 2025-11-13
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-13T15:17:14.477639
+
+---
+
+## general + vietnam + market_entry - 2025-11-13
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** RISK ASSESSMENT, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-13T15:17:14.484406
+
+---
+
+## Learning Update - 2025-11-14 17:38:43
+
+
+## general + vietnam + expansion - 2025-11-14
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, competitive analysis, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-14T17:38:43.600873
+
+---
+
+## general + vietnam + expansion - 2025-11-14
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-14T17:38:43.607627
+
+---
+
+## Learning Update - 2025-11-14 17:40:53
+
+
+## general + vietnam + expansion - 2025-11-14
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, competitive analysis, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-14T17:40:53.514379
+
+---
+
+## general + vietnam + expansion - 2025-11-14
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-14T17:40:53.522751
+
+---
+
+## Learning Update - 2025-11-17 14:46:59
+
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:46:59.405854
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:46:59.413016
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, competitive analysis, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:46:59.419466
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:46:59.424250
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:46:59.428310
+
+---
+
+## Learning Update - 2025-11-17 14:48:57
+
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:48:57.343275
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:48:57.352752
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, competitive analysis, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:48:57.359618
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:48:57.365290
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:48:57.370704
+
+---
+
+## Learning Update - 2025-11-17 14:51:02
+
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:51:02.175979
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:51:02.183795
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, competitive analysis, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:51:02.190051
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:51:02.195518
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:51:02.200671
+
+---
+
+## Learning Update - 2025-11-17 14:53:05
+
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:53:04.977302
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:53:04.986922
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, competitive analysis, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:53:04.994074
+
+---
+
+## general + vietnam + expansion - 2025-11-17
+
+**Scenario:** general + vietnam + expansion
+**Frameworks:** Risk Assessment, strategic planning, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:53:04.999892
+
+---
+
+## general + vietnam + market_entry - 2025-11-17
+
+**Scenario:** general + vietnam + market_entry
+**Frameworks:** risk assessment, SUCCESS METRICS
+**Success Factors:**
+- Clear success metrics defined
+- Regulatory considerations addressed
+- Competitive landscape analyzed
+- Clear implementation timeline
+- Risk management plan included
+- Resource and budget planning
+- Stakeholder engagement planned
+
+**Effectiveness:** 50% (0/1 plans succeeded)
+**Last Used:** 2025-11-17T14:53:05.005543
+
+---

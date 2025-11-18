@@ -38,6 +38,9 @@ from llama_planner import LlamaPlanner, PlanningApproach
 from orchestrator.simple_orchestrator import SimpleOrchestrator
 from orchestrator.iteration_manager import IterationManager, IterationResult
 
+# Human-in-the-loop approval agents (dynamic proposal & checkpoint synthesis)
+from orchestrator.agents import ProposalAgent, CheckpointAgent
+
 # Phase 5 extraction modules - fixing broken frontend-backend integration
 from approval_gates import SessionManager, PlanningSession
 from context_manager import generate_goal_specific_queries, generate_detailed_checkpoint_summary, analyze_iteration_improvements, retrieve_memory_context
@@ -90,6 +93,7 @@ class PlanRequest(BaseModel):
     checkpoint_interval: int = 2
     selected_entities: Optional[List[str]] = None
     selected_agents: Optional[List[str]] = None
+    selected_plans: Optional[List[str]] = None  # Phase 4: User-selected plans for constrained learning
 
 
 class ProposalRequest(BaseModel):
@@ -98,6 +102,7 @@ class ProposalRequest(BaseModel):
     session_id: Optional[str] = None
     selected_entities: Optional[List[str]] = None
     selected_agents: Optional[List[str]] = None
+    selected_plans: Optional[List[str]] = None  # Phase 4: User-selected plans for constrained learning
     max_iterations: int = 3  # User-provided value from config modal
     checkpoint_interval: int = 2  # User-provided value from config modal
 
@@ -739,247 +744,93 @@ async def _generate_planning_proposal(
     session_id: str
 ) -> ProposalResponse:
     """
-    Generate planning proposal for multi-iteration planning.
+    Generate planning proposal using ProposalAgent for dynamic analysis.
 
-    FIX #2 (Phase 5.2): Stores proposal data (including control values) in session
-    to ensure max_iterations and checkpoint_interval sync to execution.
+    NEW: Uses ProposalAgent to:
+    - Analyze goal and detect domain
+    - Accept user selections at face value (no re-judgment)
+    - Calculate coverage based on what user selected
+    - Generate meaningful proposal with actual analysis
 
     Shows user:
-    - What will be searched in memory
-    - What research will be done
-    - Estimated coverage and resources
+    - Detected domain and selected frameworks
+    - Context coverage based on their selections
+    - Research gaps identified
+    - Confidence level in approach
     """
     try:
-        memory_path = get_memory_path()
+        memory_path = Path(get_memory_path())
         agent = session.agent
 
         if DEBUG:
-            print(f"   📋 Generating proposal for multi-iteration planning...")
+            print(f"   🎯 PROPOSAL STAGE: Using ProposalAgent for dynamic analysis...")
 
-        # FIXED (Oct 31, Phase 2.3): Validate user selections
+        # Get user selections
         selected_entities = request.selected_entities or []
+        selected_plans = request.selected_plans or []  # May be added to request later
         selected_agents = request.selected_agents or []
 
-        if not selected_entities:
-            if DEBUG:
-                print(f"   ⚠️ Warning: No entities selected for proposal")
-
-        if not selected_agents:
-            if DEBUG:
-                print(f"   ⚠️ Warning: No agents selected, using default: Planner, Generator")
-            selected_agents = ["planner", "generator"]
-
-        # Initialize LlamaPlanner for proposal generation
-        llama_planner = LlamaPlanner(agent, memory_path)
-
-        # Generate goal-specific queries (using imported function from context_manager)
-        queries = generate_goal_specific_queries(request.goal)
-
-        # Search memory for relevant entities
-        memory_results = await asyncio.to_thread(
-            llama_planner.search_memory,
-            selected_entities,
-            queries
-        )
-
-        # FIXED (Oct 31, Phase 2.3): Calculate coverage based on actual results
-        entities_found = memory_results.get("entities_found", [])
-        entities_missing = memory_results.get("entities_missing", [])
-
-        if entities_found or entities_missing:
-            # User selected entities, calculate actual coverage
-            total_selected = len(entities_found) + len(entities_missing)
-            entity_coverage = len(entities_found) / total_selected if total_selected > 0 else 0.0
-            memory_percentage = entity_coverage * 0.6  # 60% weight to entity coverage
-        else:
-            # No entities selected or searched
-            memory_percentage = 0.0
-
-        research_percentage = 1.0 - memory_percentage
-
-        # FIXED (Oct 31, Phase 2.3): Filter agents to only selected ones
-        agent_mapping = {
-            'planner': 'PlannerAgent',
-            'verifier': 'VerifierAgent',
-            'executor': 'ExecutorAgent',
-            'generator': 'GeneratorAgent'
-        }
-
-        agents_to_use = [
-            agent_mapping[agent] for agent in selected_agents
-            if agent.lower() in agent_mapping
-        ]
-
-        # Fallback if no valid agents specified
-        if not agents_to_use:
-            agents_to_use = ["PlannerAgent", "GeneratorAgent"]
-
-        # Create proposal with DYNAMIC values
-        approach_plan = {
-            "memory_percentage": memory_percentage,
-            "research_percentage": research_percentage,
-            "research_focus": queries[:5],
-            "agents_to_use": agents_to_use,  # DYNAMIC - from user selection
-            "resource_estimate": {
-                "estimated_time_minutes": request.max_iterations * 5,
-                "memory_searches": len(queries),
-                "memory_entities": len(selected_entities),
-                "entities_found": len(entities_found),
-                "entities_missing": len(entities_missing),
-                "web_searches": 10,
-                "agents_to_call": len(agents_to_use)
-            }
-        }
-
-        proposal_obj = llama_planner.propose_approach(
-            goal=request.goal,
-            memory_results=memory_results,
-            approach_plan=approach_plan
-        )
-
-        # FIXED (Oct 31, Phase 2.3): Generate proposal text WITH ACTUAL ANALYSIS
-        entity_analysis = ""
-        if entities_found:
-            entity_analysis = f"""
-### Entities to Search
-We found {len(entities_found)}/{len(selected_entities)} selected entities in memory:
-{chr(10).join([f"- ✓ {e}" for e in entities_found])}
-"""
-
-        if entities_missing:
-            entity_analysis += f"""
-Entities not found in memory (will use web research):
-{chr(10).join([f"- ✗ {e}" for e in entities_missing])}
-"""
-
-        agent_analysis = f"""
-### Agents
-Using {len(agents_to_use)} agents:
-{chr(10).join([f"- {a}" for a in agents_to_use])}
-"""
-
-        # Generate comprehensive proposal analysis (1000+ words)
-        comprehensive_analysis = _generate_comprehensive_proposal_analysis(
-            goal=request.goal,
-            memory_path=memory_path,
-            selected_entities=request.selected_entities or []
-        )
-
-        # DEBUG: Check what max_iterations actually is
         if DEBUG:
-            print(f"   🔍 DEBUG: request.max_iterations = {request.max_iterations}")
-            print(f"   🔍 DEBUG: request.checkpoint_interval = {request.checkpoint_interval}")
+            print(f"      User selected: {len(selected_entities)} entities, {len(selected_plans)} past plans")
 
-        proposal_text = f"""
-# Planning Proposal: {request.goal}
+        # Create ProposalAgent
+        proposal_agent = ProposalAgent(agent=agent, memory_path=memory_path)
 
-## Executive Summary
+        # Run proposal analysis
+        proposal_result = await asyncio.to_thread(
+            proposal_agent.analyze_and_propose,
+            request.goal,
+            selected_entities,
+            selected_plans
+        )
 
-This planning proposal outlines a comprehensive, multi-iteration approach to developing a strategic plan for: **{request.goal}**
+        if not proposal_result.success:
+            raise Exception(f"ProposalAgent failed: {proposal_result.output}")
 
-The system will employ evidence-based frameworks, learn from past planning attempts, and investigate key metrics to deliver a robust, actionable strategy. Using {request.max_iterations} planning iterations with quality checkpoints every {request.checkpoint_interval} iteration(s), we will balance depth with efficiency.
+        # Extract from agent result
+        proposal_text = proposal_result.output
+        proposal_metadata = proposal_result.metadata
 
----
-
-## Planning Configuration
-
-**Iterations & Checkpoints:**
-- Maximum iterations: {request.max_iterations}
-- Checkpoint interval: every {request.checkpoint_interval} iteration(s)
-- Memory coverage: {memory_percentage*100:.0f}% (based on {len(entities_found)} selected entities found)
-- Research coverage: {research_percentage*100:.0f}% (comprehensive web research)
-
-**Research Focus Areas:**
-{chr(10).join([f"- {q}" for q in queries[:5]])}
-
-{entity_analysis}
-
-{agent_analysis}
-
----
-
-## Comprehensive Strategic Approach
-
-{comprehensive_analysis}
-
----
-
-## Expected Deliverables
-
-Upon completion, this planning process will deliver:
-
-✓ **Comprehensive Strategic Plan** (3,000-4,000 words)
-  - Executive summary with key recommendations
-  - Detailed market analysis and opportunity assessment
-  - Competitive positioning and differentiation strategy
-  - Implementation roadmap with timelines
-  - Financial projections and ROI analysis
-  - Risk assessment and mitigation strategies
-
-✓ **Supporting Analysis Documents**
-  - Detailed research findings with citations
-  - Competitor analysis summaries
-  - Market segmentation and personas
-  - Technology and capability requirements
-  - Success metrics and KPI framework
-  - Contingency plans and scenarios
-
-✓ **Actionable Insights**
-  - Critical success factors identified
-  - Quick wins for early implementation
-  - Resource requirements quantified
-  - Timeline and milestones defined
-  - Key assumptions validated
-
----
-
-## Quality Assurance Process
-
-Your approval at checkpoints ensures quality by:
-- Validating assumptions as planning progresses
-- Redirecting focus if new information emerges
-- Incorporating stakeholder feedback early
-- Ensuring practical implementability
-- Building confidence in final recommendations
-
----
-
-**Ready to proceed?** Click "Approve & Execute" to begin the planning process.
-"""
-
-        # FIX #2: Store proposal data in session with control values
+        # Store proposal in session with control values and metadata
         approval_id = str(uuid.uuid4())[:12]
         session_manager.store_proposal(
             session_id=session_id,
             goal=request.goal,
             proposal_text=proposal_text,
-            selected_entities=request.selected_entities or [],
+            selected_entities=selected_entities,
             selected_agents=["PlannerAgent", "VerifierAgent", "ExecutorAgent", "GeneratorAgent"],
             max_iterations=request.max_iterations,
             checkpoint_interval=request.checkpoint_interval,
-            approach_summary=proposal_obj.to_dict() if hasattr(proposal_obj, 'to_dict') else {}
+            approach_summary=proposal_metadata
         )
 
         if DEBUG:
-            print(f"   ✅ Proposal generated (ID: {approval_id})")
-            print(f"   📌 Control values stored: {request.max_iterations} iterations, {request.checkpoint_interval} checkpoint interval")
+            print(f"   ✅ ProposalAgent analysis complete (ID: {approval_id})")
+            print(f"      Domain: {proposal_metadata.get('domain')}")
+            print(f"      Memory: {proposal_metadata.get('memory_coverage_percent'):.0f}%")
+            print(f"      Research: {proposal_metadata.get('research_coverage_percent'):.0f}%")
+            print(f"      Confidence: {proposal_metadata.get('confidence_level'):.0%}")
+
+        # Prepare response
+        memory_pct = proposal_metadata.get('memory_coverage_percent', 0) / 100.0
+        research_pct = proposal_metadata.get('research_coverage_percent', 0) / 100.0
 
         return ProposalResponse(
-            status="success",  # Changed from "awaiting_approval" - frontend expects "success"
+            status="success",
             proposal_id=approval_id,
             proposal=proposal_text,
-            approach=proposal_obj.to_dict() if hasattr(proposal_obj, 'to_dict') else {},
-            memory_coverage=memory_percentage,
-            research_coverage=research_percentage,
+            approach=proposal_metadata,
+            memory_coverage=memory_pct,
+            research_coverage=research_pct,
             session_id=session_id,
             timestamp=datetime.now().isoformat(),
-            # Frontend compatibility fields (use calculated percentages, not hardcoded)
-            memory_percentage=memory_percentage,  # Decimal form for frontend calculations
-            research_percentage=research_percentage,  # Decimal form for frontend calculations
-            memory_coverage_percent=memory_percentage * 100,  # Percentage form
-            research_coverage_percent=research_percentage * 100,  # Percentage form
-            entity_count=len(request.selected_entities or []),
-            entity_names=request.selected_entities or [],
+            # Frontend compatibility fields
+            memory_percentage=memory_pct,  # Decimal form
+            research_percentage=research_pct,  # Decimal form
+            memory_coverage_percent=proposal_metadata.get('memory_coverage_percent', 0),
+            research_coverage_percent=proposal_metadata.get('research_coverage_percent', 0),
+            entity_count=len(selected_entities),
+            entity_names=selected_entities,
             agents_to_use=["PlannerAgent", "VerifierAgent", "ExecutorAgent", "GeneratorAgent"],
             max_iterations=request.max_iterations,
             checkpoint_interval=request.checkpoint_interval
@@ -988,6 +839,8 @@ Your approval at checkpoints ensures quality by:
     except Exception as e:
         if DEBUG:
             print(f"❌ Proposal generation error: {e}")
+            import traceback
+            traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -1085,7 +938,15 @@ async def serve_home():
     """Serve the web interface."""
     index_path = Path(__file__).parent / "static" / "index.html"
     if index_path.exists():
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "ETag": str(index_path.stat().st_mtime)
+            }
+        )
     return {"message": "MemAgent Chatbox - Open localhost:9000 in browser"}
 
 
@@ -1116,7 +977,8 @@ async def generate_proposal_endpoint(request: ProposalRequest):
         max_iterations=request.max_iterations,  # Use user's value
         checkpoint_interval=request.checkpoint_interval,  # Use user's value
         selected_entities=request.selected_entities,  # Pass through
-        selected_agents=request.selected_agents  # Pass through
+        selected_agents=request.selected_agents,  # Pass through
+        selected_plans=request.selected_plans  # Pass through selected plans for ProposalAgent analysis
     )
     return await _generate_planning_proposal(
         session_manager.get_or_create(request.session_id)[1],
@@ -1279,8 +1141,42 @@ async def execute_plan_endpoint(
                 # FIX: Retrieve proposal from session (it was stored during /api/generate-proposal)
                 stored_proposal = session_manager.get_proposal(session_id)
                 proposal_text = stored_proposal.get("proposal_text", "") if stored_proposal else ""
+
+                # AUTO-GENERATE: If proposal not found, generate it on-the-fly
                 if not proposal_text:
-                    raise ValueError("Proposal not found in session - please generate proposal first")
+                    print(f"   📝 Auto-generating proposal for session {session_id}...")
+                    try:
+                        proposal_req = ProposalRequest(
+                            goal=goal,
+                            session_id=session_id,
+                            max_iterations=max_iterations,
+                            checkpoint_interval=checkpoint_interval,
+                            selected_entities=selected_entities,
+                            selected_agents=[],
+                            selected_plans=selected_plans
+                        )
+                        proposal_result = await _generate_planning_proposal(
+                            session["agent"],
+                            PlanRequest(
+                                goal=goal,
+                                session_id=session_id,
+                                max_iterations=max_iterations,
+                                checkpoint_interval=checkpoint_interval,
+                                selected_entities=selected_entities,
+                                selected_agents=[],
+                                selected_plans=selected_plans
+                            ),
+                            session_id
+                        )
+                        proposal_text = proposal_result.get("proposal_text", "") if isinstance(proposal_result, dict) else ""
+                        if proposal_text:
+                            print(f"   ✅ Proposal auto-generated successfully ({len(proposal_text)} chars)")
+                    except Exception as e:
+                        print(f"   ⚠️ Auto-generation failed: {e}")
+                        proposal_text = f"Auto-proposal: {goal}"
+
+                if not proposal_text:
+                    raise ValueError("Could not generate proposal - please try again")
 
                 # Run iterative planning
                 iteration_generator = orchestrator.run_iterative_planning(
@@ -1308,34 +1204,81 @@ async def execute_plan_endpoint(
                             checkpoint_count += 1
                             current_iteration = item.get("iteration", checkpoint_count * checkpoint_interval)
 
-                            # CRITICAL: Analyze improvements using Llama's thinking
-                            # Now using improved version from context_manager.py (Phase 5.2 extraction)
-                            improvement_analysis = await analyze_iteration_improvements(
+                            if DEBUG:
+                                print(f"   📊 CHECKPOINT {checkpoint_count}: Using CheckpointAgent to synthesize iteration results...")
+
+                            # NEW: Use CheckpointAgent to synthesize iteration results meaningfully
+                            checkpoint_agent = CheckpointAgent(
                                 agent=session["agent"],
-                                goal=goal,
-                                iteration_number=current_iteration,
-                                current_result=item,
-                                previous_result=previous_iteration_result,
-                                debug=DEBUG
+                                memory_path=Path(memory_path)
                             )
 
-                            # Phase 1: Send checkpoint summary with flow score and reasoning chain
-                            checkpoint_data = {
-                                "type": "checkpoint_reached",
-                                "iteration": current_iteration,
-                                "checkpoint_number": checkpoint_count,
-                                "summary": item.get("summary", ""),
-                                "frameworks_so_far": item.get("frameworks_used", []),
-                                "data_points_so_far": item.get("data_points_count", 0),
-                                "improvements": improvement_analysis,  # Show what improved
-                                # Phase 1: Include flow score metrics
-                                "flow_score_metrics": item.get("flow_score_metrics", {}),
-                                # Phase 1: Include reasoning chain if available
-                                "reasoning_chain": item.get("reasoning_chain", []),
-                                # Phase 1: Include verification results
-                                "verification_quality": item.get("verification_quality", 0.75)
-                            }
-                            yield f"data: {json.dumps(checkpoint_data)}\n\n"
+                            # Synthesize checkpoint (respects user-selected plans boundary)
+                            checkpoint_result = await asyncio.to_thread(
+                                checkpoint_agent.synthesize_checkpoint,
+                                goal=goal,
+                                current_iteration=current_iteration,
+                                iteration_results={"outputs": item},  # Wrap item as outputs
+                                selected_plans=selected_plans_list,  # CONSTRAINT: Only analyze within selected plans
+                                previous_checkpoint_data=previous_iteration_result
+                            )
+
+                            if not checkpoint_result.success:
+                                if DEBUG:
+                                    print(f"   ⚠️ CheckpointAgent failed: {checkpoint_result.output}")
+                                # Fallback to minimal checkpoint
+                                checkpoint_data = {
+                                    "type": "checkpoint_reached",
+                                    "iteration": current_iteration,
+                                    "checkpoint_number": checkpoint_count,
+                                    "summary": item.get("summary", "Checkpoint analysis unavailable"),
+                                    "improvements": {},
+                                    "confidence": {"overall": 0.75},
+                                    "pattern_recommendations": [],
+                                    "reasoning_chain": [],
+                                    "quality_metrics": {}
+                                }
+                            else:
+                                # Rich checkpoint from CheckpointAgent
+                                checkpoint_metadata = checkpoint_result.metadata
+                                checkpoint_data = {
+                                    "type": "checkpoint_reached",
+                                    "iteration": current_iteration,
+                                    "checkpoint_number": checkpoint_count,
+                                    "summary": checkpoint_result.output,  # Full synthesis from agent
+                                    "improvements": checkpoint_metadata.get("improvements", {}),
+                                    "confidence": checkpoint_metadata.get("confidence", {}),
+                                    "verifier_findings": checkpoint_metadata.get("verification_findings", {}),
+                                    "pattern_recommendations": checkpoint_metadata.get("pattern_recommendations", []),
+                                    "reasoning_chain": checkpoint_metadata.get("reasoning_chain", []),
+                                    "quality_metrics": checkpoint_metadata.get("quality_metrics", {}),
+                                    "recommendation": checkpoint_metadata.get("recommendation", {}),
+                                    "entity_usage": checkpoint_metadata.get("entity_usage", {}),
+                                    "plan_alignment": checkpoint_metadata.get("plan_alignment", {}),
+                                    "metadata": checkpoint_metadata
+                                }
+
+                            # DEBUGGING: Log before attempting to yield
+                            print(f"🔄 SSE STREAM: About to yield checkpoint_reached event for checkpoint {checkpoint_count}")
+                            print(f"   - Event type: {checkpoint_data.get('type')}")
+                            print(f"   - Has entity_usage: {bool(checkpoint_data.get('entity_usage'))}")
+                            print(f"   - Has plan_alignment: {bool(checkpoint_data.get('plan_alignment'))}")
+
+                            try:
+                                # Verify JSON is serializable
+                                json_str = json.dumps(checkpoint_data)
+                                print(f"   - JSON serialization successful ({len(json_str)} bytes)")
+                                yield f"data: {json_str}\n\n"
+                                print(f"🔄 SSE STREAM: checkpoint_reached event yielded successfully to stream")
+                                print(f"✅ Checkpoint event yield completed - awaiting frontend processing")
+                            except Exception as json_error:
+                                print(f"❌ ERROR: Failed to serialize checkpoint_data: {json_error}")
+                                print(f"   - checkpoint_data type: {type(checkpoint_data)}")
+                                print(f"   - checkpoint_data keys: {checkpoint_data.keys() if isinstance(checkpoint_data, dict) else 'N/A'}")
+                                # Fallback: send minimal valid event
+                                fallback_data = {"type": "checkpoint_reached", "checkpoint_number": checkpoint_count, "error": "Failed to serialize full checkpoint"}
+                                yield f"data: {json.dumps(fallback_data)}\n\n"
+                                print(f"🔄 SSE STREAM: Sent fallback checkpoint event")
 
                             # Store for next comparison
                             previous_iteration_result = item
@@ -1347,11 +1290,19 @@ async def execute_plan_endpoint(
                             # CRITICAL: Wait for user approval before continuing
                             # This blocks until user clicks Approve/Reject in the browser
                             print(f"🔄 SSE STREAM: About to call wait_for_checkpoint_approval for session {session_id}, checkpoint {checkpoint_count}")
+                            print(f"⏳ WAITING: Blocking on user approval (event loop will process /api/checkpoint-approval requests)...")
+
                             # Run the blocking call in an executor to free up the event loop
                             # This allows other requests (like /api/checkpoint-approval) to be processed
                             loop = asyncio.get_event_loop()
-                            approval_received = await loop.run_in_executor(None, session_manager.wait_for_checkpoint_approval, session_id)
-                            print(f"🔄 SSE STREAM: wait_for_checkpoint_approval returned {approval_received} for session {session_id}, checkpoint {checkpoint_count}")
+                            try:
+                                approval_received = await loop.run_in_executor(None, session_manager.wait_for_checkpoint_approval, session_id)
+                                print(f"✅ APPROVAL RECEIVED: wait_for_checkpoint_approval returned {approval_received} for session {session_id}, checkpoint {checkpoint_count}")
+                            except Exception as approval_error:
+                                print(f"❌ ERROR in wait_for_checkpoint_approval: {approval_error}")
+                                import traceback
+                                traceback.print_exc()
+                                raise
 
                             if DEBUG:
                                 if approval_received:

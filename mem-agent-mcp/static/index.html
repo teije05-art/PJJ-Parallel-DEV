@@ -893,6 +893,16 @@
                 <div class="entity-counter">Selected: <span id="entityCount">0</span></div>
             </div>
 
+            <!-- Plan Selection (Permanent Sidebar Section) -->
+            <div class="section">
+                <h3>Selected Plans</h3>
+                <p style="font-size: 0.85em; color: #999; margin-bottom: 10px;">Choose past plans to learn from (optional)</p>
+                <div class="entity-list" id="planList">
+                    <!-- Populated dynamically on page load from /api/get-available-plans -->
+                </div>
+                <div class="entity-counter">Selected: <span id="planCount">0</span></div>
+            </div>
+
             <!-- Status -->
             <div class="status-indicator">
                 <div class="status-dot" id="statusDot"></div>
@@ -1001,19 +1011,36 @@
 
             <!-- Phase Tabs Navigation -->
             <div style="display: flex; gap: 10px; border-bottom: 2px solid #eee; margin-bottom: 20px; overflow-x: auto;">
-                <button class="phase-tab active" onclick="switchPhaseTab(event, 'memory')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">📚 Memory</button>
+                <button class="phase-tab active" onclick="switchPhaseTab(event, 'summary')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">📝 Summary</button>
+                <button class="phase-tab" onclick="switchPhaseTab(event, 'entity')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">🎯 Entity Utilization</button>
+                <button class="phase-tab" onclick="switchPhaseTab(event, 'plan')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">📚 Plan Alignment</button>
                 <button class="phase-tab" onclick="switchPhaseTab(event, 'reasoning')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">🧠 Reasoning</button>
                 <button class="phase-tab" onclick="switchPhaseTab(event, 'verification')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">✅ Verification</button>
-                <button class="phase-tab" onclick="switchPhaseTab(event, 'learning')" style="padding: 12px 16px; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; color: #666; transition: all 0.2s;">📊 Learning</button>
             </div>
 
             <!-- Phase Content Areas -->
             <div class="phase-content" style="max-height: 400px; overflow-y: auto;">
-                <!-- Memory Phase -->
-                <div id="phase-memory" class="phase-panel" style="display: block;">
-                    <h3 style="color: #667eea; margin-bottom: 12px;">📚 Memory Segments</h3>
-                    <div id="memoryContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px; line-height: 1.6;">
-                        <p style="color: #999;">Loading memory segments...</p>
+                <!-- Summary Phase (NEW: First tab) -->
+                <div id="phase-summary" class="phase-panel" style="display: block;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">📝 Checkpoint Summary</h3>
+                    <div id="summaryContent" class="checkpoint-summary" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px; line-height: 1.6;">
+                        <p style="color: #999;">Loading checkpoint summary...</p>
+                    </div>
+                </div>
+
+                <!-- Entity Utilization Phase (NEW) -->
+                <div id="phase-entity" class="phase-panel" style="display: none;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">🎯 Entity Utilization</h3>
+                    <div id="entityContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
+                        <p style="color: #999;">Loading entity usage analysis...</p>
+                    </div>
+                </div>
+
+                <!-- Plan Alignment Phase (NEW) -->
+                <div id="phase-plan" class="phase-panel" style="display: none;">
+                    <h3 style="color: #667eea; margin-bottom: 12px;">📚 Plan Alignment & Learning Quality</h3>
+                    <div id="planContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
+                        <p style="color: #999;">Loading plan alignment analysis...</p>
                     </div>
                 </div>
 
@@ -1030,14 +1057,6 @@
                     <h3 style="color: #667eea; margin-bottom: 12px;">✅ Verification Results</h3>
                     <div id="verificationContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
                         <p style="color: #999;">Loading verification results...</p>
-                    </div>
-                </div>
-
-                <!-- Learning Phase -->
-                <div id="phase-learning" class="phase-panel" style="display: none;">
-                    <h3 style="color: #667eea; margin-bottom: 12px;">📊 Learning Metrics</h3>
-                    <div id="learningContent" style="background: #f9f9f9; padding: 12px; border-radius: 6px; font-size: 14px;">
-                        <p style="color: #999;">Loading learning metrics...</p>
                     </div>
                 </div>
             </div>
@@ -1058,33 +1077,6 @@
     </div>
 
     <!-- ==================== PLAN SELECTION MODAL ==================== -->
-    <div class="modal" id="planSelectionModal">
-        <div class="modal-content">
-            <div class="modal-header">📚 Select Plans for Learning</div>
-
-            <p style="color: #666; margin-bottom: 20px;">
-                Which past plans should the system learn from?<br>
-                <small>(Select plans similar to your current goal to improve quality)</small>
-            </p>
-
-            <div id="planList" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
-                <!-- Populated dynamically -->
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                <button class="btn btn-secondary" onclick="selectRecentPlans(3)" style="flex: 1; min-width: 120px;">Recent 3</button>
-                <button class="btn btn-secondary" onclick="selectRecentPlans(5)" style="flex: 1; min-width: 120px;">Recent 5</button>
-                <button class="btn btn-secondary" onclick="selectAllPlans()" style="flex: 1; min-width: 120px;">All Plans</button>
-                <button class="btn btn-secondary" onclick="clearAllPlans()" style="flex: 1; min-width: 120px;">Clear All</button>
-            </div>
-
-            <div class="modal-buttons">
-                <button class="btn btn-secondary" onclick="skipPlanSelection()">Skip Learning</button>
-                <button class="btn btn-primary" onclick="confirmPlanSelection()">Continue to Planning</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // ==================== STATE ====================
         let sessionId = localStorage.getItem('sessionId') || Date.now().toString();
@@ -1106,8 +1098,9 @@
                 updateStatus('Disconnected', false);
             }
 
-            // Load entities
+            // Load entities and plans
             await loadEntities();
+            await loadPlans();
             setupEventListeners();
         }
 
@@ -1151,62 +1144,63 @@
             document.getElementById('entityCount').textContent = selectedEntities.length;
         }
 
-        // PHASE 4: Load entities in the proposal modal
-        async function loadEntitiesInModal() {
+        // ==================== PLAN SELECTION ====================
+        let selectedPlans = [];
+
+        async function loadPlans() {
             try {
-                const response = await fetch('/api/entities');
-                const data = response.json ? await response.json() : JSON.parse(await response.text());
-                const entities = data.entities || [];
+                const response = await fetch('/api/get-available-plans');
+                const data = await response.json();
 
-                const entityList = document.getElementById('proposalEntityList');
-                entityList.innerHTML = '';
-
-                if (entities.length === 0) {
-                    entityList.innerHTML = '<p style="color: #999; font-size: 0.9em;">No entities found in memory system</p>';
+                if (data.status === 'error' || !data.plans || data.plans.length === 0) {
+                    // No plans available
+                    document.getElementById('planList').innerHTML = '<p style="color: #999; font-size: 0.9em;">No past plans available</p>';
+                    document.getElementById('planCount').textContent = '0';
                     return;
                 }
 
-                entities.forEach(entity => {
+                const planList = document.getElementById('planList');
+                planList.innerHTML = '';
+
+                data.plans.forEach((plan) => {
                     const label = document.createElement('label');
                     label.className = 'entity-item';
-                    label.style.cssText = 'display: flex; align-items: center; padding: 6px 0; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
-                    label.title = entity.description || '';
+                    label.title = plan.goal || '';
 
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
-                    checkbox.value = entity.name;
-                    checkbox.checked = true;  // Default: all entities selected in modal
-                    checkbox.style.cssText = 'margin-right: 8px; cursor: pointer;';
-                    checkbox.addEventListener('change', updateEntitySelectionFromModal);
+                    checkbox.value = plan.file;
+                    checkbox.addEventListener('change', updatePlanSelection);
 
-                    const span = document.createElement('span');
-                    span.textContent = entity.display_name || entity.name;
-
-                    const refSpan = document.createElement('span');
-                    refSpan.textContent = `${entity.references} ref`;
-                    refSpan.style.cssText = 'font-size: 0.8em; color: #999; margin-left: auto;';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = plan.file;
 
                     label.appendChild(checkbox);
-                    label.appendChild(span);
-                    label.appendChild(refSpan);
-                    entityList.appendChild(label);
+                    label.appendChild(nameSpan);
+
+                    if (plan.quality) {
+                        const qualitySpan = document.createElement('span');
+                        qualitySpan.style.fontSize = '0.8em';
+                        qualitySpan.style.color = '#999';
+                        qualitySpan.style.marginLeft = '5px';
+                        qualitySpan.textContent = plan.quality.toFixed(1) + '/10';
+                        label.appendChild(qualitySpan);
+                    }
+
+                    planList.appendChild(label);
                 });
 
-                updateEntitySelectionFromModal();
+                updatePlanSelection();
             } catch (e) {
-                console.error('Error loading entities in modal:', e);
-                const entityList = document.getElementById('proposalEntityList');
-                if (entityList) {
-                    entityList.innerHTML = '<p style="color: red;">Error loading entities</p>';
-                }
+                console.error('Error loading plans:', e);
+                document.getElementById('planList').innerHTML = '<p style="color: #999; font-size: 0.9em;">Error loading plans</p>';
             }
         }
 
-        // PHASE 4: Update selectedEntities from modal checkboxes
-        function updateEntitySelectionFromModal() {
-            const checkboxes = document.querySelectorAll('#proposalEntityList input[type="checkbox"]:checked');
-            selectedEntities = Array.from(checkboxes).map(cb => cb.value);
-            document.getElementById('entityCount').textContent = selectedEntities.length;
+        function updatePlanSelection() {
+            const checkboxes = document.querySelectorAll('#planList input[type="checkbox"]:checked');
+            selectedPlans = Array.from(checkboxes).map(cb => cb.value);
+            document.getElementById('planCount').textContent = selectedPlans.length;
         }
 
         function setupEventListeners() {
@@ -1259,6 +1253,7 @@
                         goal: goal,
                         selected_entities: selectedEntities,
                         selected_agents: selectedAgents,
+                        selected_plans: selectedPlans,
                         max_iterations: maxIterations,
                         checkpoint_interval: checkpointInterval,
                         session_id: sessionId
@@ -1308,17 +1303,25 @@
             html += `<p><strong>Research Coverage:</strong> ${(proposal.research_percentage * 100).toFixed(0)}%</p>`;
             html += `</div>`;
 
-            // PHASE 4: Add entity selection section to proposal modal
-            html += `<div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; border: 1px solid #ddd;">`;
-            html += `<p style="margin: 0 0 10px 0;"><strong>Select Context Entities:</strong></p>`;
-            html += `<div id="proposalEntityList" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 3px; padding: 8px; background: white;">`;
-            html += `<p style="color: #999; font-size: 0.9em; margin: 0;">Loading entities...</p>`;
-            html += `</div>`;
-            html += `</div>`;
-
-            if (proposal.entity_analysis) {
+            // Display entity relevance from proposal metadata (Phase 4 validation)
+            if (proposal.metadata && proposal.metadata.entity_relevance && proposal.metadata.entity_relevance.entities_analyzed > 0) {
+                const entityRel = proposal.metadata.entity_relevance;
                 html += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">`;
-                html += `<p>${proposal.entity_analysis}</p>`;
+                html += `<div style="padding: 10px; background: #f9f9f9; border-radius: 4px; margin-bottom: 10px;">`;
+                html += `<strong style="color: #667eea;">📊 Entity Relevance Analysis</strong><br>`;
+                html += `<small style="color: #666;">Analyzed ${entityRel.entities_analyzed} entities - ${entityRel.assessment}</small><br>`;
+                html += `<div style="margin-top: 5px; font-size: 12px; color: #999;">Coverage: ${entityRel.coverage_percent.toFixed(0)}%</div>`;
+                html += `</div>`;
+            }
+
+            // Display plan framework readiness from proposal metadata (Phase 4 validation)
+            if (proposal.metadata && proposal.metadata.plan_framework_readiness && proposal.metadata.plan_framework_readiness.plans_analyzed > 0) {
+                const planRel = proposal.metadata.plan_framework_readiness;
+                html += `<div style="padding: 10px; background: #f9f9f9; border-radius: 4px; margin-bottom: 10px;">`;
+                html += `<strong style="color: #667eea;">📚 Plan Framework Analysis</strong><br>`;
+                html += `<small style="color: #666;">Analyzed ${planRel.plans_analyzed} plans - ${planRel.assessment}</small><br>`;
+                html += `<div style="margin-top: 5px; font-size: 12px; color: #999;">Frameworks found: ${planRel.frameworks_count}</div>`;
+                html += `</div>`;
             }
 
             proposalText.innerHTML = html;
@@ -1328,9 +1331,6 @@
             document.getElementById('modal-checkpoint-interval').value = checkpointInterval;
 
             document.getElementById('proposalModal').classList.add('active');
-
-            // PHASE 4: Load entities in the proposal modal
-            loadEntitiesInModal();
         }
 
         function closeProposalModal() {
@@ -1344,119 +1344,13 @@
             const goal = document.getElementById('goalInput').value;
 
             // Store planning config for later use
-            window.planningConfig = { goal, maxIterations, checkpointInterval, selectedEntities };
+            window.planningConfig = { goal, maxIterations, checkpointInterval, selectedEntities, selectedPlans };
 
             closeProposalModal();
-            addMessage('bot', 'Preparing planning with learning...');
+            addMessage('bot', 'Starting execution with your selections...');
 
-            // Show plan selection modal
-            showPlanSelectionModal();
-        }
-
-        // ==================== PLAN SELECTION GATE ====================
-
-        async function showPlanSelectionModal() {
-            try {
-                // Fetch available plans from backend
-                const response = await fetch('/api/get-available-plans');
-                const data = await response.json();
-
-                if (data.status === 'no_plans' || data.plans.length === 0) {
-                    // No plans available, skip selection and go directly to planning
-                    addMessage('bot', 'No completed plans available for learning. Starting fresh planning...');
-                    window.selectedPlans = [];
-                    setTimeout(() => confirmPlanSelection(), 500);
-                    return;
-                }
-
-                // Populate plan list
-                const planListDiv = document.getElementById('planList');
-                planListDiv.innerHTML = '';
-
-                data.plans.forEach((plan, index) => {
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = `plan-${index}`;
-                    checkbox.value = plan.file;
-                    checkbox.class = 'plan-checkbox';
-
-                    const label = document.createElement('label');
-                    label.htmlFor = `plan-${index}`;
-                    label.style.display = 'block';
-                    label.style.padding = '8px';
-                    label.style.marginBottom = '5px';
-                    label.style.cursor = 'pointer';
-                    label.style.backgroundColor = '#f5f5f5';
-                    label.style.borderRadius = '4px';
-                    label.innerHTML = `
-                        <input type="checkbox" id="plan-${index}" value="${plan.file}"
-                               style="margin-right: 10px; cursor: pointer;" class="plan-checkbox">
-                        <strong>${plan.goal.substring(0, 60)}...</strong><br>
-                        <small style="color: #999;">
-                            Quality: ${plan.quality.toFixed(1)}/10 |
-                            Created: ${plan.created} |
-                            Size: ${plan.size_kb.toFixed(1)}KB
-                        </small>
-                    `;
-
-                    planListDiv.appendChild(label);
-                });
-
-                // Show modal
-                document.getElementById('planSelectionModal').classList.add('active');
-                addMessage('bot', `Found ${data.plans.length} completed plans. Select which to learn from.`);
-
-            } catch (error) {
-                console.error('Error fetching available plans:', error);
-                addMessage('bot', 'Could not fetch available plans. Proceeding without learning.');
-                window.selectedPlans = [];
-                setTimeout(() => confirmPlanSelection(), 500);
-            }
-        }
-
-        function selectRecentPlans(count) {
-            const checkboxes = document.querySelectorAll('.plan-checkbox');
-            clearAllPlans();
-            // Select the first `count` plans (they're sorted by recent first)
-            for (let i = 0; i < Math.min(count, checkboxes.length); i++) {
-                checkboxes[i].checked = true;
-            }
-        }
-
-        function selectAllPlans() {
-            document.querySelectorAll('.plan-checkbox').forEach(cb => cb.checked = true);
-        }
-
-        function clearAllPlans() {
-            document.querySelectorAll('.plan-checkbox').forEach(cb => cb.checked = false);
-        }
-
-        function skipPlanSelection() {
-            window.selectedPlans = [];
-            closePlanSelectionModal();
-            confirmPlanSelection();
-        }
-
-        function closePlanSelectionModal() {
-            document.getElementById('planSelectionModal').classList.remove('active');
-        }
-
-        function confirmPlanSelection() {
-            // Get selected plan files
-            const selectedCheckboxes = document.querySelectorAll('.plan-checkbox:checked');
-            window.selectedPlans = Array.from(selectedCheckboxes).map(cb => cb.value);
-
-            if (window.selectedPlans.length > 0) {
-                addMessage('bot', `✓ Selected ${window.selectedPlans.length} plans for learning`);
-            } else {
-                addMessage('bot', 'No plans selected. Starting planning without learning from past iterations.');
-            }
-
-            closePlanSelectionModal();
-
-            // Execute plan with selected plans
-            const config = window.planningConfig;
-            executePlan(config.goal, config.maxIterations, config.checkpointInterval, window.selectedPlans, config.selectedEntities);
+            // Execute directly (plans already selected in sidebar)
+            executePlan(goal, maxIterations, checkpointInterval, selectedPlans, selectedEntities);
         }
 
         // ==================== SSE EXECUTION ====================
@@ -1563,22 +1457,89 @@
 
         // ==================== POPULATE PHASE DATA ====================
         function populatePhaseData(checkpointData) {
-            // 1. MEMORY PHASE
-            if (checkpointData.memory_segments && Array.isArray(checkpointData.memory_segments)) {
-                let memoryHTML = '<div>';
-                checkpointData.memory_segments.forEach((segment, idx) => {
-                    memoryHTML += `
-                        <div class="memory-segment">
-                            <div class="memory-segment-title">📌 Segment ${idx + 1}</div>
-                            <div class="memory-segment-content">${escapeHtml(segment)}</div>
+            // 0. SUMMARY PHASE (NEW: Display the checkpoint summary in the first tab)
+            const summaryHTML = checkpointData.summary || checkpointData.output || 'Analysis in progress...';
+            document.getElementById('summaryContent').innerHTML = summaryHTML;
+
+            // 1. ENTITY UTILIZATION PHASE (NEW)
+            let entityHTML = '<div>';
+            const entityUsage = checkpointData.entity_usage || checkpointData.metadata?.entity_usage;
+
+            if (entityUsage) {
+                const coverage = (entityUsage.coverage_percent || 0).toFixed(1);
+                const referenced = entityUsage.entities_referenced || 0;
+                const total = entityUsage.entities_total || 0;
+                const assessment = entityUsage.assessment || 'No assessment available';
+
+                entityHTML += `
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #333;">📊 Coverage Metrics</div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">
+                                    <span style="color: #666;">Entities Referenced</span>
+                                    <span style="font-weight: 600; color: #667eea;">${referenced}/${total}</span>
+                                </div>
+                                <div style="background: #e0e0e0; height: 20px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: ${coverage}%;"></div>
+                                </div>
+                                <div style="margin-top: 4px; font-size: 12px; color: #999;">${coverage}% coverage</div>
+                            </div>
                         </div>
-                    `;
-                });
-                memoryHTML += '</div>';
-                document.getElementById('memoryContent').innerHTML = memoryHTML;
+                        <div style="background: #f5f5f5; padding: 8px; border-radius: 4px; font-size: 13px; color: #555;">
+                            <strong>Assessment:</strong> ${assessment}
+                        </div>
+                    </div>
+                `;
             } else {
-                document.getElementById('memoryContent').innerHTML = '<p style="color: #999;">No memory segments available</p>';
+                entityHTML += '<p style="color: #999;">No entities selected for this planning session</p>';
             }
+
+            entityHTML += '</div>';
+            document.getElementById('entityContent').innerHTML = entityHTML;
+
+            // 2. PLAN ALIGNMENT PHASE (NEW)
+            let planHTML = '<div>';
+            const planAlignment = checkpointData.plan_alignment || checkpointData.metadata?.plan_alignment;
+
+            if (planAlignment) {
+                const learningQuality = (planAlignment.learning_quality * 100 || 0).toFixed(1);
+                const frameworksApplied = planAlignment.frameworks_aligned || 0;
+                const frameworksAvailable = planAlignment.patterns_available || 0;
+                const assessment = planAlignment.assessment || 'No assessment available';
+
+                // Determine quality level color
+                const qualityLevel = learningQuality >= 80 ? 'high' : learningQuality >= 60 ? 'medium' : 'low';
+                const qualityColor = learningQuality >= 80 ? '#4caf50' : learningQuality >= 60 ? '#ff9800' : '#f44336';
+
+                planHTML += `
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #333;">📚 Learning Quality</div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">
+                                    <span style="color: #666;">Learning Quality Score</span>
+                                    <span style="font-weight: 600; color: ${qualityColor};">${learningQuality}%</span>
+                                </div>
+                                <div style="background: #e0e0e0; height: 20px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: ${qualityColor}; height: 100%; width: ${learningQuality}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">
+                            <strong>Frameworks Applied:</strong> <span style="color: #667eea; font-weight: 600;">${frameworksApplied}</span> of <span style="color: #999;">${frameworksAvailable}</span> available
+                        </div>
+                        <div style="background: #f5f5f5; padding: 8px; border-radius: 4px; font-size: 13px; color: #555;">
+                            <strong>Assessment:</strong> ${assessment}
+                        </div>
+                    </div>
+                `;
+            } else {
+                planHTML += '<p style="color: #999;">No plans selected for learning</p>';
+            }
+
+            planHTML += '</div>';
+            document.getElementById('planContent').innerHTML = planHTML;
 
             // 2. REASONING PHASE
             if (checkpointData.reasoning_chain && Array.isArray(checkpointData.reasoning_chain)) {
@@ -1648,77 +1609,6 @@
 
             verificationHTML += '</div>';
             document.getElementById('verificationContent').innerHTML = verificationHTML || '<p style="color: #999;">No verification results available</p>';
-
-            // 4. LEARNING PHASE
-            let learningHTML = '<div>';
-
-            if (flowMetrics.flow_score !== undefined) {
-                const flowScore = (flowMetrics.flow_score * 100).toFixed(1);
-                const flowLevel = flowMetrics.flow_score > 0.75 ? 'high' : flowMetrics.flow_score > 0.5 ? 'medium' : 'low';
-                const flowColor = flowMetrics.flow_score > 0.75 ? '#4caf50' : flowMetrics.flow_score > 0.5 ? '#ff9800' : '#f44336';
-
-                // Flow Score with progress bar
-                learningHTML += `
-                    <div class="metric-with-bar" style="margin-bottom: 20px;">
-                        <div class="metric-bar-label">
-                            <span class="metric-bar-name">📊 Overall Flow Score</span>
-                            <span class="metric-bar-percentage">${flowScore}%</span>
-                        </div>
-                        <div class="metric-progress-bar">
-                            <div class="metric-progress-fill ${flowLevel}" style="width: ${flowScore}%;"></div>
-                        </div>
-                        <div style="font-size: 11px; color: #999; margin-top: 6px;">Combined metric: Verification × Approval × Reasoning</div>
-                    </div>
-                `;
-
-                // Sub-metrics breakdown
-                learningHTML += `
-                    <div style="background: #f9f9f9; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-                        <div style="font-size: 11px; font-weight: 600; color: #666; margin-bottom: 8px;">Score Breakdown:</div>
-                `;
-
-                if (flowMetrics.verification_quality !== undefined) {
-                    const verifyBreakdown = (flowMetrics.verification_quality * 0.4 * 100).toFixed(1);
-                    learningHTML += `
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #666;">
-                            <span>Verification (40%)</span>
-                            <span style="font-weight: 600; color: #667eea;">${verifyBreakdown}%</span>
-                        </div>
-                    `;
-                }
-
-                if (flowMetrics.reasoning_quality !== undefined) {
-                    const reasonBreakdown = (flowMetrics.reasoning_quality * 0.2 * 100).toFixed(1);
-                    learningHTML += `
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #666;">
-                            <span>Reasoning (20%)</span>
-                            <span style="font-weight: 600; color: #667eea;">${reasonBreakdown}%</span>
-                        </div>
-                    `;
-                }
-
-                learningHTML += `
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666;">
-                            <span>User Approval (40%)</span>
-                            <span style="font-weight: 600; color: #667eea;">Pending</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (checkpointData.data_points_so_far !== undefined) {
-                learningHTML += `
-                    <div class="metric-with-bar">
-                        <div class="metric-bar-label">
-                            <span class="metric-bar-name">📈 Data Points Collected</span>
-                            <span class="metric-bar-percentage">${checkpointData.data_points_so_far}</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            learningHTML += '</div>';
-            document.getElementById('learningContent').innerHTML = learningHTML || '<p style="color: #999;">No learning metrics available</p>';
         }
 
         function showCheckpointModal(data, checkpointNumber) {
@@ -1731,10 +1621,11 @@
                 document.getElementById('checkpointAgentMeta').textContent = 'Planning';
                 document.getElementById('checkpointSummary').innerHTML = data || 'Analysis in progress...';
                 // Show empty placeholders for phases
-                document.getElementById('memoryContent').innerHTML = '<p style="color: #999;">Loading memory segments...</p>';
-                document.getElementById('reasoningContent').innerHTML = '<p style="color: #999;">Loading reasoning chain...</p>';
-                document.getElementById('verificationContent').innerHTML = '<p style="color: #999;">Loading verification results...</p>';
-                document.getElementById('learningContent').innerHTML = '<p style="color: #999;">Loading learning metrics...</p>';
+                const reasoningEl = document.getElementById('reasoningContent');
+                if (reasoningEl) reasoningEl.innerHTML = '<p style="color: #999;">Loading reasoning chain...</p>';
+
+                const verificationEl = document.getElementById('verificationContent');
+                if (verificationEl) verificationEl.innerHTML = '<p style="color: #999;">Loading verification results...</p>';
             } else {
                 // New API: object with all checkpoint data
                 const checkpoint = data.checkpoint_number || checkpointNumber || 1;
@@ -1755,15 +1646,19 @@
                 populatePhaseData(data);
             }
 
-            // Reset to Memory phase (first tab)
+            // Reset to Summary phase (first tab)
             document.querySelectorAll('.phase-panel').forEach(panel => panel.style.display = 'none');
-            document.getElementById('phase-memory').style.display = 'block';
+            document.getElementById('phase-summary').style.display = 'block';
             document.querySelectorAll('.phase-tab').forEach(tab => {
                 tab.style.color = '#666';
                 tab.style.borderBottomColor = 'transparent';
             });
-            document.querySelector('.phase-tab.active').style.color = '#667eea';
-            document.querySelector('.phase-tab.active').style.borderBottomColor = '#667eea';
+            // Highlight the first active tab (summary)
+            const firstTab = document.querySelector('.phase-tab');
+            if (firstTab) {
+                firstTab.style.color = '#667eea';
+                firstTab.style.borderBottomColor = '#667eea';
+            }
 
             // Show modal
             document.getElementById('checkpointModal').classList.add('active');

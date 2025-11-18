@@ -18,70 +18,110 @@ class MemoryContextProvider:
         """Initialize memory context provider"""
         pass
 
-    def retrieve_successful_patterns(self, agent) -> str:
+    def retrieve_successful_patterns(self, agent, selected_plans=None) -> str:
         """
         Retrieve successful planning patterns from memory.
 
-        Uses intelligent truncation to keep context focused without extra LLM calls.
+        CONSTRAINT: If selected_plans provided, reads content from ONLY those plan files.
+        Uses direct file reads instead of agent queries to avoid full-system searches.
 
         Args:
             agent: The memagent instance for memory retrieval
+            selected_plans: Optional list of plan names - if provided, reads ONLY these files
 
         Returns:
-            Successful patterns as formatted string (intelligently truncated)
+            Successful patterns as formatted string from selected plans
         """
+        from pathlib import Path
+
+        # USER-DEFINED CONSTRAINT BOUNDARIES:
+        # If user selected specific plans, read ONLY those plan files
+        # If no plans selected, return empty (don't search broadly)
+        if selected_plans is not None and not selected_plans:
+            return ""
+
         try:
-            response = agent.chat("""
-                OPERATION: RETRIEVE
-                ENTITY: successful_patterns
-                CONTEXT: Review successful planning approaches across all agents
+            if selected_plans:
+                # DIRECT FILE READ: Read selected plan files from disk (not agent query)
+                plans_content = []
+                plans_path = Path(agent.memory_path).parent / "plans"
 
-                What planning patterns have worked well across all 4 agents?
-                What approaches led to successful workflow outcomes?
-                What agent coordination strategies proved effective?
-            """)
+                for plan_name in selected_plans:
+                    plan_file = plans_path / plan_name
+                    if plan_file.exists():
+                        try:
+                            content = plan_file.read_text(encoding='utf-8')
+                            # Extract key insights from plan (first 500 chars)
+                            summary = content[:500].replace('\n', ' ')
+                            plans_content.append(f"• {plan_name}: {summary}...")
+                        except Exception as e:
+                            plans_content.append(f"• {plan_name}: [Error reading file: {e}]")
+                    else:
+                        plans_content.append(f"• {plan_name}: [File not found]")
 
-            patterns = response.reply or "No successful patterns yet (first iteration)"
+                patterns = f"Patterns from {len(selected_plans)} selected plans:\n" + "\n".join(plans_content)
+            else:
+                # No specific plans - return empty to avoid full system search
+                patterns = "No patterns (no plans selected for learning)"
 
-            # Intelligent truncation: keep first 3000 chars (avoids context bloat, no extra LLM call)
+            # Intelligent truncation: keep first 3000 chars
             if len(patterns) > 3000:
-                # Truncate and add indicator
                 patterns = patterns[:3000] + "\n[... patterns truncated for context efficiency ...]"
 
             return patterns
 
         except Exception as e:
             print(f"   ⚠️ Pattern retrieval failed: {e}")
-            return "Pattern retrieval failed"
+            return f"Pattern retrieval failed: {e}"
 
-    def retrieve_error_patterns(self, agent) -> str:
+    def retrieve_error_patterns(self, agent, selected_plans=None) -> str:
         """
         Retrieve error patterns from memory.
 
+        CONSTRAINT: If selected_plans provided, ONLY analyzes those plans.
         Uses intelligent truncation to avoid context bloat without extra LLM calls.
 
         Args:
             agent: The memagent instance for memory retrieval
+            selected_plans: Optional list of plan names - if provided, ONLY searches these plans
 
         Returns:
             Error patterns to avoid as formatted string (intelligently truncated)
         """
+        from pathlib import Path
+
+        # USER-DEFINED CONSTRAINT BOUNDARIES:
+        # If user selected specific plans, search ONLY within those plans
+        # If no plans selected, return empty (don't search broadly)
+        if selected_plans is not None and not selected_plans:
+            return ""
+
         try:
-            response = agent.chat("""
-                OPERATION: RETRIEVE
-                ENTITY: planning_errors
-                CONTEXT: Review planning mistakes across all agents
+            if selected_plans:
+                # DIRECT FILE READ: Read selected plan files from disk (not agent query)
+                plans_content = []
+                plans_path = Path(agent.memory_path).parent / "plans"
 
-                What planning approaches have been rejected across all agents?
-                What common mistakes should be avoided in agent coordination?
-                What workflow patterns led to failures?
-            """)
+                for plan_name in selected_plans:
+                    plan_file = plans_path / plan_name
+                    if plan_file.exists():
+                        try:
+                            content = plan_file.read_text(encoding='utf-8')
+                            # Extract error patterns from plan (first 800 chars to get errors/mistakes section)
+                            summary = content[:800].replace('\n', ' ')
+                            plans_content.append(f"• {plan_name}: {summary}...")
+                        except Exception as e:
+                            plans_content.append(f"• {plan_name}: [Error reading file: {e}]")
+                    else:
+                        plans_content.append(f"• {plan_name}: [File not found]")
 
-            errors = response.reply or "No errors yet (no failures)"
+                errors = f"Error patterns from {len(selected_plans)} selected plans:\n" + "\n".join(plans_content)
+            else:
+                # No specific plans - return empty to avoid full system search
+                errors = "No error patterns (no plans selected for learning)"
 
             # Intelligent truncation: keep first 2000 chars (avoids context bloat, no extra LLM call)
             if len(errors) > 2000:
-                # Truncate and add indicator
                 errors = errors[:2000] + "\n[... errors truncated for context efficiency ...]"
 
             return errors
@@ -90,34 +130,54 @@ class MemoryContextProvider:
             print(f"   ⚠️ Error pattern retrieval failed: {e}")
             return "Error pattern retrieval failed"
 
-    def retrieve_execution_history(self, agent) -> str:
+    def retrieve_execution_history(self, agent, selected_plans=None) -> str:
         """
         Retrieve execution history from memory.
 
+        CONSTRAINT: If selected_plans provided, ONLY analyzes those plans.
         Uses intelligent truncation to keep context focused without extra LLM calls.
 
         Args:
             agent: The memagent instance for memory retrieval
+            selected_plans: Optional list of plan names - if provided, ONLY searches these plans
 
         Returns:
             Execution history as formatted string (intelligently truncated)
         """
+        from pathlib import Path
+
+        # USER-DEFINED CONSTRAINT BOUNDARIES:
+        # If user selected specific plans, search ONLY within those plans
+        # If no plans selected, return empty (don't search broadly)
+        if selected_plans is not None and not selected_plans:
+            return ""
+
         try:
-            response = agent.chat("""
-                OPERATION: RETRIEVE
-                ENTITY: execution_log
-                CONTEXT: Review past enhanced iterations and workflows
+            if selected_plans:
+                # DIRECT FILE READ: Read selected plan files from disk (not agent query)
+                plans_content = []
+                plans_path = Path(agent.memory_path).parent / "plans"
 
-                What enhanced workflows have been successfully executed?
-                How many iterations have completed with agent coordination?
-                What were the outcomes of previous agentic workflows?
-            """)
+                for plan_name in selected_plans:
+                    plan_file = plans_path / plan_name
+                    if plan_file.exists():
+                        try:
+                            content = plan_file.read_text(encoding='utf-8')
+                            # Extract execution history from plan (first 1000 chars for outcomes)
+                            summary = content[:1000].replace('\n', ' ')
+                            plans_content.append(f"• {plan_name}: {summary}...")
+                        except Exception as e:
+                            plans_content.append(f"• {plan_name}: [Error reading file: {e}]")
+                    else:
+                        plans_content.append(f"• {plan_name}: [File not found]")
 
-            history = response.reply or "No history yet (first iteration)"
+                history = f"Execution history from {len(selected_plans)} selected plans:\n" + "\n".join(plans_content)
+            else:
+                # No specific plans - return empty to avoid full system search
+                history = "No execution history (no plans selected for learning)"
 
             # Intelligent truncation: keep first 2500 chars (avoids context bloat, no extra LLM call)
             if len(history) > 2500:
-                # Truncate and add indicator
                 history = history[:2500] + "\n[... history truncated for context efficiency ...]"
 
             return history
@@ -126,26 +186,55 @@ class MemoryContextProvider:
             print(f"   ⚠️ History retrieval failed: {e}")
             return "Execution history retrieval failed"
 
-    def retrieve_agent_performance(self, agent) -> str:
+    def retrieve_agent_performance(self, agent, selected_plans=None) -> str:
         """
         Retrieve agent performance metrics from memory.
 
+        CONSTRAINT: If selected_plans provided, ONLY analyzes those plans.
+
         Args:
             agent: The memagent instance for memory retrieval
+            selected_plans: Optional list of plan names - if provided, ONLY searches these plans
 
         Returns:
             Agent performance metrics as formatted string
         """
-        try:
-            response = agent.chat("""
-                OPERATION: RETRIEVE
-                ENTITY: agent_performance
-                CONTEXT: Review agent performance and learning progress
+        from pathlib import Path
 
-                What are the current performance metrics for each agent?
-                How has Flow-GRPO training improved planning over time?
-                What agent-specific improvements have been observed?
-            """)
-            return response.reply or "No performance data yet (first iteration)"
-        except:
-            return "Performance data retrieval failed"
+        # USER-DEFINED CONSTRAINT BOUNDARIES:
+        # If user selected specific plans, search ONLY within those plans
+        # If no plans selected, return empty (don't search broadly)
+        if selected_plans is not None and not selected_plans:
+            return ""
+
+        try:
+            if selected_plans:
+                # DIRECT FILE READ: Read selected plan files from disk (not agent query)
+                plans_content = []
+                plans_path = Path(agent.memory_path).parent / "plans"
+
+                for plan_name in selected_plans:
+                    plan_file = plans_path / plan_name
+                    if plan_file.exists():
+                        try:
+                            content = plan_file.read_text(encoding='utf-8')
+                            # Extract performance metrics from plan (first 600 chars)
+                            summary = content[:600].replace('\n', ' ')
+                            plans_content.append(f"• {plan_name}: {summary}...")
+                        except Exception as e:
+                            plans_content.append(f"• {plan_name}: [Error reading file: {e}]")
+                    else:
+                        plans_content.append(f"• {plan_name}: [File not found]")
+
+                performance = f"Agent performance from {len(selected_plans)} selected plans:\n" + "\n".join(plans_content)
+            else:
+                # No specific plans - return empty to avoid full system search
+                performance = "No performance data (no plans selected for learning)"
+
+            # Intelligent truncation: keep first 2000 chars
+            if len(performance) > 2000:
+                performance = performance[:2000] + "\n[... performance data truncated for context efficiency ...]"
+
+            return performance
+        except Exception as e:
+            return f"Performance data retrieval failed: {e}"

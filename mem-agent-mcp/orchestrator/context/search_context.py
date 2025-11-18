@@ -1,21 +1,21 @@
 """
 Search Context Provider
 
-Handles web search integration for real-world market data.
-Single Responsibility: Execute web searches and compile search results.
+Handles web search integration for real-world market data using goal-aware ResearchAgent.
+Single Responsibility: Execute goal-specific web research and compile search results.
 """
 
 from typing import Dict
-from orchestrator.search_module import SearchModule
+from research_agent import ResearchAgent
 from .context_formatter import ContextFormatter
 
 
 class SearchContextProvider:
     """
-    Provides web search context with real-world market data.
+    Provides web search context with goal-aware research using ResearchAgent.
 
-    Conducts extensive searches across multiple categories to provide
-    current market trends, competitive analysis, and expert insights.
+    Conducts intelligent, iterative searches focused on the specific planning goal,
+    providing current market trends, competitive analysis, and expert insights.
     """
 
     def __init__(self, agent=None):
@@ -23,12 +23,11 @@ class SearchContextProvider:
         Initialize search context provider
 
         Args:
-            agent: Optional Agent instance for LLM query generation
-                   If not provided, will use default Fireworks client
+            agent: Optional Agent instance (kept for compatibility)
         """
-        self.search = SearchModule()
         self.formatter = ContextFormatter()
         self.agent = agent
+        # Note: ResearchAgent will be initialized per research call with goal-specific parameters
 
     def _generate_search_queries(self, goal: str, goal_analysis) -> list[str]:
         """
@@ -109,67 +108,106 @@ Return ONLY the queries, one per line, no numbering or explanation."""
 
     def retrieve_web_search_results(self, goal: str, goal_analysis) -> str:
         """
-        Execute LLM-generated, goal-specific web searches.
+        Execute goal-aware, intelligent web research using ResearchAgent.
 
-        Replaces hardcoded 24 template queries with 8-10 LLM-generated queries
-        tailored to the exact planning goal, focusing on concrete data and numbers.
-
-        Dramatically improves plan quality by providing:
-        - Goal-specific search queries (not templates)
-        - Focused on concrete data, statistics, and numbers
-        - Current market trends and company-specific information
-        - Real competitive landscape analysis
-        - Actual statistics and regulatory information
+        Uses ResearchAgent for iterative, goal-focused research that provides:
+        - Goal-aware research (identifies what data matters for THIS goal)
+        - Semantic search with Jina.ai/Reader (finds relevant sources)
+        - Iterative refinement (multiple search passes with gap validation)
+        - Rich data extraction (regex + LLM-based semantic extraction)
+        - Coverage validation (ensures critical data categories are addressed)
 
         Args:
             goal: The exact planning goal
             goal_analysis: Analyzed goal with domain/industry/market
 
         Returns:
-            Organized web search results with citations and links
+            Formatted web search results with citations and key data
         """
         try:
-            # STEP 1: Generate goal-specific queries using LLM
-            print(f"   🔍 Generating goal-specific search queries...")
-            search_queries = self._generate_search_queries(goal, goal_analysis)
+            print(f"   🔍 Starting goal-aware research using ResearchAgent...")
 
-            if not search_queries:
-                print(f"   ⚠️ No queries generated, using fallback")
-                search_queries = [goal, f"{goal_analysis.industry} market"]
+            # Convert goal_analysis object to dict for ResearchAgent
+            goal_analysis_dict = {
+                "domain": getattr(goal_analysis, "domain", ""),
+                "industry": getattr(goal_analysis, "industry", ""),
+                "market": getattr(goal_analysis, "market", ""),
+            }
 
-            # STEP 2: Execute queries
-            print(f"   🔍 Executing {len(search_queries)} searches...")
-            organized_results = {"Search Results": []}
-            total_results = 0
+            # Initialize ResearchAgent with goal-awareness
+            try:
+                research_agent = ResearchAgent(
+                    verbose=False,
+                    goal=goal,
+                    goal_analysis=goal_analysis_dict
+                )
+            except ValueError as e:
+                if "JINA_API_KEY" in str(e):
+                    print(f"   ⚠️ Jina API key not configured: {e}")
+                    return "Research unavailable: JINA_API_KEY not set. Get a free key at https://jina.ai"
+                raise
 
-            for query in search_queries:
-                print(f"      → {query[:60]}...")
-                results = self.search.search(query, num_results=5)
-
-                if results:
-                    for result in results:
-                        organized_results["Search Results"].append({
-                            'title': result.title,
-                            'snippet': result.snippet,
-                            'url': result.url,
-                            'source': result.source,
-                            'query': query
-                        })
-                        total_results += 1
-
-                print(f"      ✓ {len(results)} results")
-
-            # STEP 3: Format and return results
-            print(f"   ✓ Web search complete: {total_results} results from {len(search_queries)} queries")
-
-            return self.formatter.format_web_search_results(
-                organized_results,
-                len(search_queries),
-                total_results
+            # Run goal-aware research (4-5 iterations for context phase)
+            print(f"   🔍 Executing goal-aware research (max 4 iterations)...")
+            research_result = research_agent.research(
+                goal=goal,
+                goal_analysis=goal_analysis_dict,
+                max_iterations=4
             )
 
+            # Format results for downstream consumption
+            print(f"   ✓ Research complete: {len(research_result.sources)} sources, "
+                  f"{len(research_result.key_data_points)} data points, "
+                  f"Coverage: {research_result.coverage:.0%}")
+
+            formatted_results = self._format_research_results(research_result)
+
+            return formatted_results
+
         except Exception as e:
-            print(f"   ⚠️ Web search unavailable: {e}")
+            print(f"   ⚠️ Research unavailable: {e}")
             import traceback
             traceback.print_exc()
-            return f"Web search unavailable: {str(e)}"
+            return f"Research unavailable: {str(e)}"
+
+    def _format_research_results(self, research_result) -> str:
+        """
+        Format ResearchResult into readable string for context consumption.
+
+        Maintains compatibility with downstream agents expecting web_search_results format.
+
+        Args:
+            research_result: ResearchResult object from ResearchAgent
+
+        Returns:
+            Formatted string with sources, data points, and summary
+        """
+        formatted = []
+
+        # Add summary
+        if research_result.summary:
+            formatted.append("# Research Summary\n")
+            formatted.append(research_result.summary)
+            formatted.append("")
+
+        # Add sources
+        if research_result.sources:
+            formatted.append("## Sources Consulted")
+            for i, source in enumerate(research_result.sources[:10], 1):
+                formatted.append(f"{i}. {source}")
+            formatted.append("")
+
+        # Add coverage metrics
+        formatted.append("## Research Coverage")
+        formatted.append(f"- Coverage: {research_result.coverage:.0%}")
+        formatted.append(f"- Gaps Filled: {len(research_result.gaps_filled)}/{len(research_result.gaps_filled) + len(research_result.gaps_remaining)}")
+        formatted.append(f"- Iterations Used: {research_result.iterations_used}")
+        formatted.append("")
+
+        # Add key data points
+        if research_result.key_data_points:
+            formatted.append("## Key Data Points")
+            for point in research_result.key_data_points[:20]:  # Top 20 points
+                formatted.append(f"- {point}")
+
+        return "\n".join(formatted)
