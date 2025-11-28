@@ -1,0 +1,10 @@
+---
+title: "Doc Undated Cong ty nuoc"
+category: "Customs"
+subcategory: "Customs & FTA"
+source_folder: "CV 2019"
+conversion_date: "2025-11-21"
+original_format: "pdf"
+---
+
+*File: General Master Resource Folder/Customs/CV 2019/Cong ty nuoc ngoai duoc thue kho ngoai quan tai VN.pdf*

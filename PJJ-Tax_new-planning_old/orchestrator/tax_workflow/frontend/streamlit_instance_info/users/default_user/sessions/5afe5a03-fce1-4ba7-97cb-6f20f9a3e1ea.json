@@ -1,0 +1,85 @@
+{
+  "session_id": "5afe5a03-fce1-4ba7-97cb-6f20f9a3e1ea",
+  "user_id": "default_user",
+  "current_step": 3,
+  "original_request": "Grab Vietnam issues e-invoices to riders and drivers. What are the mandatory requirements for e-invoice systems?",
+  "suggested_categories": [
+    "VAT"
+  ],
+  "category_confidence": {},
+  "confirmed_categories": [
+    "VAT"
+  ],
+  "past_responses_found": [
+    {
+      "filename": "File name/identifier: VAT_Memo_001",
+      "summary": "",
+      "similarity_score": 0.8,
+      "categories": [
+        "VAT"
+      ],
+      "files_used": [],
+      "date_created": "Unknown"
+    },
+    {
+      "filename": "Brief summary: Grab Vietnam's e-invoice system for riders and drivers must comply with Vietnamese regulations, including the use of authorized e-invoice providers and adherence to specific formatting and content requirements.",
+      "summary": "",
+      "similarity_score": 0.8,
+      "categories": [
+        "VAT"
+      ],
+      "files_used": [],
+      "date_created": "Unknown"
+    },
+    {
+      "filename": "Relevance to the query: 0.8",
+      "summary": "",
+      "similarity_score": 0.8,
+      "categories": [
+        "VAT"
+      ],
+      "files_used": [],
+      "date_created": "Unknown"
+    },
+    {
+      "filename": "Categories covered: [\"VAT\"]",
+      "summary": "",
+      "similarity_score": 0.8,
+      "categories": [
+        "VAT"
+      ],
+      "files_used": [],
+      "date_created": "Unknown"
+    },
+    {
+      "filename": "File name/identifier: VAT_Memo_002",
+      "summary": "",
+      "similarity_score": 0.8,
+      "categories": [
+        "VAT"
+      ],
+      "files_used": [],
+      "date_created": "Unknown"
+    }
+  ],
+  "selected_past_response": {
+    "filename": "File name/identifier: VAT_Memo_002",
+    "summary": "",
+    "similarity_score": 0.8,
+    "categories": [
+      "VAT"
+    ],
+    "files_used": [],
+    "date_created": "Unknown"
+  },
+  "past_response_files": [],
+  "documents_found": [],
+  "selected_documents": [],
+  "selected_file_contents": {},
+  "synthesized_response": "",
+  "verification_report": {},
+  "can_approve": false,
+  "response_with_citations": "",
+  "citations": [],
+  "approval_status": "pending"
+}

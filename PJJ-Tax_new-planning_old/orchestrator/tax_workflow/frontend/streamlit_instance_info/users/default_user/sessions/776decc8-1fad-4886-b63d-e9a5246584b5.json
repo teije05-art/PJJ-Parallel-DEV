@@ -1,0 +1,25 @@
+{
+  "session_id": "776decc8-1fad-4886-b63d-e9a5246584b5",
+  "user_id": "default_user",
+  "current_step": 2,
+  "original_request": "Apple Vietnam LLC imports software tools and capitalizes them as intangible assets. How should depreciation/amortization be applied under Vietnamese CIT?",
+  "suggested_categories": [
+    "CIT"
+  ],
+  "category_confidence": {},
+  "confirmed_categories": [
+    "CIT"
+  ],
+  "past_responses_found": [],
+  "selected_past_response": null,
+  "past_response_files": [],
+  "documents_found": [],
+  "selected_documents": [],
+  "selected_file_contents": {},
+  "synthesized_response": "",
+  "verification_report": {},
+  "can_approve": false,
+  "response_with_citations": "",
+  "citations": [],
+  "approval_status": "pending"
+}

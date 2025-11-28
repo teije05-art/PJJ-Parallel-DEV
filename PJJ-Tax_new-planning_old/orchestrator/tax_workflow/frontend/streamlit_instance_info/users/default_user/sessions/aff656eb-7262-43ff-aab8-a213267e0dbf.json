@@ -1,0 +1,23 @@
+{
+  "session_id": "aff656eb-7262-43ff-aab8-a213267e0dbf",
+  "user_id": "default_user",
+  "created_at": "2025-11-26T17:26:54.509391",
+  "original_request": "Shopee Vietnam misreported FCT for payments to TikTok Singapore. What are the penalties for under-declaration and late payment?",
+  "suggested_categories": [
+    "FCT"
+  ],
+  "confirmed_categories": [
+    "FCT"
+  ],
+  "past_responses_found": [],
+  "selected_past_response": null,
+  "past_responses_suggested_files": [],
+  "documents_found": [],
+  "selected_documents": [],
+  "synthesized_response": "",
+  "verification_report": {},
+  "response_with_citations": "",
+  "citations": [],
+  "approval_status": "pending",
+  "current_step": 4
+}
