@@ -1,230 +1,106 @@
-# Code Changes Summary - November 12, 2025
+Memagent bug:
+  User Query
+      ↓
+  Agent.chat(query)
+      ↓
+  LLM receives query + system prompt
+      ↓
+  LLM UNDERSTANDS the query and decides:
+     "I need to read user.md to understand context"
+     "Then I need to follow the link to entities/healthcare_strategy.md"
+     "Then I should read entities/Japanese_Hospital_Vietnam_Market_Entry.md"
+      ↓
+  LLM GENERATES Python code to read those files:
+     user_content = read_file("user.md")
+     strategy = read_file("entities/healthcare_market_entry_strategy.md")
+     japan_project = read_file("entities/Japanese_Hospital_Vietnam_Market_Entry.md")
+      ↓
+  Code executes in sandbox, reads files
+      ↓
+  LLM synthesizes answer from the content it read
+      ↓
+  Response returned
+  There is NO semantic similarity calculation at all!
+  The entire "search" happens through:
+  1. LLM understanding what files to read (based on query comprehension)
+  2. File system navigation (reading files explicitly)
+  3. Following markdown links ([[entities/name.md]])
+  4. Synthesizing answers from read content
+  What We Got Wrong
+  We added semantic_similarity() expecting it to work like embeddings-based RAG. But MemAgent doesn't work that way. We
+  should have instead:
+  1. Structured memory like vanilla MemAgent:
+    - user.md - central hub
+    - entities/ - tax concepts, clients, regulations
+    - Cross-links between them
+  2. Called Agent.chat() directly with queries like:
+  agent.chat("What are the VAT filing requirements for Vietnamese companies?")
+  # Agent decides to read:
+  # - entities/vat_requirements.md
+  # - entities/vietnamese_business_law.md
+  # - Synthesizes answer
+  3. Let the LLM navigate instead of trying to force semantic similarity scoring
+  The Correct Fix
+  We should not use SegmentedMemory the way we've implemented it. Instead:
+  1. Organize memory like vanilla MemAgent:
+  tax-memory/
+  ├── user.md  (central tax profile with links)
+  ├── entities/
+  │   ├── vat_requirements.md
+  │   ├── cit_rules.md
+  │   ├── transfer_pricing.md
+  │   ├── past_responses/
+  │   │   ├── response_client_xyz_2024.md
+  │   │   └── response_client_abc_2024.md
+  │   └── tax_database/
+  │       ├── regulations_vat.md
+  │       ├── regulations_cit.md
+  │       └── case_law_precedents.md
+  └── plans/ (generated plans)
+  2. Query MemAgent directly:
+  agent = Agent(use_fireworks=True, memory_path="tax-memory/")
+  # Step 2: Search past responses
+  response = agent.chat(
+      "Find past VAT compliance advice for similar cases. "
+      "Query: Grab Vietnam issues e-invoices to riders and drivers. "
+      "Categories: VAT"
+  )
+  # Agent reads entities/past_responses/ and synthesizes answer
+  # Step 4: Search tax database
+  response = agent.chat(
+      "What tax regulations apply to e-invoice requirements? "
+      "Categories: VAT"
+  )
+  # Agent reads entities/tax_database/ and synthesizes answer
+  3. Let Agent generate the code to navigate memory (like vanilla MemAgent does)
+  Would you like me to:
+  1. Refactor our tax agents to use Agent.chat() directly instead of SegmentedMemory?
+  2. Restructure the memory to follow vanilla MemAgent organization?
+  3. Remove the semantic_similarity() method we just added since it's not needed?
+  This would be much closer to how MemAgent actually works in the original implementation.
+ I'll refactor the entire tax workflow system to use MemAgent's proper architecture while maintaining constraint
+  boundaries and Llama reasoning. This is a significant architectural change, so I'll do it systematically.
 
-**Date**: November 12, 2025
-**Status**: ✅ Applied and Ready for Testing
 
----
+  Changes Made to FileRecommender (tax_recommender_agent.py)
 
-## Change #1: Fix Constraint Filtering Regression
+  The Problem: Agent was looking for tax_database/VAT but actual directories are named tax_database/02_VAT (numbered
+  prefix)
 
-**File**: `orchestrator/simple_orchestrator.py`
+  The Solution: Updated the generate() method to map user-friendly category names to actual filesystem directory names:
 
-**Location**: Lines 327-333
+  1. Added mapping logic (lines 147-150):
+    - Maps categories like "VAT" → "02_VAT", "CIT" → "01_CIT", etc. using CATEGORY_DIR_MAP
+    - Logs the mapped directory names for debugging
+  2. Updated constrained query (lines 159-176):
+    - References actual directory names in the constraint: {', '.join(actual_dir_names)}
+    - Includes directory mapping hint: "VAT→02_VAT" so Agent understands the mapping
+    - Query now explicitly tells Agent to search in correct directories
 
-**What Changed**:
+  Example of what Agent will now receive:
+  CONSTRAINT: You MUST ONLY search within these user-selected tax categories (filesystem directories): 02_VAT.
+  Directory mapping: VAT→02_VAT
 
-### BEFORE (BROKEN - Missing selected_plans parameter):
-```python
-                # Step 1: Get base context (includes memory segments + selected entities!)
-                context = self.context_manager.retrieve_context(
-                    goal,
-                    session=self.segmented_memory,
-                    selected_entities=self.selected_entities
-                )
-```
+  This should resolve the "directory does not exist" error and allow Agent to correctly find and return VAT documents
+  from Step 4.
 
-### AFTER (FIXED - Includes selected_plans parameter):
-```python
-                # Step 1: Get base context (includes memory segments + selected entities + selected plans!)
-                context = self.context_manager.retrieve_context(
-                    goal,
-                    session=self.segmented_memory,
-                    selected_entities=self.selected_entities,
-                    selected_plans=self.selected_plans  # CRITICAL: Constrain memory searches to user-selected plans
-                )
-```
-
-**Why This Matters**:
-- Without `selected_plans`, ContextBuilder can't constrain MemoryContextProvider searches
-- MemoryContextProvider uses selected_plans to build queries with "CONSTRAINT:" clauses
-- Missing this parameter caused full-system searches instead of user-bounded searches
-- This is a ONE-LINE FIX that restores functionality that was working yesterday
-
----
-
-## Change #2: Add Checkpoint Diagnostics (Part 1)
-
-**File**: `simple_chatbox.py`
-
-**Location**: Line 1231 (after checkpoint yield)
-
-**What Changed**:
-
-### BEFORE (No post-yield logging):
-```python
-                                print(f"🔄 SSE STREAM: checkpoint_reached event yielded successfully to stream")
-```
-
-### AFTER (Added post-yield diagnostic):
-```python
-                                print(f"🔄 SSE STREAM: checkpoint_reached event yielded successfully to stream")
-                                print(f"✅ Checkpoint event yield completed - awaiting frontend processing")
-```
-
-**Why This Matters**:
-- Tells us if the SSE event transmission completes successfully
-- If this message doesn't appear, the hang is in the yield itself
-- If it appears but modal doesn't show, the hang is in frontend/browser
-
----
-
-## Change #3: Add Checkpoint Diagnostics (Part 2)
-
-**File**: `simple_chatbox.py`
-
-**Location**: Lines 1250-1263 (approval wait block)
-
-**What Changed**:
-
-### BEFORE (Minimal logging):
-```python
-                            # CRITICAL: Wait for user approval before continuing
-                            # This blocks until user clicks Approve/Reject in the browser
-                            print(f"🔄 SSE STREAM: About to call wait_for_checkpoint_approval for session {session_id}, checkpoint {checkpoint_count}")
-                            # Run the blocking call in an executor to free up the event loop
-                            # This allows other requests (like /api/checkpoint-approval) to be processed
-                            loop = asyncio.get_event_loop()
-                            approval_received = await loop.run_in_executor(None, session_manager.wait_for_checkpoint_approval, session_id)
-                            print(f"🔄 SSE STREAM: wait_for_checkpoint_approval returned {approval_received} for session {session_id}, checkpoint {checkpoint_count}")
-```
-
-### AFTER (Enhanced diagnostics + error handling):
-```python
-                            # CRITICAL: Wait for user approval before continuing
-                            # This blocks until user clicks Approve/Reject in the browser
-                            print(f"🔄 SSE STREAM: About to call wait_for_checkpoint_approval for session {session_id}, checkpoint {checkpoint_count}")
-                            print(f"⏳ WAITING: Blocking on user approval (event loop will process /api/checkpoint-approval requests)...")
-
-                            # Run the blocking call in an executor to free up the event loop
-                            # This allows other requests (like /api/checkpoint-approval) to be processed
-                            loop = asyncio.get_event_loop()
-                            try:
-                                approval_received = await loop.run_in_executor(None, session_manager.wait_for_checkpoint_approval, session_id)
-                                print(f"✅ APPROVAL RECEIVED: wait_for_checkpoint_approval returned {approval_received} for session {session_id}, checkpoint {checkpoint_count}")
-                            except Exception as approval_error:
-                                print(f"❌ ERROR in wait_for_checkpoint_approval: {approval_error}")
-                                import traceback
-                                traceback.print_exc()
-                                raise
-```
-
-**Why This Matters**:
-- Shows clearly when approval wait starts (pre-blocking log)
-- Shows when approval is received (post-blocking log)
-- Shows any exceptions that occur during approval wait
-- If we see "APPROVAL RECEIVED", we know the backend mechanism works
-- If we see an error, we know exactly what failed
-- If we see neither, we know it's hanging in the approval wait
-
----
-
-## Summary of Changes
-
-| File | Lines | Type | Purpose | Status |
-|------|-------|------|---------|--------|
-| `orchestrator/simple_orchestrator.py` | 327-333 | Parameter Addition | Fix constraint filtering regression | ✅ Applied |
-| `simple_chatbox.py` | 1231 | Logging Addition | Diagnostic: checkpoint yield completion | ✅ Applied |
-| `simple_chatbox.py` | 1251 | Logging Addition | Diagnostic: approval wait start | ✅ Applied |
-| `simple_chatbox.py` | 1256-1263 | Error Handling + Logging | Diagnostic: approval wait result/error | ✅ Applied |
-
----
-
-## Code Diff Summary
-
-### Change #1 (Constraint Fix):
-```
-Line 327: Comment updated from "selected entities!" to "selected entities + selected plans!"
-Line 332: NEW - added selected_plans=self.selected_plans parameter
-```
-
-### Change #2 & #3 (Checkpoint Diagnostics):
-```
-Line 1231: NEW - Added post-yield completion logging
-Line 1251: NEW - Added pre-wait status logging
-Line 1256-1263: MODIFIED - Wrapped approval_received call in try/except with logging
-```
-
----
-
-## Impact Assessment
-
-### Change #1 (Constraint Filtering Fix)
-- **Scope**: Affects only the multi-iteration planning path
-- **Risk Level**: VERY LOW (restores working code pattern)
-- **Expected Impact**: ContextBuilder will receive selected_plans and apply constraints
-- **Verification**: Look for "CONSTRAINT:" messages in logs for pattern retrieval
-
-### Changes #2 & #3 (Checkpoint Diagnostics)
-- **Scope**: Adds logging only, no behavioral changes
-- **Risk Level**: ZERO (logging can't break anything)
-- **Expected Impact**: Better visibility into checkpoint hang mechanism
-- **Verification**: Look for new diagnostic messages in terminal output
-
----
-
-## Testing Strategy
-
-1. **Test Change #1** by running planning iteration
-   - Look for constraint filtering logs showing ONLY user-selected plans
-   - If this works, constraint issue is SOLVED ✅
-
-2. **Test Changes #2 & #3** by running checkpoint
-   - Watch where logs stop
-   - Determine if hang is in yield, wait, or execution
-   - Share logs to identify root cause
-
----
-
-## Rollback Instructions (If Needed)
-
-### To Rollback Change #1:
-Revert line 332 in `orchestrator/simple_orchestrator.py` to:
-```python
-                context = self.context_manager.retrieve_context(
-                    goal,
-                    session=self.segmented_memory,
-                    selected_entities=self.selected_entities
-                )
-```
-
-### To Rollback Changes #2 & #3:
-Remove the new logging statements (lines 1231, 1251, and 1256-1263) from `simple_chatbox.py`
-
----
-
-## Confidence Levels
-
-### Change #1: Constraint Filtering Fix
-- **Confidence**: 99%
-- **Reason**: Clear missing parameter, straightforward fix, matches working code pattern
-- **Risk**: Minimal
-- **Expected Success**: Very high
-
-### Changes #2 & #3: Checkpoint Diagnostics
-- **Confidence**: 100% for logging, 0% for checkpoint fix
-- **Reason**: Logging has no behavioral impact, but root cause still unknown
-- **Risk**: None (logging only)
-- **Expected Success**: Will help identify root cause
-
----
-
-## Files Modified
-
-✅ `orchestrator/simple_orchestrator.py` - 1 parameter addition
-✅ `simple_chatbox.py` - 3 logging additions + 1 error handler
-
-**Total**: 2 files, 13 lines added/modified
-
----
-
-## Next Steps
-
-1. ✅ Code changes applied
-2. ⏳ Run test planning iteration
-3. ⏳ Collect diagnostic logs
-4. ⏳ Share logs for root cause analysis
-5. ⏳ Apply targeted fix based on logs
-
----
-
-**All changes are in place and ready for testing!**

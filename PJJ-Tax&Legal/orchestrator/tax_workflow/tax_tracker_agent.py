@@ -133,30 +133,51 @@ class CitationTracker(BaseAgent):
 
     def _embed_citations(self, response: str, sources: Dict[str, str]) -> str:
         """
-        Embed citation references in response.
+        Embed citation references in response using Llama.
 
-        For each major claim, find matching source and add citation.
+        Uses semantic understanding to map claims to sources and add citations
+        in format: "claim text [Source: filename]"
         """
-        lines = response.split("\n")
-        cited_lines = []
+        try:
+            # Build source context
+            sources_text = "\n---\n".join(
+                f"[Source: {filename}]\n{content[:500]}"  # First 500 chars per source
+                for filename, content in sources.items()
+            )
 
-        for line in lines:
-            if len(line.strip()) > 10 and not self._is_header(line):
-                # Find matching source for this line
-                source_file = self._find_matching_source(line, sources)
+            # Ask Llama to add citations to the response
+            prompt = f"""Add citations to this response by mapping each claim to a source document.
 
-                if source_file:
-                    # Embed citation at end of line
-                    cited_line = f"{line} [Source: {source_file}]"
-                else:
-                    # No matching source found
-                    cited_line = line
+RESPONSE TEXT:
+{response}
 
-                cited_lines.append(cited_line)
-            else:
-                cited_lines.append(line)
+AVAILABLE SOURCES:
+{sources_text}
 
-        return "\n".join(cited_lines)
+INSTRUCTIONS:
+1. Add [Source: filename] citations after each major claim
+2. Only cite sources that actually support the claim
+3. Keep the original text unchanged, just add citations
+4. Use format: "claim text [Source: filename]"
+5. Only cite from the available sources listed above
+
+Rewrite the response with citations added:"""
+
+            logger.debug("Requesting Llama to embed citations...")
+            cited_response = self.agent.generate_response(prompt)
+
+            if not cited_response:
+                logger.warning("Llama returned empty response for citation embedding")
+                return response  # Return original response if Llama fails
+
+            logger.debug(f"Llama citation embedding successful ({len(cited_response)} chars)")
+            return cited_response
+
+        except Exception as e:
+            logger.error(f"Error embedding citations with Llama: {e}")
+            # Fallback: return original response without citations
+            logger.warning("Falling back to original response without Llama-embedded citations")
+            return response
 
     def _is_header(self, text: str) -> bool:
         """Check if line is a header (should not be cited)"""

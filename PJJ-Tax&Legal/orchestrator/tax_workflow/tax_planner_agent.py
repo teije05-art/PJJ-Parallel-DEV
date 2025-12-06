@@ -238,7 +238,8 @@ class RequestCategorizer(BaseAgent):
 
     def _llama_classification(self, request: str) -> Dict[str, float]:
         """
-        Use Llama to classify request for additional context
+        Use Llama to classify request and identify relevant domains.
+        Llama responds in natural language, we extract domain mentions.
 
         Args:
             request: Original request text
@@ -247,92 +248,84 @@ class RequestCategorizer(BaseAgent):
             Dict mapping domain -> confidence score (0-1)
         """
         try:
-            prompt = f"""Analyze this tax request and rate its relevance to each tax domain (0-1 scale).
+            # Change 1A: Simplified natural language prompt (no JSON requirement)
+            prompt = f"""Analyze this tax request and identify the relevant regulatory domains.
 
-Tax Domains:
-- CIT: Corporate Income Tax
-- VAT: Value Added Tax
-- Transfer Pricing: Intercompany pricing
-- PIT: Personal Income Tax
-- FCT: Foreign Contractor Tax
-- DTA: Double Taxation Agreements
-- Customs: Import/Export duties
-- Excise Tax: Special goods taxation
-- Environmental Tax: Pollution/resource taxes
-- Capital Gains: Investment income
+Tax Domains Available:
+- CIT (Corporate Income Tax)
+- VAT (Value Added Tax)
+- Transfer Pricing (Intercompany pricing)
+- PIT (Personal Income Tax)
+- FCT (Foreign Contractor Tax)
+- DTA (Double Taxation Agreements)
+- Customs (Import/Export duties)
+- Excise Tax (Special goods taxation)
+- Environmental Tax (Pollution/resource taxes)
+- Capital Gains (Investment income)
 
-Request: "{request}"
+Request: {request}
 
-Respond ONLY with JSON format:
-{{
-  "CIT": 0.0-1.0,
-  "VAT": 0.0-1.0,
-  "Transfer Pricing": 0.0-1.0,
-  "PIT": 0.0-1.0,
-  "FCT": 0.0-1.0,
-  "DTA": 0.0-1.0,
-  "Customs": 0.0-1.0,
-  "Excise Tax": 0.0-1.0,
-  "Environmental Tax": 0.0-1.0,
-  "Capital Gains": 0.0-1.0
-}}"""
+For each relevant domain, briefly explain why it applies to this request.
+List the domains in order of relevance."""
 
-            logger.debug(f"Sending prompt to Agent.generate_response()")
+            logger.debug(f"Sending natural language prompt to Agent.generate_response()")
             response = self.agent.generate_response(prompt)
             logger.debug(f"Received response from Agent (length: {len(response)})")
 
-            # Check if response is empty
             if not response:
-                logger.error("CRITICAL: Agent.generate_response() returned EMPTY response")
-                logger.warning("Using fallback neutral scores due to empty response")
-                return {domain: 0.5 for domain in self.DOMAIN_KEYWORDS}
+                logger.error("Agent.generate_response() returned empty response")
+                logger.info("Falling back to keyword-only classification")
+                return {domain: 0.0 for domain in self.DOMAIN_KEYWORDS}
 
             logger.debug(f"Raw response (first 500 chars): {response[:500]}...")
 
-            # Try to parse JSON from response
-            try:
-                # Look for JSON in response
-                import json
-                json_start = response.find('{')
-                json_end = response.rfind('}') + 1
-
-                if json_start < 0 or json_end <= json_start:
-                    logger.error(f"CRITICAL: No JSON found in response (searched {len(response)} chars)")
-                    logger.error(f"Response content: {response[:300]}...")
-                    logger.warning("Using fallback neutral scores due to missing JSON")
-                    return {domain: 0.5 for domain in self.DOMAIN_KEYWORDS}
-
-                json_str = response[json_start:json_end]
-                logger.debug(f"Extracted JSON substring ({len(json_str)} chars): {json_str[:200]}...")
-
-                scores = json.loads(json_str)
-                logger.debug(f"Successfully parsed JSON with {len(scores)} keys: {list(scores.keys())[:3]}...")
-
-                # Validate and normalize scores
-                normalized = {}
-                for domain in self.DOMAIN_KEYWORDS.keys():
-                    score = scores.get(domain, 0)
-                    normalized[domain] = max(0, min(float(score), 1.0))
-
-                logger.debug(f"Normalized scores: {normalized}")
-                logger.info(f"Llama classification SUCCEEDED with scores: {normalized}")
-                return normalized
-            except json.JSONDecodeError as parse_error:
-                logger.error(f"CRITICAL: JSON parsing failed: {parse_error}")
-                logger.error(f"Failed response was: {response[:500]}...")
-                logger.warning("Using fallback neutral scores due to JSON parsing error")
-                return {domain: 0.5 for domain in self.DOMAIN_KEYWORDS}
-            except (ValueError, KeyError, TypeError) as parse_error:
-                logger.error(f"CRITICAL: Response validation failed: {parse_error}")
-                logger.error(f"Failed response was: {response[:500]}...")
-                logger.warning("Using fallback neutral scores due to response validation error")
-                return {domain: 0.5 for domain in self.DOMAIN_KEYWORDS}
+            # Change 1B: Extract domains from natural language response
+            domains_found = self._extract_domains_from_response(response)
+            logger.info(f"Llama classification found domains: {domains_found}")
+            return domains_found
 
         except Exception as e:
-            logger.error(f"CRITICAL: Llama classification error: {e}", exc_info=True)
-            logger.warning("Using fallback neutral scores due to exception")
-            # Return neutral scores on error
-            return {domain: 0.5 for domain in self.DOMAIN_KEYWORDS}
+            logger.error(f"Llama classification error: {e}", exc_info=True)
+            # Change 1C: Return error properly instead of neutral scores
+            logger.info("Falling back to keyword-only classification")
+            return {domain: 0.0 for domain in self.DOMAIN_KEYWORDS}
+
+    def _extract_domains_from_response(self, llama_response: str) -> Dict[str, float]:
+        """
+        Extract domain scores from natural language Llama response.
+
+        Llama mentions domains in the response. We count mentions and
+        normalize to 0-1 score:
+        - Mentioned once = 0.7
+        - Mentioned twice+ = 0.9
+        - Not mentioned = 0.0
+
+        Args:
+            llama_response: Natural language response from Llama
+
+        Returns:
+            Dict mapping domain -> confidence score (0-1)
+        """
+        response_lower = llama_response.lower()
+        domains_found = {}
+
+        for domain in self.DOMAIN_KEYWORDS.keys():
+            # Count mentions of domain name
+            domain_lower = domain.lower()
+            count = response_lower.count(domain_lower)
+
+            if count >= 2:
+                # Domain mentioned multiple times - high relevance
+                domains_found[domain] = 0.9
+            elif count == 1:
+                # Domain mentioned once - medium relevance
+                domains_found[domain] = 0.7
+            else:
+                # Domain not mentioned - low relevance
+                domains_found[domain] = 0.0
+
+        logger.debug(f"Extracted domains from Llama response: {domains_found}")
+        return domains_found
 
     def _combine_scores(
         self,

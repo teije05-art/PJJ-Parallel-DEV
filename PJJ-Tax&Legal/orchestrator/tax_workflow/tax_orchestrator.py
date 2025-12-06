@@ -367,7 +367,7 @@ class TaxOrchestrator(BaseAgent):
 
         # Store output
         if result.success:
-            session.documents_found = result.output.get("search_results", [])
+            session.documents_found = result.output  # FileRecommender returns list directly
             session.current_step = 4
 
         processing_time = int((time.time() - start_time) * 1000)

@@ -52,7 +52,29 @@ class TaxResponseSearcher(BaseAgent):
     """
 
     # Search constraints
-    MAX_RESULTS = 5
+    MAX_RESULTS = 15
+
+    # Category to directory mapping (numbered prefixes in actual filesystem)
+    CATEGORY_DIR_MAP = {
+        "CIT": "01_CIT",
+        "VAT": "02_VAT",
+        "Customs": "03_Customs",
+        "PIT": "04_PIT",
+        "DTA": "05_DTA",
+        "Transfer Pricing": "06_Transfer_Pricing",
+        "FCT": "07_FCT",
+        "Tax Administration": "08_Tax_Administration",
+        "Excise Tax": "09_Excise_Tax_SST",
+        "Natural Resources": "10_Natural_Resources_SHUI",
+        "Draft Regulations": "11_Draft_Regulations",
+        "Capital Gains": "12_Capital_Gains_Tax_CGT",
+        "Environmental Tax": "13_Environmental_Protection_EPT",
+        "Immigration": "14_Immigration_Work_Permits",
+        "E-Commerce": "15_E_Commerce",
+        "Business Support": "16_Business_Support_Measures",
+        "General Policies": "17_General_Policies",
+        "Miscellaneous": "18_Miscellaneous"
+    }
 
     def __init__(self, agent: Agent, memory_path: Path):
         """
@@ -121,15 +143,44 @@ class TaxResponseSearcher(BaseAgent):
             logger.info(f"Constraint boundary: Search ONLY in past_responses/")
             logger.info(f"Category constraint: ONLY results matching {categories}")
 
-            # Build constrained query with explicit CONSTRAINT directive
-            # This tells the Agent to use Python code to navigate memory
-            constrained_query = f"""Find the 5 most relevant past tax response memos in the past_responses directory that match this query and are related to these categories: {', '.join(categories)}.
+            # Map categories to actual directory names
+            category_dirs = [f'past_responses/{self.CATEGORY_DIR_MAP.get(cat, cat)}/' for cat in categories]
+            logger.info(f"Mapped category directories: {category_dirs}")
 
-Query: {request}
+            # CRITICAL: Use Python code to navigate directories and read files
+            # Agent must write Python code that uses list_files(), read_file(), etc.
+            # Use ABSOLUTE paths from the memory directory
+            memory_base = self.memory_path
+            absolute_category_dirs = [f'{memory_base}/{d}' for d in category_dirs]
 
-Focus on responses related to: {', '.join(categories)}
+            # IMPROVED PROMPT - Requirements as comments, not example code
+            # Agent must write its own executable Python code
+            constrained_query = f"""You MUST respond with ONLY these sections:
 
-Return relevant past responses with their filenames and summaries."""
+<think>
+[Your plan to search these directories for relevant past tax responses]
+</think>
+
+<python>
+# REQUIREMENTS (write Python code to implement these):
+# 1. Create empty 'results' list
+# 2. Set category_dirs to: {absolute_category_dirs!r}
+# 3. For each dir in category_dirs:
+#    - Use os.walk(dir) to recursively traverse ALL subdirectories
+#    - For each .md file found:
+#      * Use os.chdir(root) to navigate to file's directory
+#      * Use read_file(filename) to get content
+#      * If len(content) > 50:
+#        - Append dict to results with keys: 'source_file', 'content', 'directory'
+#        - 'content' should be content[:3000] (first 3000 chars)
+#        - 'source_file' should be filename
+#        - 'directory' should be root
+# 4. Wrap file operations in try/except to handle errors
+#
+# Write the actual executable Python code below (not comments):
+</python>
+
+CRITICAL: Your <python> section must contain ACTUAL executable code that creates the 'results' variable."""
 
             logger.debug(f"Constrained query: {constrained_query[:200]}...")
 
@@ -139,19 +190,69 @@ Return relevant past responses with their filenames and summaries."""
             logger.info(f"Categories constraint: {categories}")
             logger.info("Using Agent to navigate past_responses...")
 
-            # Call Agent to search memory
+            # CRITICAL: Create a FRESH Agent instance to avoid context overflow
+            # Each step gets its own clean context window (fresh conversation history)
+            # max_tool_turns=1 ensures single execution of template code (no refinement modifications)
+            from agent import Agent
+            fresh_agent = Agent(memory_path=str(self.memory_path), max_tool_turns=1)
+            logger.info("Created fresh Agent instance for this search (max_tool_turns=1)")
+
+            # Call fresh Agent to search memory
             # Agent will read past_responses and return matches
-            agent_response = self.agent.chat(constrained_query)
+            agent_response = fresh_agent.chat(constrained_query)
 
             search_time_ms = (time.time() - start_time) * 1000
             logger.info(f"Agent search completed in {search_time_ms:.1f}ms")
-            logger.info(f"Agent response length: {len(agent_response.reply)} characters")
 
-            # Parse Agent's response to extract past responses
-            past_responses = self._parse_agent_response(
-                agent_response.reply,
-                categories
-            )
+            # DEBUG: Show what Python code was executed
+            logger.info(f"=== PYTHON CODE EXECUTED ===")
+            if agent_response.python_block:
+                logger.info(f"{agent_response.python_block[:1000]}")
+            else:
+                logger.warning("NO PYTHON CODE WAS EXECUTED!")
+            logger.info(f"=== END PYTHON CODE ===")
+
+            logger.info(f"Execution results available: {agent_response.execution_results is not None}")
+            if agent_response.execution_results:
+                logger.info(f"Execution results type: {type(agent_response.execution_results)}")
+                logger.info(f"Execution results keys: {list(agent_response.execution_results.keys())}")
+                logger.info(f"Number of items in 'results' key: {len(agent_response.execution_results.get('results', []))}")
+                if 'results' in agent_response.execution_results:
+                    logger.info(f"First result sample: {agent_response.execution_results['results'][0] if agent_response.execution_results['results'] else 'EMPTY LIST'}")
+            else:
+                logger.error(f"Execution results is EMPTY! Type: {type(agent_response.execution_results)}, Value: {agent_response.execution_results}")
+
+            logger.info(f"Agent reply preview: {agent_response.reply[:500] if agent_response.reply else 'No reply'}")
+
+            # Extract past responses from Agent's execution results
+            # The Agent's Python code creates a 'results' variable with extracted content
+            past_responses = []
+            if agent_response.execution_results and "results" in agent_response.execution_results:
+                # Results variable is available from Python code execution
+                raw_results = agent_response.execution_results.get("results", [])
+                logger.info(f"Found {len(raw_results)} results from Agent execution")
+
+                # Convert Agent's raw results to structured format
+                for result in raw_results:
+                    if isinstance(result, dict):
+                        full_text = result.get("content", "")  # Get the 3000-char content
+                        past_responses.append({
+                            "filename": result.get("source_file", "Unknown"),
+                            "section_title": result.get("section_title", "Section"),
+                            "relevance": result.get("relevance", "Relevant"),
+                            "content": full_text,  # Full 3000 chars for synthesis
+                            "summary": full_text[:250],  # First 250 chars for display
+                            "categories": categories,
+                            "files_used": [result.get("source_file", "Unknown")],
+                            "date_created": "Unknown"
+                        })
+            else:
+                # Fallback: try to parse Agent's reply text (for backward compatibility)
+                logger.debug("No execution results found, attempting text parsing fallback")
+                past_responses = self._parse_agent_response(
+                    agent_response.reply or "",
+                    categories
+                )
 
             logger.info(f"=== MEMAGENT SEARCH COMPLETED ===")
             logger.info(f"Search time: {search_time_ms:.1f}ms")
@@ -166,7 +267,8 @@ Return relevant past responses with their filenames and summaries."""
             for result in past_responses:
                 formatted_results.append({
                     "filename": result.get("filename", "Unknown"),
-                    "summary": result.get("summary", "")[:200],  # First 200 chars
+                    "content": result.get("content", ""),  # Full 3000 chars preserved for synthesis
+                    "summary": result.get("summary", ""),  # Already 250 chars from line 236
                     "categories": result.get("categories", []),
                     "files_used": result.get("files_used", []),
                     "date_created": result.get("date_created", "Unknown")
@@ -207,83 +309,158 @@ Return relevant past responses with their filenames and summaries."""
         requested_categories: List[str]
     ) -> List[Dict[str, Any]]:
         """
-        Parse Agent's natural language response to extract past responses.
+        Parse Agent's Python code execution response to extract past responses.
 
-        The Agent navigates memory and identifies relevant files.
-        This method extracts document information from the response.
+        Agent executes Python code that creates a 'results' variable containing:
+        [
+            {
+                "source_file": "filename.md",
+                "section_title": "Section Title",
+                "relevance": "Why this is relevant",
+                "content": "actual extracted text",
+                "directory": "past_responses/XX_Category/"
+            },
+            ...
+        ]
 
         Args:
-            response_text: Agent's response with past response information
+            response_text: Agent's response after Python code execution
             requested_categories: Categories the user requested
 
         Returns:
-            List of structured past response objects
+            List of structured past response objects with full content
         """
         past_responses = []
 
         if not response_text or len(response_text.strip()) == 0:
-            logger.warning("Agent returned empty response")
+            logger.warning("Agent returned empty response - likely no files found in directories")
             return past_responses
 
         try:
-            import ast
-
             response_text = response_text.strip()
+            logger.debug(f"=== PARSING AGENT RESPONSE ===")
+            logger.debug(f"Full response length: {len(response_text)} chars")
+            logger.debug(f"Response preview: {response_text[:500]}...")
 
-            # Strategy 1: Try to parse as Python literal (list of dicts)
+            # Try to parse as JSON first (Agent may return structured JSON)
+            import json
             try:
-                data = ast.literal_eval(response_text)
-                if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-                    for item in data:
-                        if isinstance(item, dict) and 'filename' in item:
-                            response = {
-                                "filename": item.get("filename", "Unknown"),
-                                "summary": item.get("summary", "")[:200],
-                                "categories": item.get("categories", requested_categories),
-                                "files_used": item.get("files_used", []),
-                                "date_created": item.get("date_created", "Unknown")
-                            }
-                            past_responses.append(response)
-                    logger.info(f"Parsed {len(past_responses)} past responses from Python literal")
-                    return past_responses
-            except (ValueError, SyntaxError):
-                pass
+                # Check if response contains a JSON list
+                if '[' in response_text and ']' in response_text:
+                    # Extract FIRST complete JSON array from response
+                    # This handles cases where JSON is printed multiple times
+                    start_idx = response_text.find('[')
+                    if start_idx >= 0:
+                        # Find the matching closing bracket for this JSON array
+                        bracket_count = 0
+                        end_idx = start_idx
+                        for i in range(start_idx, len(response_text)):
+                            if response_text[i] == '[':
+                                bracket_count += 1
+                            elif response_text[i] == ']':
+                                bracket_count -= 1
+                                if bracket_count == 0:
+                                    end_idx = i + 1
+                                    break
 
-            # Strategy 2: Parse as narrative list (fallback)
-            logger.info("Attempting narrative parse of Agent response")
+                        if end_idx > start_idx:
+                            json_str = response_text[start_idx:end_idx]
+                            logger.debug(f"Attempting to parse JSON: {json_str[:200]}...")
+                            results = json.loads(json_str)
+
+                            if isinstance(results, list):
+                                logger.info(f"Parsed {len(results)} results from JSON")
+                                for item in results:
+                                    if isinstance(item, dict) and "source_file" in item and "content" in item:
+                                        response = {
+                                            "filename": item.get("source_file", "Unknown"),
+                                            "section_title": item.get("section_title", "General"),
+                                            "relevance": item.get("relevance", "Matching category"),
+                                            "summary": item.get("content", ""),
+                                            "categories": requested_categories,
+                                            "files_used": [item.get("source_file", "Unknown")],
+                                            "date_created": "Unknown"
+                                        }
+                                        past_responses.append(response)
+                                        logger.debug(f"Extracted: {response['filename']} - {response['section_title']}")
+
+                                logger.info(f"Parsed {len(past_responses)} past responses from JSON")
+                                if len(past_responses) > 0:
+                                    return past_responses
+            except (json.JSONDecodeError, Exception) as e:
+                logger.debug(f"JSON parsing failed ({str(e)}), trying alternative parsing methods")
+
+            # Parse plain text structured format
+            # Look for patterns like "Source File: name.md", "Section Title: title", etc.
+            logger.info("Agent likely returned plain text structured response - parsing fields...")
+
             import re
-            lines = response_text.split('\n')
-            current_response = None
+            sections = re.split(r'\n\s*-{3,}\s*\n|\n\s*\n', response_text)
 
-            for line in lines:
-                line = line.strip()
+            for section in sections:
+                if not section.strip() or len(section.strip()) < 20:
+                    continue
 
-                # Detect response headers (file names, numbered lists)
-                if line and (line.startswith(('1.', '2.', '3.', '4.', '5.', '-')) or
-                            line.endswith('.md')):
-                    if current_response and "filename" in current_response:
-                        past_responses.append(current_response)
+                # Extract structured fields using patterns (case-insensitive)
+                source_file_match = re.search(r'(?:Source\s+File|source_file|^\s*File)\s*:\s*([^\n]+\.md)', section, re.IGNORECASE | re.MULTILINE)
+                title_match = re.search(r'(?:Section\s+Title|Section|Title)\s*:\s*([^\n]+)', section, re.IGNORECASE)
+                relevance_match = re.search(r'(?:Relevance|Relevant|Directory)\s*:\s*([^\n]+)', section, re.IGNORECASE)
+                content_match = re.search(r'(?:Content|Section\s+Content)\s*:\s*(.+?)(?:\n(?:\*|Source|Section|Directory|File)|$)', section, re.IGNORECASE | re.DOTALL)
 
-                    # Extract filename
-                    filename = re.sub(r'^[\d\.\-\s]+', '', line).strip()
-                    if filename and '.md' in filename.lower():
-                        current_response = {
-                            "filename": filename,
-                            "summary": "",
-                            "categories": requested_categories,
-                            "files_used": [],
-                            "date_created": "Unknown"
-                        }
-                elif current_response and line and not line.startswith('-'):
-                    current_response["summary"] += " " + line
+                source_file = source_file_match.group(1).strip() if source_file_match else None
+                section_title = title_match.group(1).strip() if title_match else "Extracted Section"
+                relevance = relevance_match.group(1).strip() if relevance_match else "Matching query"
 
-            if current_response and "filename" in current_response:
-                past_responses.append(current_response)
+                # Get content
+                if content_match:
+                    content = content_match.group(1).strip()[:3000]
+                else:
+                    content = section.strip()[:1000]
 
-            logger.info(f"Parsed {len(past_responses)} past responses from narrative")
+                if source_file:
+                    response = {
+                        "filename": source_file,
+                        "section_title": section_title,
+                        "relevance": relevance,
+                        "content": content,  # Full 3000 chars for synthesis
+                        "summary": content[:250],  # First 250 chars for display
+                        "categories": requested_categories,
+                        "files_used": [source_file],
+                        "date_created": "Unknown"
+                    }
+                    past_responses.append(response)
+                    logger.debug(f"Extracted: {source_file} - {section_title}")
+
+            if past_responses:
+                logger.info(f"Parsed {len(past_responses)} past responses from structured text")
+                return past_responses
+
+            # Fallback: look for any .md file mentions
+            logger.info("Fallback: searching for .md file mentions...")
+            md_pattern = r'([^\s:/\\]+\.md)'
+            md_files = re.findall(md_pattern, response_text)
+
+            if md_files:
+                logger.info(f"Found {len(set(md_files))} .md file mentions")
+                for filename in list(set(md_files))[:self.MAX_RESULTS]:
+                    response = {
+                        "filename": filename,
+                        "section_title": "Extracted Section",
+                        "relevance": "Matching query",
+                        "summary": response_text[:1000],
+                        "categories": requested_categories,
+                        "files_used": [filename],
+                        "date_created": "Unknown"
+                    }
+                    past_responses.append(response)
+
+            if not past_responses:
+                logger.warning(f"Could not parse any past responses from Agent output")
+
+            logger.info(f"Parsed {len(past_responses)} past responses from Agent response")
             return past_responses
 
         except Exception as e:
-            logger.error(f"Error parsing Agent response: {e}")
+            logger.error(f"Error parsing Agent response: {e}", exc_info=True)
             logger.warning(f"Response text was: {response_text[:500]}...")
             return past_responses

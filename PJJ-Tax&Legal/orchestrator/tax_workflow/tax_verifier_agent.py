@@ -108,11 +108,12 @@ class DocumentVerifier(BaseAgent):
                     error=""
                 )
 
-            # Verify each claim against sources
+            # Verify each claim against sources using Llama
             logger.info(f"Verifying {len(claims)} claims against {len(selected_file_contents)} source documents...")
+            logger.info("Using Llama for semantic verification (not just keyword matching)...")
             verification_results = []
             for claim_id, claim_text in enumerate(claims):
-                is_verified = self._verify_claim(claim_text, selected_file_contents)
+                is_verified = self._verify_claim_with_llama(claim_text, selected_file_contents)
                 verification_results.append({
                     "claim_id": claim_id,
                     "claim": claim_text[:100],  # Truncate for display
@@ -120,9 +121,9 @@ class DocumentVerifier(BaseAgent):
                     "issue_type": None if is_verified else "unsourced_claim"
                 })
                 if is_verified:
-                    logger.debug(f"Claim {claim_id}: VERIFIED")
+                    logger.debug(f"Claim {claim_id}: VERIFIED by Llama")
                 else:
-                    logger.debug(f"Claim {claim_id}: UNVERIFIED (potential hallucination)")
+                    logger.debug(f"Claim {claim_id}: UNVERIFIED by Llama (potential hallucination)")
 
             # Summarize verification
             verified_count = sum(1 for r in verification_results if r["status"] == "verified")
@@ -207,32 +208,63 @@ class DocumentVerifier(BaseAgent):
 
         return claims
 
-    def _verify_claim(self, claim: str, sources: Dict[str, str]) -> bool:
+    def _verify_claim_with_llama(self, claim: str, sources: Dict[str, str]) -> bool:
         """
-        Check if claim appears in any source document.
+        Verify claim semantically using Llama.
 
-        Uses keyword matching: claim is verified if a significant portion
-        of its keywords appear in one or more source documents.
+        Asks Llama to determine if the claim is supported by the provided source documents.
+        Uses semantic understanding rather than simple keyword matching.
+
+        Args:
+            claim: The claim to verify
+            sources: Dict of {filename: content} source documents
+
+        Returns:
+            True if Llama confirms claim is sourced, False otherwise
         """
-        claim_lower = claim.lower()
-        claim_keywords = [w for w in claim_lower.split() if len(w) > 3]  # Filter short words
+        try:
+            # Build source context
+            sources_text = "\n---\n".join(
+                f"[Source: {filename}]\n{content[:1000]}"  # First 1000 chars per source
+                for filename, content in sources.items()
+            )
 
-        if not claim_keywords:
-            return True  # Empty claim is trivially verified
+            # Ask Llama to verify the claim
+            prompt = f"""Verify this claim based on the provided source documents.
 
-        # Check each source document
-        for filename, content in sources.items():
-            content_lower = content.lower()
+CLAIM TO VERIFY:
+{claim}
 
-            # Count matching keywords
-            keyword_matches = sum(1 for kw in claim_keywords if kw in content_lower)
+SOURCE DOCUMENTS:
+{sources_text}
 
-            # Verify if >50% of keywords match (threshold: 0.5)
-            if keyword_matches > len(claim_keywords) * 0.5:
-                return True  # Claim verified against this source
+Is this claim supported by the source documents?
+Answer with ONLY "YES" or "NO" on the first line, then briefly explain why.
 
-        # Claim not found in any source
-        return False
+Example:
+YES - This is stated in Source 2, line 5
+OR
+NO - No source document mentions this"""
+
+            logger.debug(f"Verifying claim: '{claim[:80]}...'")
+            response = self.agent.generate_response(prompt)
+
+            if not response:
+                logger.warning(f"Llama returned empty response for claim: {claim[:80]}")
+                return False
+
+            # Parse response: should start with YES or NO
+            response_upper = response.strip().upper()
+            is_verified = response_upper.startswith("YES")
+
+            logger.debug(f"Llama verification: {is_verified} - Response: {response[:100]}")
+            return is_verified
+
+        except Exception as e:
+            logger.error(f"Error verifying claim with Llama: {e}")
+            logger.error(f"Claim was: {claim[:100]}")
+            # On error, assume unverified (conservative approach)
+            return False
 
 
 # ============================================================================
