@@ -3,6 +3,12 @@ FileRecommender Agent - Step 4 of Tax Workflow
 
 Purpose: Search tax database and recommend source documents using MemAgent
 
+MEMAGENT ARCHITECTURE (from MEMAGENT_JOURNEY.md):
+- MemAgent is an "executable markdown navigator" NOT a vector database
+- Agent writes Python code that uses: os.chdir(), list_files(), read_file()
+- Results captured via execution_results['results']
+- Fresh Agent instance per search (max_tool_turns=1)
+
 CONSTRAINT BOUNDARIES:
 - Search Scope: ONLY tax_database/ directory
 - Filter: ONLY documents matching confirmed_categories from user
@@ -11,6 +17,7 @@ CONSTRAINT BOUNDARIES:
 """
 
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -31,8 +38,11 @@ class FileRecommender(BaseAgent):
     """
     Step 4: Search tax database and recommend source documents via MemAgent.
 
-    Searches across 3,400+ documents in /local-memory/tax_legal/tax_database/
-    and returns ranked results by relevance matching user-confirmed categories.
+    Uses the TRUE MemAgent pattern from MEMAGENT_JOURNEY.md:
+    1. Pre-flatten directory paths (deterministic - handles nested structure)
+    2. Fresh Agent instance with max_tool_turns=1
+    3. Agent writes Python code using os.chdir() + list_files() + read_file()
+    4. Results extracted from execution_results['results']
 
     CONSTRAINT BOUNDARIES:
     - Search Scope: ONLY /local-memory/tax_legal/tax_database/ directory (EXPLICIT)
@@ -40,12 +50,7 @@ class FileRecommender(BaseAgent):
     - Fallback: If categories empty, return empty (no autonomous document discovery)
     - No Autonomy: Cannot access past_responses directory
 
-    How it works:
-    1. Sends query to Agent.chat() with category constraints
-    2. Agent reads tax_database from memory and identifies matching documents
-    3. Returns results with metadata about what was searched
-
-    Step 4 Workflow: User confirms categories → FileRecommender searches tax_database → User selects documents
+    Step 4 Workflow: User confirms categories -> FileRecommender searches tax_database -> User selects documents
     """
 
     # Search constraints
@@ -87,12 +92,126 @@ class FileRecommender(BaseAgent):
 
         # Log initialization with explicit path information
         logger.info("=" * 80)
-        logger.info("STEP 4: FileRecommender Initialized")
+        logger.info("STEP 4: FileRecommender Initialized (MEMAGENT MODE)")
         logger.info(f"  PRIMARY DATA DIRECTORY: {self.memory_path}")
         logger.info(f"  Search Source: {self.memory_path / 'tax_database'}")
         logger.info(f"  Search Scope: tax_database/ (3,400+ tax documents in 16 categories)")
-        logger.info(f"  Constraint: Category filtering enforced via Agent")
+        logger.info(f"  Mode: MemAgent (os.chdir + list_files + read_file)")
         logger.info("=" * 80)
+
+    # =========================================================================
+    # HELPER METHODS
+    # =========================================================================
+
+    def _get_all_subdirectories(self, category_dirs: List[str]) -> List[str]:
+        """
+        Pre-flatten nested directory structure to get all leaf directories.
+
+        tax_database has structure like:
+        02_VAT/
+          CV 2018/
+            file.md
+          CV 2019/
+            file.md
+
+        This method returns all subdirectory paths that contain .md files,
+        so MemAgent's simple os.chdir() + list_files() pattern works.
+
+        Args:
+            category_dirs: List of category directory paths (e.g., ["/path/tax_database/02_VAT"])
+
+        Returns:
+            List of all subdirectory paths containing .md files
+        """
+        all_dirs = []
+
+        for cat_dir in category_dirs:
+            if not os.path.isdir(cat_dir):
+                logger.warning(f"Category directory does not exist: {cat_dir}")
+                continue
+
+            # Walk through all subdirectories
+            for root, dirs, files in os.walk(cat_dir):
+                # Check if this directory has .md files
+                md_files = [f for f in files if f.endswith('.md')]
+                if md_files:
+                    all_dirs.append(root)
+
+        logger.info(f"Pre-flattened {len(category_dirs)} categories into {len(all_dirs)} searchable directories")
+        return all_dirs
+
+    def _extract_results_from_response(
+        self,
+        agent_response,
+        categories: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract results from Agent's execution_results.
+
+        The Agent's Python code creates a 'results' variable that gets captured
+        in execution_results dict.
+
+        Args:
+            agent_response: AgentResponse from fresh_agent.chat()
+            categories: User-confirmed categories
+
+        Returns:
+            List of document dicts
+        """
+        documents = []
+
+        # Check execution_results for 'results' variable
+        if agent_response.execution_results:
+            exec_results = agent_response.execution_results
+            logger.info(f"Variables in execution_results: {list(exec_results.keys())}")
+
+            # Look for results in various variable names
+            result_keys = ['results', 'documents', 'matches', 'found_files', 'relevant_files']
+            raw_results = None
+
+            for key in result_keys:
+                if key in exec_results and isinstance(exec_results[key], list):
+                    raw_results = exec_results[key]
+                    logger.info(f"Found results in variable '{key}': {len(raw_results)} items")
+                    break
+
+            if raw_results:
+                for item in raw_results:
+                    if isinstance(item, dict):
+                        doc = {
+                            "filename": item.get("source_file", item.get("filename", "Unknown")),
+                            "category": item.get("category", categories[0] if categories else "General"),
+                            "full_path": item.get("full_path", item.get("directory", "")),
+                            "content": item.get("content", "")[:3000],
+                            "summary": item.get("content", "")[:250],
+                            "categories": categories,
+                            "files_used": [item.get("source_file", item.get("filename", "Unknown"))],
+                        }
+                        documents.append(doc)
+                    elif isinstance(item, str):
+                        # If result is just a string (filename or content)
+                        documents.append({
+                            "filename": item if item.endswith('.md') else "Unknown",
+                            "category": categories[0] if categories else "General",
+                            "content": item,
+                            "summary": item[:250],
+                            "categories": categories,
+                        })
+
+                logger.info(f"Extracted {len(documents)} documents from execution_results")
+            else:
+                logger.warning("No 'results' variable found in execution_results")
+
+        # Fallback: try parsing reply text
+        if not documents and agent_response.reply:
+            logger.info("Attempting fallback: parsing reply text")
+            documents = self._parse_agent_response(agent_response.reply, categories)
+
+        return documents
+
+    # =========================================================================
+    # MAIN GENERATE METHOD - TRUE MEMAGENT PATTERN
+    # =========================================================================
 
     def generate(
         self,
@@ -101,10 +220,13 @@ class FileRecommender(BaseAgent):
         suggested_files: Optional[List[str]] = None
     ) -> AgentResult:
         """
-        Search tax database for relevant documents.
+        Search tax database using TRUE MemAgent pattern.
 
-        Uses Agent.chat() to navigate memory and find relevant tax documents.
-        Agent interprets the constraint and searches only within specified categories.
+        MEMAGENT ARCHITECTURE (from MEMAGENT_JOURNEY.md):
+        1. Pre-flatten directories (deterministic - handles nested structure)
+        2. Fresh Agent instance with max_tool_turns=1
+        3. Agent writes Python code using os.chdir() + list_files() + read_file()
+        4. Results extracted from execution_results['results']
 
         Args:
             request: The tax question/request
@@ -114,12 +236,12 @@ class FileRecommender(BaseAgent):
         Returns:
             AgentResult with:
             - success: True if search completed (even if no results)
-            - output: List of documents (top-10) with metadata
+            - output: List of documents with relevant content
             - metadata: Search scope, categories boundary, results info
             - error: Empty string on success
         """
         try:
-            logger.info("=== FileRecommender.generate() STARTED ===")
+            logger.info("=== FileRecommender.generate() STARTED (MEMAGENT MODE) ===")
             logger.info(f"Input request: '{request[:100]}...' (length: {len(request)})")
             logger.info(f"Categories: {categories}")
             logger.info(f"Suggested files from past response: {suggested_files or []}")
@@ -147,127 +269,133 @@ class FileRecommender(BaseAgent):
             actual_dir_names = [self.CATEGORY_DIR_MAP.get(cat, cat) for cat in categories]
             logger.info(f"Mapped categories to actual directories: {actual_dir_names}")
 
-            # Build directory list for Agent
-            category_dirs = [str(Path("tax_database") / dir_name) for dir_name in actual_dir_names]
-
-            # Build suggested files text if provided
-            suggested_files_text = ""
-            if suggested_files:
-                suggested_files_text = f"\n\nAlso consider these pre-selected documents:\n" + \
-                    "\n".join([f"- {f}" for f in suggested_files])
-
-            # CRITICAL: Use Python code to navigate directories and read files
-            # Agent must write Python code that uses list_files(), read_file(), etc.
-            # Use ABSOLUTE paths from the memory directory
+            # Build absolute paths to category directories
             memory_base = self.memory_path
-            absolute_category_dirs = [f'{memory_base}/{d}' for d in category_dirs]
+            absolute_category_dirs = [str(memory_base / "tax_database" / dir_name) for dir_name in actual_dir_names]
 
-            # IMPROVED PROMPT - Requirements as comments, not example code
-            # Agent must write its own executable Python code
-            constrained_query = f"""You MUST respond with ONLY these sections:
+            # =====================================================================
+            # STEP 1: PRE-FLATTEN DIRECTORIES (Deterministic)
+            # =====================================================================
+            logger.info("=== MEMAGENT STEP 1: Pre-flattening nested directories ===")
+            all_searchable_dirs = self._get_all_subdirectories(absolute_category_dirs)
+            logger.info(f"Total searchable directories: {len(all_searchable_dirs)}")
 
-<think>
-[Your plan to search these directories for relevant tax regulations]
-</think>
+            if not all_searchable_dirs:
+                logger.warning("No searchable directories found")
+                return AgentResult(
+                    success=True,
+                    output=[],
+                    metadata={
+                        "total_found": 0,
+                        "search_time_ms": int((time.time() - start_time) * 1000),
+                        "search_scope": "tax_database",
+                        "search_method": "MemAgent (os.chdir + list_files + read_file)",
+                        "categories_searched": categories,
+                    },
+                    timestamp=datetime.now().isoformat(),
+                    error=""
+                )
 
-<python>
-# REQUIREMENTS (write Python code to implement these):
-# 1. Create empty 'results' list
-# 2. Set category_dirs to: {absolute_category_dirs!r}
-# 3. For each dir in category_dirs:
-#    - Use os.walk(dir) to recursively traverse ALL subdirectories
-#    - For each .md file found:
-#      * Use os.chdir(root) to navigate to file's directory
-#      * Use read_file(filename) to get content
-#      * If len(content) > 50:
-#        - Append dict to results with keys: 'source_file', 'category', 'content', 'directory'
-#        - 'content' should be content[:3000] (first 3000 chars)
-#        - 'category' should be dir_path.split('/')[-1]
-#        - 'source_file' should be filename
-#        - 'directory' should be root
-# 4. Wrap file operations in try/except to handle errors
-#
-# Write the actual executable Python code below (not comments):
-</python>
+            # Limit directories to prevent context overflow (sample if too many)
+            max_dirs = 30  # Limit to prevent overly long prompts
+            if len(all_searchable_dirs) > max_dirs:
+                logger.info(f"Sampling {max_dirs} directories from {len(all_searchable_dirs)}")
+                import random
+                all_searchable_dirs = random.sample(all_searchable_dirs, max_dirs)
 
-CRITICAL: Your <python> section must contain ACTUAL executable code that creates the 'results' variable."""
-
-            logger.debug(f"Constrained query: {constrained_query[:200]}...")
-
-            # MEMAGENT NAVIGATION: Use Agent.chat() for intelligent memory search
-            logger.info("=== EXECUTING MEMAGENT SEARCH (Step 4) ===")
-            logger.info(f"Query: {request[:100]}...")
-            logger.info(f"Categories constraint: {categories}")
-            logger.info("Using Agent to navigate tax_database...")
-
-            # CRITICAL: Create a FRESH Agent instance to avoid context overflow
-            # Each step gets its own clean context window (fresh conversation history)
-            # max_tool_turns=1 ensures single execution of template code (no refinement modifications)
-            from agent import Agent
+            # =====================================================================
+            # STEP 2: CREATE FRESH AGENT INSTANCE
+            # =====================================================================
+            logger.info("=== MEMAGENT STEP 2: Creating fresh Agent instance ===")
             fresh_agent = Agent(memory_path=str(self.memory_path), max_tool_turns=1)
-            logger.info("Created fresh Agent instance for this search (max_tool_turns=1)")
+            logger.info("Created fresh Agent with max_tool_turns=1")
 
-            # Call fresh Agent to search memory
-            # Agent will read tax_database and return matches
+            # =====================================================================
+            # STEP 3: BUILD MEMAGENT PROMPT
+            # =====================================================================
+            logger.info("=== MEMAGENT STEP 3: Building MemAgent prompt ===")
+
+            # Format directory list for prompt
+            dirs_formatted = "\n".join([f"  - {d}" for d in all_searchable_dirs[:15]])  # Show first 15
+            if len(all_searchable_dirs) > 15:
+                dirs_formatted += f"\n  ... and {len(all_searchable_dirs) - 15} more directories"
+
+            constrained_query = f"""You are searching for tax regulations relevant to this query:
+
+USER'S QUERY: "{request}"
+
+DIRECTORIES TO SEARCH (pre-flattened, each contains .md files directly):
+{dirs_formatted}
+
+YOUR TASK:
+Write Python code that:
+1. For each directory, use os.chdir(directory) to navigate there
+2. Use list_files() (NO arguments!) to list files in current directory
+3. Use read_file(filename) to read each .md file
+4. Check if the content is relevant to the user's query
+5. If relevant, add to results list with extracted content
+
+CRITICAL API NOTES:
+- list_files() takes ZERO arguments - it lists current directory
+- You MUST use os.chdir(path) first, THEN call list_files()
+- read_file(filename) reads a file in the current directory
+
+REQUIRED OUTPUT:
+Your code MUST create a variable called 'results' - a list of dicts:
+results = [
+    {{
+        'source_file': 'filename.md',
+        'category': 'category_name',
+        'content': 'relevant extracted content (up to 3000 chars)',
+        'directory': '/path/to/dir'
+    }},
+    ...
+]
+
+Write Python code now that searches these directories and extracts relevant content:"""
+
+            logger.info(f"Prompt length: {len(constrained_query)} chars")
+
+            # =====================================================================
+            # STEP 4: EXECUTE MEMAGENT SEARCH
+            # =====================================================================
+            logger.info("=== MEMAGENT STEP 4: Executing Agent search ===")
             agent_response = fresh_agent.chat(constrained_query)
 
+            logger.info(f"Agent response received")
+            logger.info(f"  - Has execution_results: {agent_response.execution_results is not None}")
+            logger.info(f"  - Has python_block: {agent_response.python_block is not None}")
+            logger.info(f"  - Reply length: {len(agent_response.reply or '')}")
+
+            if agent_response.python_block:
+                logger.debug(f"Python code executed:\n{agent_response.python_block[:500]}...")
+
+            # =====================================================================
+            # STEP 5: EXTRACT RESULTS FROM EXECUTION
+            # =====================================================================
+            logger.info("=== MEMAGENT STEP 5: Extracting results ===")
+            documents = self._extract_results_from_response(agent_response, categories)
+
             search_time_ms = (time.time() - start_time) * 1000
-            logger.info(f"Agent search completed in {search_time_ms:.1f}ms")
-            logger.info(f"Execution results available: {agent_response.execution_results is not None}")
-
-            # Extract documents from Agent's execution results
-            # The Agent's Python code creates a 'results' variable with extracted content
-            documents = []
-            if agent_response.execution_results and "results" in agent_response.execution_results:
-                # Results variable is available from Python code execution
-                raw_results = agent_response.execution_results.get("results", [])
-                logger.info(f"Found {len(raw_results)} results from Agent execution")
-
-                # Convert Agent's raw results to structured format
-                for result in raw_results:
-                    if isinstance(result, dict):
-                        full_text = result.get("content", "")  # Get the 3000-char content
-                        documents.append({
-                            "filename": result.get("source_file", "Unknown"),
-                            "category": result.get("category", "Unknown"),
-                            "section_title": result.get("section_title", "Section"),
-                            "application": result.get("application", "Relevant"),
-                            "content": full_text,  # Full 3000 chars for synthesis
-                            "summary": full_text[:250],  # First 250 chars for display
-                            "categories": categories,
-                            "files_used": [result.get("source_file", "Unknown")],
-                            "date_created": "Unknown"
-                        })
-            else:
-                # Fallback: try to parse Agent's reply text (for backward compatibility)
-                logger.debug("No execution results found, attempting text parsing fallback")
-                documents = self._parse_agent_response(
-                    agent_response.reply or "",
-                    categories
-                )
 
             logger.info(f"=== MEMAGENT SEARCH COMPLETED ===")
             logger.info(f"Search time: {search_time_ms:.1f}ms")
-            logger.info(f"Total results found: {len(documents)} documents")
-
-            # Limit results to MAX_NEW_RESULTS
-            documents = documents[:self.MAX_NEW_RESULTS]
-            logger.info(f"Results after limiting to top {self.MAX_NEW_RESULTS}: {len(documents)}")
+            logger.info(f"Results found: {len(documents)} documents")
 
             # Format output
             formatted_results = []
-            for doc in documents:
+            for doc in documents[:self.MAX_NEW_RESULTS]:
                 formatted_results.append({
                     "filename": doc.get("filename", "Unknown"),
                     "category": doc.get("category", "General"),
                     "subcategory": doc.get("subcategory", "General"),
                     "size": doc.get("size", "Unknown"),
                     "date_issued": doc.get("date_issued", "Unknown"),
-                    "content": doc.get("content", ""),  # Full 3000 chars preserved for synthesis
-                    "summary": doc.get("summary", "")  # Already 250 chars from line 242
+                    "content": doc.get("content", ""),
+                    "summary": doc.get("summary", doc.get("content", "")[:250])
                 })
 
-            logger.info(f"Final output: {len(formatted_results)} search results + {len(suggested_files or [])} suggested files")
+            logger.info(f"Final output: {len(formatted_results)} search results")
             logger.info(f"=== FileRecommender.generate() COMPLETED SUCCESSFULLY ===")
 
             return AgentResult(
@@ -277,9 +405,9 @@ CRITICAL: Your <python> section must contain ACTUAL executable code that creates
                     "total_found": len(formatted_results),
                     "search_time_ms": int(search_time_ms),
                     "search_scope": "tax_database",
-                    "search_method": "MemAgent intelligent navigation",
+                    "search_method": "MemAgent (os.chdir + list_files + read_file)",
                     "categories_searched": categories,
-                    "category_constraint_boundary": categories,
+                    "directories_searched": len(all_searchable_dirs),
                 },
                 timestamp=datetime.now().isoformat(),
                 error=""
@@ -302,146 +430,69 @@ CRITICAL: Your <python> section must contain ACTUAL executable code that creates
         requested_categories: List[str]
     ) -> List[Dict[str, Any]]:
         """
-        Parse Agent's Python code execution response to extract documents.
-
-        Agent executes Python code that creates a 'results' variable containing:
-        [
-            {
-                "source_file": "filename.md",
-                "category": "Category Name",
-                "section_title": "Section Title",
-                "application": "How this applies",
-                "content": "actual regulatory text",
-                "directory": "tax_database/XX_Category/"
-            },
-            ...
-        ]
+        Fallback: Parse Agent's text response to extract documents.
 
         Args:
-            response_text: Agent's response after Python code execution
+            response_text: Agent's reply text
             requested_categories: Categories the user requested
 
         Returns:
-            List of structured document objects with full content
+            List of structured document objects
         """
         documents = []
 
         if not response_text or len(response_text.strip()) == 0:
-            logger.warning("Agent returned empty response - likely no files found in directories")
+            logger.warning("Agent returned empty response")
             return documents
 
         try:
-            response_text = response_text.strip()
-            logger.debug(f"=== PARSING AGENT RESPONSE ===")
-            logger.debug(f"Full response length: {len(response_text)} chars")
-            logger.debug(f"Response preview: {response_text[:500]}...")
-
-            # Try to parse as JSON first (Agent may return structured JSON)
             import json
-            try:
-                # Check if response contains a JSON list
-                if '[' in response_text and ']' in response_text:
-                    # Extract JSON array from response
-                    start_idx = response_text.find('[')
-                    end_idx = response_text.rfind(']') + 1
-                    if start_idx >= 0 and end_idx > start_idx:
+            import re
+
+            response_text = response_text.strip()
+            logger.debug(f"Parsing response: {len(response_text)} chars")
+
+            # Try to parse as JSON
+            if '[' in response_text and ']' in response_text:
+                start_idx = response_text.find('[')
+                end_idx = response_text.rfind(']') + 1
+                if start_idx >= 0 and end_idx > start_idx:
+                    try:
                         json_str = response_text[start_idx:end_idx]
                         results = json.loads(json_str)
 
                         if isinstance(results, list):
                             logger.info(f"Parsed {len(results)} results from JSON")
                             for item in results:
-                                if isinstance(item, dict) and "source_file" in item and "content" in item:
+                                if isinstance(item, dict):
                                     doc = {
-                                        "filename": item.get("source_file", "Unknown"),
+                                        "filename": item.get("source_file", item.get("filename", "Unknown")),
                                         "category": item.get("category", requested_categories[0] if requested_categories else "General"),
-                                        "section_title": item.get("section_title", "General"),
-                                        "application": item.get("application", "Matching category"),
-                                        "size": "Unknown",
-                                        "date_issued": "Unknown",
-                                        "summary": item.get("content", "")
+                                        "content": item.get("content", "")[:3000],
+                                        "summary": item.get("content", "")[:250],
                                     }
                                     documents.append(doc)
-                                    logger.debug(f"Extracted: {doc['filename']} - {doc['section_title']}")
-
-                            logger.info(f"Parsed {len(documents)} documents from JSON")
                             return documents
-            except json.JSONDecodeError:
-                logger.debug("Response is not JSON, trying alternative parsing methods")
+                    except json.JSONDecodeError:
+                        pass
 
-            # Parse plain text structured format
-            # Look for patterns like "Source File: name.md", "Section Title: title", etc.
-            logger.info("Agent likely returned plain text structured response - parsing fields...")
-
-            import re
-            sections = re.split(r'\n\s*-{3,}\s*\n|\n\s*\n', response_text)
-
-            for section in sections:
-                if not section.strip() or len(section.strip()) < 20:
-                    continue
-
-                # Extract structured fields using patterns (case-insensitive)
-                source_file_match = re.search(r'(?:Source\s+File|source_file|^\s*File)\s*:\s*([^\n]+\.md)', section, re.IGNORECASE | re.MULTILINE)
-                category_match = re.search(r'(?:Category|Directory)\s*:\s*([^\n]+)', section, re.IGNORECASE)
-                title_match = re.search(r'(?:Section\s+Title|Section|Title)\s*:\s*([^\n]+)', section, re.IGNORECASE)
-                application_match = re.search(r'(?:Application|Relevance)\s*:\s*([^\n]+)', section, re.IGNORECASE)
-                content_match = re.search(r'(?:Content|Section\s+Content)\s*:\s*(.+?)(?:\n(?:\*|Source|Section|Category|Directory|File)|$)', section, re.IGNORECASE | re.DOTALL)
-
-                source_file = source_file_match.group(1).strip() if source_file_match else None
-                category = category_match.group(1).strip() if category_match else (requested_categories[0] if requested_categories else "General")
-                section_title = title_match.group(1).strip() if title_match else "Extracted Section"
-                application = application_match.group(1).strip() if application_match else "Matching query"
-
-                # Get content
-                if content_match:
-                    content = content_match.group(1).strip()[:2000]
-                else:
-                    content = section.strip()[:1000]
-
-                if source_file:
-                    doc = {
-                        "filename": source_file,
-                        "category": category,
-                        "section_title": section_title,
-                        "application": application,
-                        "size": "Unknown",
-                        "date_issued": "Unknown",
-                        "content": content,  # Full 3000 chars for synthesis
-                        "summary": content[:250]  # First 250 chars for display
-                    }
-                    documents.append(doc)
-                    logger.debug(f"Extracted: {source_file} - {section_title}")
-
-            if documents:
-                logger.info(f"Parsed {len(documents)} documents from structured text")
-                return documents
-
-            # Fallback: look for any .md file mentions
-            logger.info("Fallback: searching for .md file mentions...")
+            # Look for .md file mentions
             md_pattern = r'([^\s:/\\]+\.md)'
-            md_files = re.findall(md_pattern, response_text)
+            md_files = list(set(re.findall(md_pattern, response_text)))
 
             if md_files:
-                logger.info(f"Found {len(set(md_files))} .md file mentions")
-                for filename in list(set(md_files))[:self.MAX_NEW_RESULTS]:
+                logger.info(f"Found {len(md_files)} .md file mentions")
+                for filename in md_files[:self.MAX_NEW_RESULTS]:
                     doc = {
                         "filename": filename,
                         "category": requested_categories[0] if requested_categories else "General",
-                        "section_title": "Extracted Section",
-                        "application": "Matching query",
-                        "size": "Unknown",
-                        "date_issued": "Unknown",
-                        "summary": response_text[:1000]
+                        "content": response_text[:1000],
+                        "summary": response_text[:250],
                     }
                     documents.append(doc)
 
-            if not documents:
-                logger.warning(f"Could not parse any documents from Agent output")
-
-            logger.info(f"Parsed {len(documents)} documents from Agent response")
             return documents
 
         except Exception as e:
-            logger.error(f"Error parsing Agent response: {e}", exc_info=True)
-            logger.warning(f"Response text was: {response_text[:500]}...")
+            logger.error(f"Error parsing response: {e}")
             return documents

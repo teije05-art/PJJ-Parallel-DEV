@@ -79,7 +79,7 @@ class BaseAgent:
         coordination_file = memory_path / "entities" / "agent_coordination.md"
         try:
             if coordination_file.exists():
-                with open(coordination_file, 'a') as f:
+                with open(coordination_file, 'a', encoding='utf-8') as f:
                     f.write(log_entry)
             else:
                 coordination_file.write_text(f"# Agent Coordination Log\n\n{log_entry}")

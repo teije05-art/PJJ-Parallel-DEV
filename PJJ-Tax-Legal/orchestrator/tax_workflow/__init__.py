@@ -6,8 +6,8 @@ Specialized agents for tax advice workflow using Vanilla MemAgent Pattern:
 - TaxResponseSearcher: Search past approved responses via MemAgent
 - FileRecommender: Search tax database documents via MemAgent
 - TaxResponseCompiler: Synthesize KPMG-format responses using Llama
-- DocumentVerifier: Verify responses against sources
 - CitationTracker: Embed and track citations
+(DocumentVerifier removed - human does manual verification)
 
 DUAL-LLM ARCHITECTURE:
 - MemAgent (via Agent.chat()): Navigates filesystem and reads memory
@@ -39,7 +39,7 @@ from .tax_planner_agent import RequestCategorizer
 from .tax_searcher_agent import TaxResponseSearcher
 from .tax_recommender_agent import FileRecommender
 from .tax_compiler_agent import TaxResponseCompiler
-from .tax_verifier_agent import DocumentVerifier
+# DocumentVerifier removed - human does manual verification
 from .tax_tracker_agent import CitationTracker
 from .tax_orchestrator import TaxOrchestrator
 
@@ -48,7 +48,7 @@ __all__ = [
     "TaxResponseSearcher",
     "FileRecommender",
     "TaxResponseCompiler",
-    "DocumentVerifier",
+    # DocumentVerifier removed
     "CitationTracker",
     "TaxOrchestrator"
 ]

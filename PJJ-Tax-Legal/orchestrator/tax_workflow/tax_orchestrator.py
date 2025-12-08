@@ -28,7 +28,7 @@ from orchestrator.tax_workflow.tax_planner_agent import RequestCategorizer
 from orchestrator.tax_workflow.tax_searcher_agent import TaxResponseSearcher
 from orchestrator.tax_workflow.tax_recommender_agent import FileRecommender
 from orchestrator.tax_workflow.tax_compiler_agent import TaxResponseCompiler
-from orchestrator.tax_workflow.tax_verifier_agent import DocumentVerifier
+# DocumentVerifier REMOVED - User does manual verification
 from orchestrator.tax_workflow.tax_tracker_agent import CitationTracker
 from agent.logging_config import get_logger
 
@@ -143,17 +143,17 @@ class TaxOrchestrator(BaseAgent):
         logger.info(f"Runtime path (sessions + logs): {self.runtime_path}")
         logger.info("Search strategy: Agent.chat() with intelligent MemAgent navigation")
 
-        # Initialize all 6 agents with Agent instance
+        # Initialize 5 agents with Agent instance (DocumentVerifier REMOVED)
         # All agents use Agent.chat() for memory navigation (vanilla MemAgent pattern)
         # No SegmentedMemory - all searches go through Agent's understanding of memory
-        logger.info("Initializing 6 tax workflow agents...")
+        logger.info("Initializing 5 tax workflow agents...")
         self.request_categorizer = RequestCategorizer(agent, memory_path)
         self.response_searcher = TaxResponseSearcher(agent, memory_path)
         self.file_recommender = FileRecommender(agent, memory_path)
         self.response_compiler = TaxResponseCompiler(agent, memory_path)
-        self.document_verifier = DocumentVerifier(agent, memory_path)
+        # DocumentVerifier REMOVED - User does manual verification
         self.citation_tracker = CitationTracker(agent, memory_path)
-        logger.info("✅ All 6 agents initialized")
+        logger.info("✅ All 5 agents initialized")
 
         # Session storage in SECONDARY runtime directory
         self.sessions_dir = self.runtime_path / "users"
@@ -427,18 +427,8 @@ class TaxOrchestrator(BaseAgent):
         session.synthesized_response = compiler_result.output
         session.current_step = 6
 
-        # STEP 6a: DocumentVerifier
-        # CONSTRAINT: Verifies ONLY against selected_file_contents
-        verifier_result = self.document_verifier.generate(
-            response=session.synthesized_response,
-            selected_file_contents=session.selected_file_contents
-        )
-
-        if verifier_result.success:
-            session.verification_report = verifier_result.output
-            can_approve = verifier_result.output.get("can_approve", False)
-        else:
-            can_approve = False
+        # NOTE: DocumentVerifier REMOVED - User does manual verification
+        # The human reviews the response and decides if it's acceptable
 
         # STEP 6b: CitationTracker
         # CONSTRAINT: Cites ONLY from selected_file_contents
@@ -461,19 +451,18 @@ class TaxOrchestrator(BaseAgent):
             "step": 6,
             "output": {
                 "response": session.response_with_citations,
+                "synthesized_response": session.synthesized_response,  # Draft for user review
                 "citations": session.citations,
-                "verification_report": session.verification_report,
-                "can_approve": can_approve
+                # verification_report REMOVED - User does manual verification
             },
             "session_state": self._serialize_session(session),
             "metadata": {
                 "processing_time_ms": processing_time,
                 "compilation_status": "synthesized",
-                "verification_status": "verified" if can_approve else "failed",
                 "citation_count": len(session.citations),
                 "source_only_constraint": True
             },
-            "next_step": 7,  # Approval gate (handled by UI)
+            "next_step": 7,  # User approval (handled by UI)
             "error": ""
         }
 
@@ -519,8 +508,8 @@ class TaxOrchestrator(BaseAgent):
             response_file = self.memory_path / "entities" / f"{session.session_id}.json"
             response_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(response_file, 'w') as f:
-                json.dump(response_data, f, indent=2)
+            with open(response_file, 'w', encoding='utf-8') as f:
+                json.dump(response_data, f, indent=2, ensure_ascii=False)
 
             return True
 
@@ -538,7 +527,7 @@ class TaxOrchestrator(BaseAgent):
 
         if session_file.exists():
             try:
-                with open(session_file, 'r') as f:
+                with open(session_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 # Reconstruct session from saved state
                 session = TaxPlanningSession(session_id, user_id, request)
@@ -558,8 +547,8 @@ class TaxOrchestrator(BaseAgent):
         session_file.parent.mkdir(parents=True, exist_ok=True)
 
         session_data = self._serialize_session(session)
-        with open(session_file, 'w') as f:
-            json.dump(session_data, f, indent=2)
+        with open(session_file, 'w', encoding='utf-8') as f:
+            json.dump(session_data, f, indent=2, ensure_ascii=False)
 
     def _serialize_session(self, session: TaxPlanningSession) -> Dict[str, Any]:
         """Convert session to dictionary for serialization"""

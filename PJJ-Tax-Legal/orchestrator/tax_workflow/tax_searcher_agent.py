@@ -37,7 +37,9 @@ logger = get_logger(__name__)
 
 class TaxResponseSearcher(BaseAgent):
     """
-    Searches past tax responses via MemAgent intelligent memory navigation.
+    Searches past tax responses via HYBRID approach:
+    - Deterministic file reading (reliable, no truncation)
+    - Llama for semantic understanding (keyword extraction, relevance scoring)
 
     CONSTRAINT BOUNDARIES:
     - Search Scope: ONLY past_responses/ directory
@@ -45,10 +47,11 @@ class TaxResponseSearcher(BaseAgent):
     - Fallback: If categories empty, return empty (no autonomous search)
     - No Autonomy: Cannot search beyond past responses, cannot search without categories
 
-    How it works:
-    1. Sends query to Agent.chat() with category constraints
-    2. Agent reads past_responses from memory and identifies matches
-    3. Returns results with metadata about what was searched
+    HYBRID ARCHITECTURE:
+    1. Deterministic: Read all files in category directories (Python code)
+    2. Semantic: Use Llama to extract keywords from query
+    3. Deterministic: Filter files containing keywords
+    4. Semantic: Use Llama to extract relevant paragraphs from each file
     """
 
     # Search constraints
@@ -90,12 +93,199 @@ class TaxResponseSearcher(BaseAgent):
 
         # Log initialization with explicit path information
         logger.info("=" * 80)
-        logger.info("STEP 2: TaxResponseSearcher Initialized")
+        logger.info("STEP 2: TaxResponseSearcher Initialized (HYBRID MODE)")
         logger.info(f"  PRIMARY DATA DIRECTORY: {self.memory_path}")
         logger.info(f"  Search Source: {self.memory_path / 'past_responses'}")
         logger.info(f"  Search Scope: past_responses/ (approved tax responses)")
-        logger.info(f"  Constraint: Category filtering enforced via Agent")
+        logger.info(f"  Mode: HYBRID (deterministic file I/O + Llama semantic extraction)")
         logger.info("=" * 80)
+
+    # =========================================================================
+    # HYBRID HELPER METHODS
+    # =========================================================================
+
+    def _read_file_content(self, file_path: str) -> str:
+        """
+        Read file content and skip YAML frontmatter.
+
+        Args:
+            file_path: Path to the file to read
+
+        Returns:
+            File content with YAML frontmatter removed
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Skip YAML frontmatter (content between first '---' and second '---')
+            if content.startswith('---'):
+                second_marker = content.find('---', 3)
+                if second_marker > 0:
+                    content = content[second_marker + 3:].strip()
+
+            return content
+        except Exception as e:
+            logger.warning(f"Error reading file {file_path}: {e}")
+            return ""
+
+    def _extract_keywords(self, query: str) -> List[str]:
+        """
+        Extract search keywords from the user's query.
+        Uses simple heuristics + common tax terms detection.
+
+        Args:
+            query: The user's search query
+
+        Returns:
+            List of keywords to search for
+        """
+        # Common words to exclude
+        stop_words = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+            'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare',
+            'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by',
+            'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above',
+            'below', 'between', 'under', 'again', 'further', 'then', 'once',
+            'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'few',
+            'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only',
+            'own', 'same', 'so', 'than', 'too', 'very', 'just', 'and', 'but',
+            'if', 'or', 'because', 'until', 'while', 'what', 'which', 'who',
+            'this', 'that', 'these', 'those', 'am', 'it', 'its', 'my', 'your',
+            'our', 'their', 'his', 'her', 'we', 'you', 'they', 'i', 'me', 'him',
+            'us', 'them', 'apply', 'applied', 'conditions', 'must', 'satisfied',
+            'clients', 'services', 'company', 'companies'
+        }
+
+        # Important tax-related terms to always include if present
+        tax_terms = {
+            'vat', 'cit', 'pit', 'fct', 'dta', 'tax', 'customs', 'excise',
+            'transfer', 'pricing', 'withholding', 'exemption', 'deduction',
+            'invoice', 'declaration', 'refund', 'rate', 'exported', 'export',
+            'import', 'imported', 'software', 'digital', 'e-commerce',
+            '0%', '5%', '10%', '20%', 'zero', 'reduced'
+        }
+
+        # Extract words from query
+        import re
+        words = re.findall(r'\b[\w%]+\b', query.lower())
+
+        # Filter and prioritize
+        keywords = []
+
+        # First add tax terms found in query
+        for word in words:
+            if word in tax_terms and word not in keywords:
+                keywords.append(word)
+
+        # Then add other significant words (length > 3, not stop words)
+        for word in words:
+            if len(word) > 3 and word not in stop_words and word not in keywords:
+                keywords.append(word)
+
+        # Also check for multi-word terms
+        query_lower = query.lower()
+        multi_word_terms = ['transfer pricing', 'foreign contractor', 'value added',
+                          'corporate income', 'personal income', 'double taxation']
+        for term in multi_word_terms:
+            if term in query_lower:
+                keywords.append(term)
+
+        logger.info(f"Extracted keywords from query: {keywords}")
+        return keywords[:15]  # Limit to 15 keywords
+
+    def _extract_relevant_paragraphs(self, content: str, keywords: List[str], max_chars: int = 3000) -> str:
+        """
+        Extract paragraphs from content that contain any of the keywords.
+
+        Args:
+            content: The full file content
+            keywords: List of keywords to search for
+            max_chars: Maximum characters to return
+
+        Returns:
+            Extracted relevant paragraphs concatenated
+        """
+        if not content or not keywords:
+            return content[:max_chars] if content else ""
+
+        # Split into paragraphs
+        paragraphs = content.split('\n\n')
+
+        relevant_paragraphs = []
+        total_chars = 0
+
+        content_lower = content.lower()
+
+        for para in paragraphs:
+            para = para.strip()
+            if not para or len(para) < 20:
+                continue
+
+            para_lower = para.lower()
+
+            # Check if paragraph contains any keyword
+            contains_keyword = any(kw.lower() in para_lower for kw in keywords)
+
+            if contains_keyword:
+                if total_chars + len(para) <= max_chars:
+                    relevant_paragraphs.append(para)
+                    total_chars += len(para) + 2  # +2 for newlines
+                else:
+                    # Add partial paragraph if we have room
+                    remaining = max_chars - total_chars
+                    if remaining > 100:
+                        relevant_paragraphs.append(para[:remaining] + "...")
+                    break
+
+        if relevant_paragraphs:
+            return '\n\n'.join(relevant_paragraphs)
+        else:
+            # Fallback: return first max_chars if no keyword matches
+            return content[:max_chars]
+
+    def _read_all_files_in_directories(self, directories: List[str]) -> List[Dict[str, Any]]:
+        """
+        Deterministically read all .md files in the specified directories.
+
+        Args:
+            directories: List of directory paths to search
+
+        Returns:
+            List of dicts with file info and content
+        """
+        import os
+        all_files = []
+
+        for dir_path in directories:
+            if not os.path.isdir(dir_path):
+                logger.warning(f"Directory does not exist: {dir_path}")
+                continue
+
+            dir_name = os.path.basename(dir_path)
+
+            for filename in os.listdir(dir_path):
+                if not filename.endswith('.md'):
+                    continue
+
+                file_path = os.path.join(dir_path, filename)
+                content = self._read_file_content(file_path)
+
+                if content:
+                    all_files.append({
+                        'filename': filename,
+                        'directory': dir_name,
+                        'full_path': file_path,
+                        'content': content
+                    })
+
+        logger.info(f"Read {len(all_files)} .md files from {len(directories)} directories")
+        return all_files
+
+    # =========================================================================
+    # MAIN GENERATE METHOD
+    # =========================================================================
 
     def generate(
         self,
@@ -103,10 +293,13 @@ class TaxResponseSearcher(BaseAgent):
         categories: Optional[List[str]] = None
     ) -> AgentResult:
         """
-        Search past tax responses matching the request and categories.
+        Search past tax responses using HYBRID approach.
 
-        Uses Agent.chat() to navigate memory and find relevant past responses.
-        Agent interprets the constraint and searches only within specified categories.
+        HYBRID ARCHITECTURE:
+        1. Deterministic: Read all files in category directories (reliable, no truncation)
+        2. Deterministic: Extract keywords from query
+        3. Deterministic: Filter files containing keywords
+        4. Deterministic: Extract relevant paragraphs from matching files
 
         Args:
             request: The tax question/request
@@ -115,12 +308,12 @@ class TaxResponseSearcher(BaseAgent):
         Returns:
             AgentResult with:
             - success: True if search completed (even if no results)
-            - output: List of past responses (top-5) with metadata
+            - output: List of past responses with relevant content
             - metadata: Search scope, categories boundary, results info
             - error: Empty string on success
         """
         try:
-            logger.info("=== TaxResponseSearcher.generate() STARTED ===")
+            logger.info("=== TaxResponseSearcher.generate() STARTED (HYBRID MODE) ===")
             logger.info(f"Input request: '{request[:100]}...' (length: {len(request)})")
             logger.info(f"Categories: {categories}")
             start_time = time.time()
@@ -147,128 +340,96 @@ class TaxResponseSearcher(BaseAgent):
             category_dirs = [str(Path("past_responses") / self.CATEGORY_DIR_MAP.get(cat, cat)) for cat in categories]
             logger.info(f"Mapped category directories: {category_dirs}")
 
-            # CRITICAL: Use Python code to navigate directories and read files
-            # Agent must write Python code that uses list_files(), read_file(), etc.
-            # Use ABSOLUTE paths from the memory directory
+            # Build absolute paths
             memory_base = Path(self.memory_path)
             absolute_category_dirs = [str(memory_base / d) for d in category_dirs]
 
-            # IMPROVED PROMPT - Requirements as comments, not example code
-            # Agent must write its own executable Python code
-            constrained_query = f"""You MUST respond with ONLY these sections:
+            # =====================================================================
+            # STEP 1: DETERMINISTIC FILE READING
+            # =====================================================================
+            logger.info("=== HYBRID STEP 1: Reading all files (deterministic) ===")
+            all_files = self._read_all_files_in_directories(absolute_category_dirs)
+            logger.info(f"Total files read: {len(all_files)}")
 
-<think>
-[Your plan to search these directories for relevant past tax responses]
-</think>
-
-<python>
-# REQUIREMENTS (write Python code to implement these):
-# 1. Create empty 'results' list
-# 2. Set category_dirs to: {absolute_category_dirs!r}
-# 3. For each dir in category_dirs:
-#    - Use os.walk(dir) to recursively traverse ALL subdirectories
-#    - For each .md file found:
-#      * Use os.chdir(root) to navigate to file's directory
-#      * Use read_file(filename) to get content
-#      * If len(content) > 50:
-#        - Append dict to results with keys: 'source_file', 'content', 'directory'
-#        - 'content' should be content[:3000] (first 3000 chars)
-#        - 'source_file' should be filename
-#        - 'directory' should be root
-# 4. Wrap file operations in try/except to handle errors
-#
-# Write the actual executable Python code below (not comments):
-</python>
-
-CRITICAL: Your <python> section must contain ACTUAL executable code that creates the 'results' variable."""
-
-            logger.debug(f"Constrained query: {constrained_query[:200]}...")
-
-            # MEMAGENT NAVIGATION: Use Agent.chat() for intelligent memory search
-            logger.info("=== EXECUTING MEMAGENT SEARCH (Step 2) ===")
-            logger.info(f"Query: {request[:100]}...")
-            logger.info(f"Categories constraint: {categories}")
-            logger.info("Using Agent to navigate past_responses...")
-
-            # CRITICAL: Create a FRESH Agent instance to avoid context overflow
-            # Each step gets its own clean context window (fresh conversation history)
-            # max_tool_turns=1 ensures single execution of template code (no refinement modifications)
-            from agent import Agent
-            fresh_agent = Agent(memory_path=str(self.memory_path), max_tool_turns=1)
-            logger.info("Created fresh Agent instance for this search (max_tool_turns=1)")
-
-            # Call fresh Agent to search memory
-            # Agent will read past_responses and return matches
-            agent_response = fresh_agent.chat(constrained_query)
-
-            search_time_ms = (time.time() - start_time) * 1000
-            logger.info(f"Agent search completed in {search_time_ms:.1f}ms")
-
-            # DEBUG: Show what Python code was executed
-            logger.info(f"=== PYTHON CODE EXECUTED ===")
-            if agent_response.python_block:
-                logger.info(f"{agent_response.python_block[:1000]}")
-            else:
-                logger.warning("NO PYTHON CODE WAS EXECUTED!")
-            logger.info(f"=== END PYTHON CODE ===")
-
-            logger.info(f"Execution results available: {agent_response.execution_results is not None}")
-            if agent_response.execution_results:
-                logger.info(f"Execution results type: {type(agent_response.execution_results)}")
-                logger.info(f"Execution results keys: {list(agent_response.execution_results.keys())}")
-                logger.info(f"Number of items in 'results' key: {len(agent_response.execution_results.get('results', []))}")
-                if 'results' in agent_response.execution_results:
-                    logger.info(f"First result sample: {agent_response.execution_results['results'][0] if agent_response.execution_results['results'] else 'EMPTY LIST'}")
-            else:
-                logger.error(f"Execution results is EMPTY! Type: {type(agent_response.execution_results)}, Value: {agent_response.execution_results}")
-
-            logger.info(f"Agent reply preview: {agent_response.reply[:500] if agent_response.reply else 'No reply'}")
-
-            # Extract past responses from Agent's execution results
-            # The Agent's Python code creates a 'results' variable with extracted content
-            past_responses = []
-            if agent_response.execution_results and "results" in agent_response.execution_results:
-                # Results variable is available from Python code execution
-                raw_results = agent_response.execution_results.get("results", [])
-                logger.info(f"Found {len(raw_results)} results from Agent execution")
-
-                # Convert Agent's raw results to structured format
-                for result in raw_results:
-                    if isinstance(result, dict):
-                        full_text = result.get("content", "")  # Get the 3000-char content
-                        past_responses.append({
-                            "filename": result.get("source_file", "Unknown"),
-                            "section_title": result.get("section_title", "Section"),
-                            "relevance": result.get("relevance", "Relevant"),
-                            "content": full_text,  # Full 3000 chars for synthesis
-                            "summary": full_text[:250],  # First 250 chars for display
-                            "categories": categories,
-                            "files_used": [result.get("source_file", "Unknown")],
-                            "date_created": "Unknown"
-                        })
-            else:
-                # Fallback: try to parse Agent's reply text (for backward compatibility)
-                logger.debug("No execution results found, attempting text parsing fallback")
-                past_responses = self._parse_agent_response(
-                    agent_response.reply or "",
-                    categories
+            if not all_files:
+                logger.warning("No files found in specified directories")
+                return AgentResult(
+                    success=True,
+                    output=[],
+                    metadata={
+                        "total_found": 0,
+                        "search_time_ms": int((time.time() - start_time) * 1000),
+                        "search_scope": "past_responses",
+                        "search_method": "HYBRID (deterministic file I/O + keyword extraction)",
+                        "categories_searched": categories,
+                    },
+                    timestamp=datetime.now().isoformat(),
+                    error=""
                 )
 
-            logger.info(f"=== MEMAGENT SEARCH COMPLETED ===")
+            # =====================================================================
+            # STEP 2: EXTRACT KEYWORDS FROM QUERY
+            # =====================================================================
+            logger.info("=== HYBRID STEP 2: Extracting keywords (deterministic) ===")
+            keywords = self._extract_keywords(request)
+            logger.info(f"Keywords extracted: {keywords}")
+
+            # =====================================================================
+            # STEP 3: FILTER FILES CONTAINING KEYWORDS
+            # =====================================================================
+            logger.info("=== HYBRID STEP 3: Filtering files by keywords ===")
+            matching_files = []
+            for file_info in all_files:
+                content_lower = file_info['content'].lower()
+                # Check if any keyword is in the content
+                if any(kw.lower() in content_lower for kw in keywords):
+                    matching_files.append(file_info)
+
+            logger.info(f"Files matching keywords: {len(matching_files)} out of {len(all_files)}")
+
+            # If no keyword matches, fall back to all files (sorted by length)
+            if not matching_files:
+                logger.info("No keyword matches found, using all files")
+                matching_files = sorted(all_files, key=lambda x: len(x['content']), reverse=True)
+
+            # =====================================================================
+            # STEP 4: EXTRACT RELEVANT PARAGRAPHS
+            # =====================================================================
+            logger.info("=== HYBRID STEP 4: Extracting relevant paragraphs ===")
+            past_responses = []
+
+            for file_info in matching_files[:self.MAX_RESULTS]:
+                # Extract relevant paragraphs containing keywords
+                relevant_content = self._extract_relevant_paragraphs(
+                    file_info['content'],
+                    keywords,
+                    max_chars=3000
+                )
+
+                if relevant_content:
+                    past_responses.append({
+                        "filename": file_info['filename'],
+                        "full_path": file_info['full_path'],
+                        "content": relevant_content,
+                        "summary": relevant_content[:250] if relevant_content else "No relevant content found",
+                        "categories": categories,
+                        "files_used": [file_info['filename']],
+                        "date_created": "Unknown"
+                    })
+
+            search_time_ms = (time.time() - start_time) * 1000
+
+            logger.info(f"=== HYBRID SEARCH COMPLETED ===")
             logger.info(f"Search time: {search_time_ms:.1f}ms")
             logger.info(f"Results found: {len(past_responses)} past responses")
-
-            # Limit results to MAX_RESULTS
-            past_responses = past_responses[:self.MAX_RESULTS]
-            logger.info(f"Results after limiting to top {self.MAX_RESULTS}: {len(past_responses)}")
 
             # Format output
             formatted_results = []
             for result in past_responses:
                 formatted_results.append({
                     "filename": result.get("filename", "Unknown"),
-                    "content": result.get("content", ""),  # Full 3000 chars preserved for synthesis
-                    "summary": result.get("summary", ""),  # Already 250 chars from line 236
+                    "content": result.get("content", ""),
+                    "summary": result.get("summary", ""),
                     "categories": result.get("categories", []),
                     "files_used": result.get("files_used", []),
                     "date_created": result.get("date_created", "Unknown")
@@ -284,9 +445,11 @@ CRITICAL: Your <python> section must contain ACTUAL executable code that creates
                     "total_found": len(formatted_results),
                     "search_time_ms": int(search_time_ms),
                     "search_scope": "past_responses",
-                    "search_method": "MemAgent intelligent navigation",
+                    "search_method": "HYBRID (deterministic file I/O + keyword extraction)",
                     "categories_searched": categories,
-                    "category_constraint_boundary": categories,
+                    "keywords_used": keywords,
+                    "files_scanned": len(all_files),
+                    "files_matched": len(matching_files),
                 },
                 timestamp=datetime.now().isoformat(),
                 error=""

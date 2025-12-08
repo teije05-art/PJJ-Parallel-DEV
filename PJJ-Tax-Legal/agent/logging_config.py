@@ -103,7 +103,7 @@ def setup_logging(level: int = logging.INFO) -> None:
         'orchestrator.tax_workflow.tax_searcher_agent',
         'orchestrator.tax_workflow.tax_recommender_agent',
         'orchestrator.tax_workflow.tax_compiler_agent',
-        'orchestrator.tax_workflow.tax_verifier_agent',
+        # tax_verifier_agent removed - human does manual verification
         'orchestrator.tax_workflow.tax_tracker_agent',
         'orchestrator.tax_workflow.tax_orchestrator',
         'agent',

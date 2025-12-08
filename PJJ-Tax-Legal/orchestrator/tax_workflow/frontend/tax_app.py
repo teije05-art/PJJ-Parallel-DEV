@@ -169,8 +169,8 @@ if "selected_files" not in st.session_state:
 if "compiled_response" not in st.session_state:
     st.session_state.compiled_response = ""
 
-if "verification_report" not in st.session_state:
-    st.session_state.verification_report = {}
+if "draft_response" not in st.session_state:
+    st.session_state.draft_response = ""
 
 if "cited_response" not in st.session_state:
     st.session_state.cited_response = ""
@@ -350,9 +350,10 @@ if st.session_state.workflow_stage == "step_2_review":
         for i, r in enumerate(st.session_state.past_responses):
             filename = r.get("filename", f"Response {i}")
             with st.expander(f"📄 {filename}", expanded=False):
-                # Show clean text content (summary field = 250 chars)
-                content = r.get("summary", "No content available")
-                st.markdown("**Content Preview (first 250 characters):**")
+                # Show full extracted content (up to 3000 chars from semantic extraction)
+                content = r.get("content", r.get("summary", "No content available"))
+                content_len = len(content) if content else 0
+                st.markdown(f"**Relevant Content Extracted ({content_len} characters):**")
                 st.text(content)  # Clean text display, not JSON
 
                 # Show metadata
@@ -439,9 +440,10 @@ if st.session_state.workflow_stage == "step_4_review":
         for i, d in enumerate(st.session_state.recommended_files):
             filename = d.get("filename", f"Document {i}")
             with st.expander(f"📋 {filename}", expanded=False):
-                # Show clean text content (summary field = 250 chars)
-                content = d.get("summary", "No content available")
-                st.markdown("**Content Preview (first 250 characters):**")
+                # Show full extracted content (up to 3000 chars from semantic extraction)
+                content = d.get("content", d.get("summary", "No content available"))
+                content_len = len(content) if content else 0
+                st.markdown(f"**Relevant Content Extracted ({content_len} characters):**")
                 st.text(content)  # Clean text display, not JSON
 
                 # Show metadata
@@ -504,8 +506,9 @@ if st.session_state.workflow_stage == "step_5_compile":
 
             if compile_result.get('success'):
                 st.session_state.compiled_response = compile_result.get('output', {}).get('response', '')
-                st.success("✓ Response synthesized and verified successfully")
-                st.session_state.workflow_stage = "step_6_verify"
+                st.session_state.draft_response = compile_result.get('output', {}).get('synthesized_response', st.session_state.compiled_response)
+                st.success("✓ Response synthesized successfully")
+                st.session_state.workflow_stage = "draft_review"
                 st.rerun()
             else:
                 st.error(f"Response compilation failed: {compile_result.get('error', '')}")
@@ -515,67 +518,55 @@ if st.session_state.workflow_stage == "step_5_compile":
             logger.error(f"Compile error: {str(e)}", exc_info=True)
 
 # ============================================================================
-# STEP 6a: VERIFICATION
+# STEP 6: DRAFT REVIEW (Human-in-the-Loop)
 # ============================================================================
 
-if st.session_state.workflow_stage == "step_6_verify":
-    st.markdown("## Step 6a: Verify Response Against Sources")
+if st.session_state.workflow_stage == "draft_review":
+    st.markdown("## Step 6: Review Draft Response")
     st.markdown("""
     <div class="user-boundary">
-    <strong>Quality Gate:</strong> The system is verifying that all claims are sourced to your provided documents.
+    <strong>Human Review Required:</strong> Review the draft response before finalizing. You are responsible for verifying accuracy and completeness.
     </div>
     """, unsafe_allow_html=True)
-    
-    with st.spinner("Verifying claims..."):
-        try:
-            # Build file contents
-            file_contents = {}
-            for doc in st.session_state.selected_files:
-                filename = doc.get("filename")
-                # Use full content (3000 chars) for verification, not summary
-                file_contents[filename] = doc.get("content", "")
-            
-            verify_result = orchestrator.run_workflow(st.session_state.request_text, st.session_state.session_id, 'user', step=6, confirmed_categories=st.session_state.confirmed_categories, selected_documents=[d.get('filename') for d in st.session_state.selected_files], selected_file_contents=file_contents)
-            
-            st.session_state.verification_report = verify_result.get('output', {})
-            st.success("✓ Verification complete")
-            st.session_state.workflow_stage = "step_6_cite"
-            st.rerun()
-        
-        except Exception as e:
-            st.error(f"Error verifying response: {str(e)}")
-            logger.error(f"Verify error: {str(e)}", exc_info=True)
 
-# ============================================================================
-# STEP 6b: CITATION TRACKING
-# ============================================================================
+    # Show the draft response
+    st.markdown("### 📝 Draft KPMG Memorandum")
+    st.markdown("*Review the synthesized response below. Make sure all claims are accurate and properly sourced.*")
 
-if st.session_state.workflow_stage == "step_6_cite":
-    st.markdown("## Step 6b: Embed Citations")
-    st.markdown("""
-    <div class="user-boundary">
-    <strong>Final Step:</strong> The system is adding source citations to the response.
-    </div>
-    """, unsafe_allow_html=True)
-    
-    with st.spinner("Embedding citations..."):
-        try:
-            file_contents = {}
-            for doc in st.session_state.selected_files:
-                filename = doc.get("filename")
-                # Use full content (3000 chars) for citations, not summary
-                file_contents[filename] = doc.get("content", "")
-            
-            cite_result = orchestrator.run_workflow(st.session_state.request_text, st.session_state.session_id, 'user', step=6, confirmed_categories=st.session_state.confirmed_categories, selected_documents=[d.get('filename') for d in st.session_state.selected_files], selected_file_contents=file_contents)
-            
-            st.session_state.cited_response = cite_result.get('output', {}).get("response_text", st.session_state.compiled_response)
-            st.success("✓ Citations embedded successfully")
+    with st.expander("📄 Draft Response", expanded=True):
+        draft_text = st.session_state.draft_response or st.session_state.compiled_response
+        st.markdown(draft_text)
+
+    # Show source documents used
+    st.markdown("### 📚 Source Documents Used")
+    st.markdown("*These documents were used to synthesize the response:*")
+    for doc in st.session_state.selected_files:
+        filename = doc.get("filename", "Unknown")
+        with st.expander(f"📋 {filename}", expanded=False):
+            content = doc.get("content", "No content")
+            st.text(content[:1000] + "..." if len(content) > 1000 else content)
+
+    st.markdown("---")
+
+    # User approval buttons
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("✅ Approve & Finalize", key="btn_approve_draft"):
+            st.session_state.cited_response = st.session_state.draft_response or st.session_state.compiled_response
             st.session_state.workflow_stage = "complete"
             st.rerun()
-        
-        except Exception as e:
-            st.error(f"Error embedding citations: {str(e)}")
-            logger.error(f"Citation error: {str(e)}", exc_info=True)
+
+    with col2:
+        if st.button("🔄 Regenerate Draft", key="btn_regenerate"):
+            st.session_state.draft_response = ""
+            st.session_state.compiled_response = ""
+            st.session_state.workflow_stage = "step_5_compile"
+            st.rerun()
+
+    with col3:
+        if st.button("← Back to Document Selection", key="btn_back_to_docs"):
+            st.session_state.workflow_stage = "step_4_review"
+            st.rerun()
 
 # ============================================================================
 # FINAL RESPONSE
@@ -583,22 +574,26 @@ if st.session_state.workflow_stage == "step_6_cite":
 
 if st.session_state.workflow_stage == "complete":
     st.markdown("## ✅ Tax Analysis Complete")
-    
-    # Show compiled response
+
+    # Show final response
     with st.expander("📄 Final Response", expanded=True):
         st.markdown(st.session_state.cited_response)
-    
-    # Show verification report
-    if st.session_state.verification_report:
-        with st.expander("✓ Verification Report"):
-            st.json(st.session_state.verification_report)
-    
+
+    # Show source documents referenced
+    st.markdown("### 📚 Source Documents Referenced")
+    for doc in st.session_state.selected_files:
+        filename = doc.get("filename", "Unknown")
+        with st.expander(f"📋 {filename}", expanded=False):
+            content = doc.get("content", "No content")
+            st.text(content[:500] + "..." if len(content) > 500 else content)
+
     # Export options
+    st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📋 Copy to Clipboard"):
             st.write("Response copied to clipboard")
-    
+
     with col2:
         if st.button("🔄 Start New Analysis"):
             for key in st.session_state.keys():
