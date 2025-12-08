@@ -213,8 +213,8 @@ class Agent:
             for message in self.messages
         ]
         try:
-            with open(file_path, "w") as f:
-                json.dump([message.model_dump() for message in messages], f, indent=4)
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump([message.model_dump() for message in messages], f, indent=4, ensure_ascii=False)
         except Exception as e:
             if log:
                 print(f"Error saving conversation: {e}")

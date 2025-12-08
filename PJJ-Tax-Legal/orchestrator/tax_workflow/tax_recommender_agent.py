@@ -148,7 +148,7 @@ class FileRecommender(BaseAgent):
             logger.info(f"Mapped categories to actual directories: {actual_dir_names}")
 
             # Build directory list for Agent
-            category_dirs = [f'tax_database/{dir_name}/' for dir_name in actual_dir_names]
+            category_dirs = [str(Path("tax_database") / dir_name) for dir_name in actual_dir_names]
 
             # Build suggested files text if provided
             suggested_files_text = ""

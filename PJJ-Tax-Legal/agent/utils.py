@@ -19,7 +19,7 @@ def load_system_prompt() -> str:
         The system prompt as a string.
     """
     try:
-        with open(SYSTEM_PROMPT_PATH, "r") as f:
+        with open(SYSTEM_PROMPT_PATH, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         raise FileNotFoundError(f"System prompt file not found at {SYSTEM_PROMPT_PATH}")

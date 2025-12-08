@@ -70,7 +70,7 @@ def create_file(file_path: str, content: str = "") -> bool:
             os.makedirs(parent_dir, exist_ok=True)
 
         # Write file
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
         return True
     except Exception:
@@ -116,7 +116,7 @@ def update_file(file_path: str, old_content: str, new_content: str) -> bool:
             return False
 
         # Read file
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             current_content = f.read()
 
         # Check old_content exists
@@ -127,7 +127,7 @@ def update_file(file_path: str, old_content: str, new_content: str) -> bool:
         updated_content = current_content.replace(old_content, new_content, 1)
 
         # Write back
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(updated_content)
 
         return True
@@ -152,7 +152,7 @@ def read_file(file_path: str) -> str:
         if not os.path.isfile(file_path):
             return f"Error: {file_path} is not a file"
 
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
     except PermissionError:
         return f"Error: Permission denied accessing {file_path}"
@@ -221,7 +221,7 @@ def go_to_link(link_string: str) -> str:
             return f"Error: {file_path} is not a file"
 
         # Read and return
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return f"Error: {e}"

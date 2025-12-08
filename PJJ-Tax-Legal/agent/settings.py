@@ -37,4 +37,4 @@ SANDBOX_TIMEOUT = 20
 
 # Path settings
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "system_prompt.txt"
-SAVE_CONVERSATION_PATH = "output/conversations/"
+SAVE_CONVERSATION_PATH = Path("output") / "conversations"

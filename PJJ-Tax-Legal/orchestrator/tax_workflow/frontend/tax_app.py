@@ -5,7 +5,16 @@ Phase 2 Step 3: Tax/Legal Request Analysis and Response Generation
 This is a separate Streamlit application (tax_app.py) for the tax/legal workflow.
 It works alongside (but independent from) the Project Jupiter planning system (app.py).
 
-Run with: streamlit run tax_app.py
+Run with:
+  From PJJ-Tax-Legal directory:
+    streamlit run orchestrator/tax_workflow/frontend/tax_app.py
+
+  From repository root:
+    streamlit run PJJ-Tax-Legal/orchestrator/tax_workflow/frontend/tax_app.py
+
+  Or navigate to the frontend directory and run:
+    cd PJJ-Tax-Legal/orchestrator/tax_workflow/frontend
+    streamlit run tax_app.py
 """
 
 import streamlit as st
@@ -16,8 +25,8 @@ import sys
 from datetime import datetime
 
 # Add repo to path for imports
-# Use explicit absolute path to handle Streamlit's working directory behavior
-REPO_ROOT = Path("/Users/teije/Desktop/memagent-modular-fixed/PJJ-Tax&Legal")
+# Use relative path from this file's location for cross-platform compatibility
+REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 # Debug: show what we're doing
 # print(f"REPO_ROOT: {REPO_ROOT}")
@@ -44,7 +53,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 # NEW: Initialize Agent with knowledge base path
-MEMORY_PATH = Path("/Users/teije/Desktop/memagent-modular-fixed/local-memory/tax_legal")
+MEMORY_PATH = REPO_ROOT.parent / "local-memory" / "tax_legal"
 try:
     agent = Agent(memory_path=str(MEMORY_PATH))
     logger.info("Agent initialized successfully")
@@ -193,7 +202,7 @@ with st.sidebar:
     # View logs
     st.markdown("---")
     if st.checkbox("📊 Show Logs"):
-        log_file = Path("/Users/teije/Desktop/memagent-modular-fixed/PJJ-Tax&Legal/orchestrator/tax_workflow/frontend/streamlit_instance_info/logs/tax_app.log")
+        log_file = REPO_ROOT / "orchestrator" / "tax_workflow" / "frontend" / "streamlit_instance_info" / "logs" / "tax_app.log"
         if log_file.exists():
             try:
                 recent_logs = tail_log_file(str(log_file), lines=20)

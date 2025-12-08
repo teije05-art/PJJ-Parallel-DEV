@@ -144,14 +144,14 @@ class TaxResponseSearcher(BaseAgent):
             logger.info(f"Category constraint: ONLY results matching {categories}")
 
             # Map categories to actual directory names
-            category_dirs = [f'past_responses/{self.CATEGORY_DIR_MAP.get(cat, cat)}/' for cat in categories]
+            category_dirs = [str(Path("past_responses") / self.CATEGORY_DIR_MAP.get(cat, cat)) for cat in categories]
             logger.info(f"Mapped category directories: {category_dirs}")
 
             # CRITICAL: Use Python code to navigate directories and read files
             # Agent must write Python code that uses list_files(), read_file(), etc.
             # Use ABSOLUTE paths from the memory directory
-            memory_base = self.memory_path
-            absolute_category_dirs = [f'{memory_base}/{d}' for d in category_dirs]
+            memory_base = Path(self.memory_path)
+            absolute_category_dirs = [str(memory_base / d) for d in category_dirs]
 
             # IMPROVED PROMPT - Requirements as comments, not example code
             # Agent must write its own executable Python code
