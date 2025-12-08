@@ -8,17 +8,17 @@
 
 ## ⚠️ FIRST PRIORITY - READ THIS FIRST
 
-**Before working on this codebase, read the cleanup plan:**
+**Before working on this codebase, read the refactor plan:**
 
-📄 **`Codebasecleanup.md`** - Comprehensive codebase cleanup and standardization plan
+📄 **`claudecodedocs_MD/planningcurrent/REFACTOR_PLAN_OPTION1.md`** - Comprehensive codebase refactor plan
 
-This document outlines critical improvements needed for professional collaborative development:
-- Git configuration (missing .gitignore)
-- Cache file cleanup (__pycache__, .pyc files)
-- Project structure standardization
-- Removing legacy code bloat
+This document outlines the planned restructuring to professional standards:
+- Standard `src/` layout with proper Python packaging
+- Clean directory naming (`data/`, `docs/`, `apps/`, `logs/`)
+- Proper package imports (no more `sys.path` hacks)
+- Migration steps with risk analysis and rollback plan
 
-**This is the FIRST thing to address** before adding new features or making changes.
+**Review this plan** before making structural changes to the codebase.
 
 ---
 
@@ -210,7 +210,7 @@ This eliminates hallucinations - Agent can't invent content, only read from appr
 **Planning & Status**:
 - `claudecodedocs_MD/planningcurrent/SYSTEM_STATUS_COMPLETE.md` - Current system status
 - `claudecodedocs_MD/planningcurrent/MEMAGENT_JOURNEY.md` - MemAgent implementation journey
-- `Codebasecleanup.md` - **PRIORITY: Codebase cleanup plan (read first!)**
+- `claudecodedocs_MD/planningcurrent/REFACTOR_PLAN_OPTION1.md` - **Codebase refactor plan (review before structural changes)**
 
 **Technical Specs**:
 - `claudecodedocs_MD/technical/` - Architecture details
@@ -223,7 +223,7 @@ This eliminates hallucinations - Agent can't invent content, only read from appr
 This project is currently in **active development** for PJJ Tax & Legal domain expertise.
 
 **Development Workflow**:
-1. **Read `Codebasecleanup.md` first** - Address cleanup items before new work
+1. **Read `REFACTOR_PLAN_OPTION1.md` first** - Understand planned structure before making changes
 2. All changes via feature branches
 3. Pull request required for merges
 4. Test locally before pushing
@@ -253,5 +253,5 @@ For questions or issues:
 
 ---
 
-**Last Updated**: December 6, 2025
-**Status**: ✅ Production Ready - Content truncation bug fixed, hallucinations eliminated
+**Last Updated**: December 8, 2025
+**Status**: ✅ Production Ready - MemAgent pattern implemented, Windows compatible
