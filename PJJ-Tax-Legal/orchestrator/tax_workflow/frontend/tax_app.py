@@ -26,11 +26,8 @@ from datetime import datetime
 
 # Add repo to path for imports
 # Use relative path from this file's location for cross-platform compatibility
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
-
-# Debug: show what we're doing
-# print(f"REPO_ROOT: {REPO_ROOT}")
-# print(f"REPO_ROOT exists: {REPO_ROOT.exists()}")
+# IMPORTANT: .resolve() ensures we get absolute path even when __file__ is relative
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -46,6 +43,14 @@ try:
 except ImportError as e:
     st.error(f"Failed to import required modules: {e}")
     st.error(f"sys.path: {sys.path}")
+    st.error(f"REPO_ROOT: {REPO_ROOT}")
+
+    # Diagnostic information
+    import os
+    st.error(f"Current working directory: {os.getcwd()}")
+    agent_path = REPO_ROOT / "agent"
+    st.error(f"Does {agent_path} exist? {agent_path.exists()}")
+
     st.stop()
 
 # Initialize logging system
